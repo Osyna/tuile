@@ -653,15 +653,17 @@ pub struct Skeleton {
 /// What the placeholder stands in for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SkeletonShape {
-    /// Paragraph: one bar per entry in `.lines(..)`.
+    /// Paragraph: one bar per entry in `.lines(..)` (cells), a blank row between when there's room.
     Text,
-    /// Avatar block with a title and subtitle, then body lines.
+    /// Hero image block on top, then a title and two body lines.
     Card,
-    /// Avatar block with two short lines beside it.
+    /// Avatar block with a name and a handle beside it.
     Avatar,
-    /// Header bar and rows of column cells.
+    /// Stacked avatar rows: a list waiting for its items.
+    List,
+    /// Header cells and rows of column cells; 2-4 columns depending on width.
     Table,
-    /// Bars of varying height along the bottom.
+    /// Bars of varying height along a baseline.
     Chart,
 }
 
@@ -712,10 +714,15 @@ struct Shimmer {
 
 impl Shimmer {
     fn color_at(&self, x: u16, y: u16) -> Rgb {
-        // diagonal band: shift by row so the highlight leans like a light sweep
-        let rel = (x as f32 - self.area.x as f32 + (y as f32 - self.area.y as f32) * 1.5) / self.area.width.max(1) as f32;
+        // a wide, smooth light sweeping left→right with a gentle lean (half a cell per row)
+        let rel = (x as f32 - self.area.x as f32 + (y as f32 - self.area.y as f32) * 0.5) / self.area.width.max(1) as f32;
         let d = (rel - self.band).abs();
-        if d < 0.14 { self.base.blend(self.hl, (1.0 - d / 0.14).powf(2.0)) } else { self.base }
+        const HALF: f32 = 0.28;
+        if d >= HALF {
+            return self.base;
+        }
+        let a = ((d / HALF * std::f32::consts::PI).cos() + 1.0) * 0.5;
+        self.base.blend(self.hl, a)
     }
 
     fn bar(&self, buf: &mut Buffer, x: u16, y: u16, w: u16) {
@@ -729,6 +736,29 @@ impl Shimmer {
             self.bar(buf, r.x, y, r.width);
         }
     }
+
+    /// Rows of bars with `widths` in cells, one blank row between when the height allows.
+    fn lines(&self, buf: &mut Buffer, r: Rect, widths: &[u16]) {
+        let step = if r.height as usize >= widths.len() * 2 - 1 { 2 } else { 1 };
+        for (i, &w) in widths.iter().enumerate() {
+            let y = r.y + i as u16 * step;
+            if y >= r.bottom() {
+                break;
+            }
+            self.bar(buf, r.x, y, w.min(r.width));
+        }
+    }
+}
+
+/// Column fractions for a table skeleton of the given width.
+fn table_columns(width: u16) -> &'static [u16] {
+    if width >= 36 {
+        &[28, 18, 34, 20]
+    } else if width >= 18 {
+        &[40, 25, 35]
+    } else {
+        &[55, 45]
+    }
 }
 
 impl Widget for Skeleton {
@@ -738,90 +768,95 @@ impl Widget for Skeleton {
         }
         let th = self.theme.unwrap_or_else(theme::current);
         let el = phase(self.elapsed, self.now);
-        let sh = Shimmer {
-            base: th.surface,
-            hl: th.surface.blend(th.text_muted, 0.4),
-            band: (el * 0.6).rem_euclid(1.0) * 1.6 - 0.3,
-            area,
-        };
-        let clamp = |w: u16, max: u16| w.min(max);
-        // one blank row between bars when the area is tall enough for it
-        let pitch = |lines: usize, avail: u16| if avail as usize >= lines * 2 - 1 { 2u16 } else { 1 };
+        // bars two shades above the surface, the sweep two more: visible without shouting
+        let base = th.surface.blend(th.text_muted, 0.22);
+        let sh = Shimmer { base, hl: base.blend(th.text_muted, 0.45), band: (el * 0.45).rem_euclid(1.0) * 1.8 - 0.4, area };
+        let pct = |p: u16, of: u16| (of as u32 * p as u32 / 100) as u16;
 
         match self.shape {
-            SkeletonShape::Text => {
-                let step = pitch(self.lines.len().max(1), area.height);
-                for (i, &w) in self.lines.iter().enumerate() {
-                    let y = area.y + i as u16 * step;
-                    if y >= area.bottom() {
-                        break;
-                    }
-                    sh.bar(buf, area.x, y, clamp(w, area.width));
+            SkeletonShape::Text => sh.lines(buf, area, &self.lines),
+            SkeletonShape::Card => {
+                // hero block ≈ 40% of the height (min 2 rows), a title, a blank, then body lines
+                let hero_h = (area.height * 40 / 100).clamp(2, area.height);
+                sh.block(buf, Rect { height: hero_h, ..area });
+                let w = area.width;
+                let title_y = area.y + hero_h + 1;
+                if title_y < area.bottom() {
+                    sh.bar(buf, area.x, title_y, pct(60, w));
+                }
+                let body = Rect { y: title_y + 2, height: area.bottom().saturating_sub(title_y + 2), ..area };
+                if !body.is_empty() {
+                    sh.lines(buf, body, &[pct(100, w), pct(75, w)]);
                 }
             }
-            SkeletonShape::Card | SkeletonShape::Avatar => {
-                let av_h = if self.shape == SkeletonShape::Card { 3 } else { 2 };
-                let av_w = if self.shape == SkeletonShape::Card { 6 } else { 4 };
-                let av = Rect { x: area.x, y: area.y, width: av_w.min(area.width), height: av_h.min(area.height) };
-                sh.block(buf, av);
+            SkeletonShape::Avatar | SkeletonShape::List => {
+                let av_w = 4u16.min(area.width);
                 let tx = area.x + av_w + 1;
-                if tx < area.right() {
-                    let rest = area.right() - tx;
-                    sh.bar(buf, tx, area.y, clamp(rest * 6 / 10, rest));
-                    if area.height > 1 {
-                        sh.bar(buf, tx, area.y + 1, clamp(rest * 3 / 10, rest));
+                let rest = area.right().saturating_sub(tx);
+                let item_h = if self.shape == SkeletonShape::List { 3 } else { area.height.min(2) };
+                let mut y = area.y;
+                while y + 2 <= area.bottom() {
+                    sh.block(buf, Rect { x: area.x, y, width: av_w, height: 2 });
+                    if rest > 0 {
+                        // name and handle, widths nudged per item so the list isn't a grid
+                        let seed = (y - area.y) as u32;
+                        sh.bar(buf, tx, y, pct(55 + (noise(seed, 1) * 25.0) as u16, rest));
+                        sh.bar(buf, tx, y + 1, pct(30 + (noise(seed, 2) * 15.0) as u16, rest));
                     }
-                }
-                if self.shape == SkeletonShape::Card {
-                    let body_y = area.y + av_h + 1;
-                    let step = pitch(self.lines.len().max(1), area.bottom().saturating_sub(body_y));
-                    for (i, &w) in self.lines.iter().enumerate() {
-                        let y = body_y + i as u16 * step;
-                        if y >= area.bottom() {
-                            break;
-                        }
-                        sh.bar(buf, area.x, y, clamp(w, area.width));
+                    if self.shape == SkeletonShape::Avatar {
+                        break;
                     }
+                    y += item_h;
                 }
             }
             SkeletonShape::Table => {
-                // header (darker), then rows of four columns with one-cell gutters
-                let cols = [34u16, 22, 28, 16];
+                let cols = table_columns(area.width);
                 let total: u16 = cols.iter().sum();
-                let header = Shimmer { base: th.surface.blend(th.text_muted, 0.15), ..sh };
-                header.bar(buf, area.x, area.y, area.width);
-                let step = if area.height >= 5 { 2 } else { 1 };
-                for row in 1..area.height.div_ceil(step) {
-                    let y = area.y + row * step;
-                    if y >= area.bottom() {
-                        break;
-                    }
+                let header = Shimmer { base: base.blend(th.text_muted, 0.25), ..sh };
+                let step = if area.height >= 6 { 2 } else { 1 };
+                let mut y = area.y;
+                let mut row = 0u32;
+                while y < area.bottom() {
                     let mut x = area.x;
                     for (ci, &c) in cols.iter().enumerate() {
-                        let mut w = (area.width as u32 * c as u32 / total as u32) as u16;
-                        if w == 0 {
-                            continue;
+                        let col_w = pct(c * 100 / total, area.width).max(2);
+                        let cell_w = if row == 0 {
+                            col_w.saturating_sub(1)
+                        } else {
+                            // data cells vary a little; the last column is a short status/number
+                            let jitter = if col_w >= 6 { (noise(row, ci as u32) * 3.0) as u16 } else { 0 };
+                            col_w.saturating_sub(1 + jitter).max(1)
+                        };
+                        let painter = if row == 0 { &header } else { &sh };
+                        painter.bar(buf, x, y, cell_w.min(area.right().saturating_sub(x)));
+                        x += col_w;
+                        if x >= area.right() {
+                            break;
                         }
-                        // vary widths a little per row so it reads as data, not a grid
-                        let jitter = (noise(row as u32, ci as u32) * 2.5) as u16;
-                        let bar_w = w.saturating_sub(1 + jitter).max(1);
-                        sh.bar(buf, x, y, bar_w.min(area.right().saturating_sub(x)));
-                        w = w.max(1);
-                        x += w;
                     }
+                    y += if row == 0 { 2 } else { step };
+                    row += 1;
                 }
             }
             SkeletonShape::Chart => {
+                if area.height < 2 {
+                    sh.bar(buf, area.x, area.y, area.width);
+                    return;
+                }
                 let bar_w: u16 = if area.width >= 30 { 3 } else { 2 };
                 let pitch = bar_w + 1;
                 let n = (area.width + 1) / pitch;
+                let plot_h = area.height - 1;
                 for k in 0..n {
-                    let level = 0.25 + noise(k as u32, 99) * 0.75;
-                    let h = ((level * area.height as f32).round() as u16).clamp(1, area.height);
+                    let level = 0.2 + noise(k as u32, 99) * 0.8;
+                    let h = ((level * plot_h as f32).round() as u16).clamp(1, plot_h);
                     let x = area.x + k * pitch;
                     let w = bar_w.min(area.right().saturating_sub(x));
-                    sh.block(buf, Rect { x, y: area.bottom() - h, width: w, height: h });
+                    sh.block(buf, Rect { x, y: area.y + plot_h - h, width: w, height: h });
                 }
+                // baseline
+                let axis = Shimmer { base: base.blend(th.background, 0.5), hl: base, ..sh };
+                axis.bar(buf, area.x, area.bottom() - 1, area.width);
             }
         }
     }
@@ -968,7 +1003,7 @@ mod tests {
     #[test]
     fn skeleton_shapes_paint_inside_the_area() {
         let th = Theme::default();
-        for shape in [SkeletonShape::Text, SkeletonShape::Card, SkeletonShape::Avatar, SkeletonShape::Table, SkeletonShape::Chart] {
+        for shape in [SkeletonShape::Text, SkeletonShape::Card, SkeletonShape::Avatar, SkeletonShape::List, SkeletonShape::Table, SkeletonShape::Chart] {
             let area = Rect::new(2, 1, 30, 6);
             let mut buf = Buffer::empty(Rect::new(0, 0, 40, 10));
             Skeleton::new().shape(shape).elapsed(0.2).theme(&th).render(area, &mut buf);

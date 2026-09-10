@@ -103,7 +103,7 @@ impl Page for LoadingPage {
         // ── skeletons | overlay ──
         let [sk, ov] = Layout::horizontal([Constraint::Percentage(72), Constraint::Fill(1)]).areas(bottom);
         let k = pad(card(buf, sk, &th, "Skeleton shapes"), 1, 0);
-        let shapes = [(SkeletonShape::Text, "Text", 12u16), (SkeletonShape::Card, "Card", 16), (SkeletonShape::Avatar, "Avatar", 11), (SkeletonShape::Table, "Table", 20), (SkeletonShape::Chart, "Chart", 0)];
+        let shapes = [(SkeletonShape::Text, "Text", 15u16), (SkeletonShape::Card, "Card", 13), (SkeletonShape::List, "List", 13), (SkeletonShape::Table, "Table", 19), (SkeletonShape::Chart, "Chart", 0)];
         let mut x = k.x;
         for (shape, name, fixed) in shapes {
             let w = if fixed == 0 { k.right().saturating_sub(x) } else { fixed.min(k.right().saturating_sub(x)) };
@@ -113,7 +113,7 @@ impl Page for LoadingPage {
             let w = w.saturating_sub(2);
             put(buf, x, k.y, name, w, muted);
             let body = Rect { x, y: k.y + 1, width: w, height: k.height.saturating_sub(1) };
-            Skeleton::new().shape(shape).lines(&[w, w.saturating_sub(4), w * 3 / 4, w / 2]).elapsed(el).theme(&th).render(body, buf);
+            Skeleton::new().shape(shape).lines(&[w, w * 9 / 10, w * 19 / 20, w * 3 / 5]).elapsed(el).theme(&th).render(body, buf);
             x += w + 2;
         }
 

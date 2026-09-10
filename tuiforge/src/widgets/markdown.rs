@@ -109,7 +109,7 @@ impl Markdown {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 
@@ -132,7 +132,7 @@ impl StatefulWidget for Markdown {
         if area.width < 5 || area.height < 2 {
             return;
         }
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         // Don't fill - let the parent background show through
         let content_w = area.width.saturating_sub(1);
         let lines = self.lines(content_w as usize, &th);

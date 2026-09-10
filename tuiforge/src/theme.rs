@@ -340,7 +340,8 @@ pub enum Variant {
 }
 
 /// Resolved palette with every derived role Textual's `ColorSystem.generate` produces.
-#[derive(Clone, Debug, PartialEq)]
+/// Plain data (`Copy`): pass it by reference to builders, copy it into state freely.
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Theme {
     pub name: &'static str,
     pub dark: bool,
@@ -501,7 +502,7 @@ pub fn current() -> Theme {
     if let Ok(g) = CURRENT.read()
         && let Some(t) = g.as_ref()
     {
-        return t.clone();
+        return *t;
     }
     Theme::default()
 }

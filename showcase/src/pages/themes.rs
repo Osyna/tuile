@@ -33,7 +33,7 @@ impl ThemesPage {
             Some(Rgb::from_hsl(h + self.hue_shift, s, l))
         };
         let th = Theme::resolve(spec, primary);
-        theme::set(th.clone());
+        theme::set(th);
         ctx.theme = th;
     }
 
@@ -86,7 +86,7 @@ impl Page for ThemesPage {
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
-        let th = ctx.theme.clone();
+        let th = ctx.theme;
         if let Some(i) = BUILTIN.iter().position(|t| t.name == th.name) {
             self.cursor = i;
         }

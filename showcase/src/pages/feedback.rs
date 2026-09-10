@@ -3,7 +3,7 @@
 
 use tuiforge::draw::{fill, put, st};
 use tuiforge::prelude::*;
-use tuiforge::widgets::{CalloutBorder, SkeletonShape, SpinnerKind, ToastCorner};
+use tuiforge::widgets::{CalloutBorder, SkeletonShape, ToastCorner, spinners};
 
 use super::{Ctx, Page, card};
 
@@ -106,7 +106,7 @@ impl Page for FeedbackPage {
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
-        let th = ctx.theme.clone();
+        let th = ctx.theme;
         let now = ctx.now;
         // drive the demo
         if self.next_cycle.is_none_or(|t| now >= t) {
@@ -150,24 +150,22 @@ impl Page for FeedbackPage {
             put(buf, sp.right(), y, &hint, p.width.saturating_sub(26), st(if focused { th.text } else { th.text_disabled }, th.background));
         }
 
-        // ── spinners ──
-        let s = pad(card(buf, spin_a, &th, "Spinners (hover a name for a tooltip)"), 1, 0);
+        // ── spinners (a sample; the Spinners page has the whole catalog) ──
+        let s = pad(card(buf, spin_a, &th, "Spinners (hover for code · all 102 on the Spinners page)"), 1, 0);
         self.spinner_hits.clear();
         let cols_n = if s.width >= 60 { 3 } else { 2 };
         let cw = s.width / cols_n as u16;
-        for (i, kind) in SpinnerKind::ALL.iter().enumerate() {
+        for (i, def) in SAMPLE.iter().enumerate() {
             let (r, c) = (i / cols_n, i % cols_n);
             let rect = Rect { x: s.x + c as u16 * cw, y: s.y + r as u16, width: cw.saturating_sub(1), height: 1 };
             if rect.bottom() > s.bottom() {
                 break;
             }
-            let name = kind_name(*kind);
-            let hovered = self.hover_spinner == Some(i);
-            if hovered {
+            if self.hover_spinner == Some(i) {
                 fill(buf, rect, th.hover_bg);
             }
-            Spinner::new(*kind).label(name).now(now).epoch(ctx.started).theme(&th).render(rect, buf);
-            self.spinner_hits.push((rect, name));
+            Spinner::new(def).label(def.name).now(now).theme(&th).render(rect, buf);
+            self.spinner_hits.push((rect, def.name));
         }
 
         // ── loading states ──
@@ -248,7 +246,7 @@ impl Page for FeedbackPage {
             && let Some((rect, name)) = self.spinner_hits.get(i)
         {
             self.tooltip.track(true, *rect, now);
-            Tooltip::new(&format!("SpinnerKind::{name} — Spinner::new(SpinnerKind::{name}).label(..).now(now)"))
+            Tooltip::new(&format!("Spinner::new(&spinners::{}).label(..).now(now)", super::spinners::const_name(name)))
                 .max_width(40)
                 .theme(&th)
                 .render_overlay(buf, area, &mut self.tooltip, now);
@@ -375,24 +373,24 @@ impl Page for FeedbackPage {
     }
 }
 
-fn kind_name(k: SpinnerKind) -> &'static str {
-    match k {
-        SpinnerKind::Dots => "Dots",
-        SpinnerKind::Dots2 => "Dots2",
-        SpinnerKind::Line => "Line",
-        SpinnerKind::Arc => "Arc",
-        SpinnerKind::Bounce => "Bounce",
-        SpinnerKind::BouncingBar => "BouncingBar",
-        SpinnerKind::Braille => "Braille",
-        SpinnerKind::Moon => "Moon",
-        SpinnerKind::Clock => "Clock",
-        SpinnerKind::Arrow => "Arrow",
-        SpinnerKind::Toggle => "Toggle",
-        SpinnerKind::Aesthetic => "Aesthetic",
-        SpinnerKind::Circle => "Circle",
-        SpinnerKind::SquareCorners => "SquareCorners",
-        SpinnerKind::Triangle => "Triangle",
-        SpinnerKind::Pulse => "Pulse",
-        SpinnerKind::Grow => "Grow",
-    }
-}
+/// A cross-section of the catalog: classics, wide ones, emoji, and tuiforge originals.
+const SAMPLE: &[&SpinnerDef] = &[
+    &spinners::DOTS,
+    &spinners::LINE,
+    &spinners::ARC,
+    &spinners::BOUNCING_BAR,
+    &spinners::MOON,
+    &spinners::CLOCK,
+    &spinners::MATERIAL,
+    &spinners::SPARKLE,
+    &spinners::RING,
+    &spinners::WAVE,
+    &spinners::DNA,
+    &spinners::SCANNER,
+    &spinners::EQUALIZER,
+    &spinners::SHIMMER,
+    &spinners::MATRIX,
+    &spinners::BRAILLE_WAVE,
+    &spinners::AESTHETIC,
+    &spinners::TOGGLE,
+];

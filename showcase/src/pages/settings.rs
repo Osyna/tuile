@@ -194,7 +194,7 @@ impl Page for SettingsPage {
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
-        let th = ctx.theme.clone();
+        let th = ctx.theme;
         let now = ctx.now;
         let f = |id: Id, focus: &Focus<Id>| focus.is(id);
         let inner = pad(area, 1, 0);
@@ -402,7 +402,7 @@ impl Page for SettingsPage {
                 && BUILTIN[i].name != ctx.theme.name
             {
                 let th = Theme::resolve(&BUILTIN[i], None);
-                theme::set(th.clone());
+                theme::set(th);
                 ctx.theme = th;
             }
             match pressed {

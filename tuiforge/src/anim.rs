@@ -1,6 +1,7 @@
 //! Time-based animation: easing curves, retargetable tweens, pulses and blinks.
 //! Everything samples an explicit `Instant` so rendering stays pure and testable.
 
+use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -154,6 +155,16 @@ impl Default for Tween {
 /// Seconds since `epoch`; the raw clock most looping animations sample.
 pub fn elapsed(epoch: Instant, now: Instant) -> f32 {
     now.saturating_duration_since(epoch).as_secs_f32()
+}
+
+/// Process-wide epoch for looping animations (spinners, shimmers, marquees). Widgets that take
+/// only `.now(instant)` measure their phase from here, so they animate without an app-owned
+/// start time. Fixed on first use.
+pub static EPOCH: LazyLock<Instant> = LazyLock::new(Instant::now);
+
+/// Seconds between [`EPOCH`] and `now`: the phase clock for looping animations.
+pub fn since(now: Instant) -> f32 {
+    elapsed(*EPOCH, now)
 }
 
 /// Smooth 0→1→0 oscillation with the given period in seconds.

@@ -227,7 +227,7 @@ impl ToastStack {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 
@@ -393,7 +393,7 @@ impl Callout {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }

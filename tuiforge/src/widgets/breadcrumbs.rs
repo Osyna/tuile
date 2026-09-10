@@ -68,7 +68,7 @@ impl Breadcrumbs {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone());
+        self.theme = Some(*t);
         self
     }
 }
@@ -138,7 +138,7 @@ impl StatefulWidget for Breadcrumbs {
             return;
         }
 
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let bg = th.surface;
         fill(buf, area, bg);
 
@@ -252,7 +252,7 @@ impl Paginator {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone());
+        self.theme = Some(*t);
         self
     }
 }
@@ -352,7 +352,7 @@ impl StatefulWidget for Paginator {
             return;
         }
 
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let bg = th.surface;
         fill(buf, area, bg);
 

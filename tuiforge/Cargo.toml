@@ -5,10 +5,16 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "../README.md"
+documentation = "https://docs.rs/tuiforge"
 keywords = ["tui", "ratatui", "widgets", "terminal", "ui"]
-categories = ["command-line-interface"]
+categories = ["command-line-interface", "gui"]
+rust-version = "1.88"
 
 [dependencies]
 ratatui = { workspace = true }
 unicode-width = { workspace = true }
 unicode-segmentation = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true

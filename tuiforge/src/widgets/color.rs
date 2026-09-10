@@ -119,7 +119,7 @@ impl Swatches {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -330,7 +330,7 @@ impl ColorPicker {
         Self { theme: None }
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -490,7 +490,7 @@ impl GradientBar {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -546,7 +546,7 @@ impl ThemePalette {
         Self { theme: None }
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }

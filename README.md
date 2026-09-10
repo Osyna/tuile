@@ -6,10 +6,19 @@
 design system that makes building rich, animated, mouse-aware terminal UIs in Rust take a
 fraction of the code — and a `showcase` app that exercises all of it.
 
+```toml
+[dependencies]
+tuiforge = { git = "https://github.com/irvin/tuiforge" }   # re-exports ratatui + crossterm
+```
+
 ```
 cargo run --release -p showcase            # the gallery
 cargo run --release -p showcase -- --page charts --theme nord
 ```
+
+`use tuiforge::prelude::*;` brings in every widget, the theme, layout and draw helpers plus the
+ratatui types you need (`Rect`, `Buffer`, `Frame`, key/mouse events). `tuiforge::ratatui` and
+`tuiforge::crossterm` are re-exported so your app does not need its own pinned versions.
 
 ## Why
 
@@ -73,6 +82,39 @@ Focus is owned by the app through `Focus<Id>`; hover is tracked by each state's 
 Overlays (dropdowns, menus, tooltips, dialogs, palettes, toasts) render last via
 `render_overlay(..)` / dedicated stack widgets.
 
+## Reuse & customize
+
+Every widget follows the same four knobs, so once you know one you know them all:
+
+```rust
+use tuiforge::prelude::*;
+
+// theme: process-wide by name / spec, or per widget
+theme::set_by_name("catppuccin-mocha");
+let mine = Theme::resolve(&ThemeSpec::new("mine", true, Rgb::hex(0x7c3aed)), None);
+Button::new("Save").theme(&mine).render(area, buf, &mut state);
+
+// time: pass the frame instant; looping animations phase from a shared epoch
+Spinner::new(&spinners::DOTS).now(now).render(area, buf);
+Spinner::new(&spinners::SPARKLE).elapsed(1.25).render(area, buf);     // deterministic (tests)
+
+// look: focus is yours, hover is the widget's, variants are semantic
+Button::new("Delete").variant(Variant::Error).style(ButtonStyle::Outline).focused(is_focused);
+
+// your own content: borrow slices, nothing is copied until it is drawn
+const PULSE: SpinnerDef = SpinnerDef::new("pulse", 120, &["·", "•", "●", "•"]);
+Spinner::new(&PULSE);
+Spinner::frames(&frames_from_config, 90);
+```
+
+* **Drawing primitives are public.** `draw::{Border, put, fill, hbar, wrap, truncate, st}` and
+  `layout::{stack, columns, center, popup_below}` are the same functions the widgets use, so a
+  custom widget looks native. `docs/WIDGET_CONTRACT.md` is the checklist.
+* **State is plain data.** `<Name>State` structs are `Clone + Debug` with public fields; persist
+  them, diff them, build them in tests. `Theme` is `Copy`.
+* **No hidden globals except two:** `theme::current()` (overridable per widget) and
+  `anim::EPOCH` (overridable with `.elapsed(secs)`).
+
 ## Design system
 
 `theme.rs` is a port of Textual's `ColorSystem`: a palette of ~10 colours expands into 30+
@@ -93,20 +135,27 @@ take an explicit `.theme(&Theme)`.
 | Navigation | `TabBar` (underline / boxed / pills / segmented / minimal, closable, animated), `TabbedContent`, `ListView` (filter, multi-select, details), `TreeView` (guides, expand/collapse), `MenuBar` + `ContextMenu` (submenus, shortcuts), `Breadcrumbs`, `Paginator` |
 | Data | `DataTable` (sortable, zebra, row/cell cursor, multi-select, column resize, filter), `KeyValueList`, `Digits` (Textual big numerals) |
 | Charts | `SparkChart`, `BarGraph` (grouped, horizontal), `LineGraph` (braille, area, grid, legend), `ScatterPlot`, `Heatmap`, `ActivityGraph`, `Meter`, `RadialGauge`, `BrailleCanvas` |
-| Feedback | `ProgressBar` (tweened, ETA, indeterminate), `StepProgress`, `Spinner` (17 kinds), `LoadingIndicator`, `Skeleton`, `Marquee`, `Blinker`, `Toaster`/`ToastStack`, `Callout`, `Modal` (confirm / alert / prompt), `CommandPalette` (fuzzy), `Tooltip` |
+| Feedback | `ProgressBar` (tweened, ETA, indeterminate), `StepProgress`, `Spinner` + `spinners::*` (all 90 [yaspin](https://github.com/pavdmyt/yaspin) / cli-spinners + 12 originals: `SPARKLE`, `RING`, `WAVE`, `EQUALIZER`, `SCANNER`, `SHIMMER`, `DNA`, `MATRIX`…), `LoadingIndicator`, `Skeleton`, `Marquee`, `Blinker`, `Toaster`/`ToastStack`, `Callout`, `Modal` (confirm / alert / prompt), `CommandPalette` (fuzzy), `Tooltip` |
+| AI / LLM | `ChatView` (bubbles, streaming), `StreamText`, `Thinking`, `ContextGauge`, `ToolCall`, `TokenHeat`, `DiffView`, `PromptComposer`, `Approval` |
 | Layout & chrome | `SplitPane` (draggable), `ScrollView` (offscreen buffer, smooth), `Scrollbar`, `Panel` / card / section, `Collapsible` + `Accordion`, `AppHeader`, `KeyFooter`, `Placeholder` |
 | Content | `Label`, `Rule`, `Badge`, `Pill`, `KeyCap`, `Link`, `StatCard`, `Markup` (Rich-style `[b]…[/b]`), `Markdown`, `LogView`, `Calendar` + `DatePicker`, `Swatches`, `ColorPicker`, `GradientBar`, `ThemePalette`, `Steps`, `Timeline` |
 
 Foundation modules: `core` (Outcome, Look, Focus, HitBox, key helpers), `draw` (clipped text,
 16 border styles with titles, eighth-block bars, blending, wrapping), `layout` (centring,
-grids, flow, popup placement, overlay queue), `anim` (tweens, easings, pulses, blinks),
-`fuzzy`, `runtime` (app loop, local clock, civil dates).
+grids, flow, popup placement, overlay queue), `anim` (tweens, easings, pulses, blinks, shared
+epoch), `fuzzy`, `runtime` (app loop, local clock, civil dates).
+
+Examples: `cargo run -p tuiforge --example minimal` (switch + input + button) and
+`--example custom` (own `ThemeSpec`, own `SpinnerDef`, chat + composer + context gauge).
+Regenerate the spinner catalog from `tools/spinners.json` with `python tools/gen_spinners.py`.
 
 ## Showcase
 
-`showcase/` is a 12-page gallery: Welcome, Dashboard (everything composed on one screen),
-Controls, Inputs, Navigation, Tables, Charts, Feedback, Layout, Content, Settings (a complete
-preferences form in ~300 lines), Themes (live primary-hue override).
+`showcase/` is a 14-page gallery: Welcome, Dashboard (everything composed on one screen),
+Controls, Inputs, Navigation, Tables, Charts, Feedback, Spinners (the whole catalog, filterable,
+with the one-liner for each), AI (chat, streaming, tool calls, context gauge, approvals, diffs),
+Layout, Content, Settings (a complete preferences form in ~300 lines), Themes (live primary-hue
+override).
 
 Keys: `]`/`[` pages, `alt+1..9` jump, `^p` palette, `^t` theme, `^b` sidebar, `F1` help,
 `F3` reduce motion, `Tab` focus, mouse everywhere.
@@ -126,6 +175,8 @@ Headless screenshots for review/CI: `python tools/shot.py -s 130x42 -k "Tab Ente
 | ![layout](docs/screenshots/layout.png) | ![content](docs/screenshots/content.png) |
 | **Themes** | **Command palette** (nord) |
 | ![themes](docs/screenshots/themes.png) | ![palette](docs/screenshots/palette.png) |
+| **AI / LLM** (chat, streaming, tool calls, approvals, diff) | **Spinners** (102-entry catalog) |
+| ![ai](docs/screenshots/ai.png) | ![spinners](docs/screenshots/spinners.png) |
 
 ## Writing a widget
 
@@ -135,5 +186,5 @@ tests per module). `tuiforge/src/widgets/scrollbar.rs` is the reference implemen
 
 ## Status
 
-Early but complete: 70+ widgets, 120+ unit tests, zero `unsafe`, MSRV = current stable
+Early but complete: 80+ widgets, 102 spinners, 170+ tests, zero `unsafe`, MSRV 1.88
 (edition 2024). Not affiliated with Textualize; the design language is theirs, the code is not.

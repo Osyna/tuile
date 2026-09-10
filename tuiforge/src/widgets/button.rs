@@ -128,7 +128,7 @@ impl Button {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -142,7 +142,7 @@ impl StatefulWidget for Button {
             return;
         }
 
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let pressed = state.pressed_at.filter(|&t| {
             self.now.is_some_and(|now| now.duration_since(t).as_millis() < 120)
         }).is_some();

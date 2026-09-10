@@ -210,7 +210,7 @@ impl SplitPane {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone()); self
+        self.theme = Some(*t); self
     }
 
     /// Render the split and return (first_rect, second_rect).

@@ -85,7 +85,7 @@ impl Checkbox {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -99,7 +99,7 @@ impl StatefulWidget for Checkbox {
             return;
         }
 
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
         let bg = th.background;
 
@@ -263,7 +263,7 @@ impl Switch {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -286,7 +286,7 @@ impl StatefulWidget for Switch {
             return;
         }
 
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
         let t = state.anim.value(self.now.unwrap_or_else(Instant::now));
 
@@ -458,7 +458,7 @@ impl RadioGroup {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -472,7 +472,7 @@ impl StatefulWidget for RadioGroup {
             return;
         }
 
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let look = Look { focused: self.focused, hover: false, enabled: self.enabled };
         let bg = th.background;
 
@@ -653,7 +653,7 @@ impl CheckList {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 
@@ -672,7 +672,7 @@ impl StatefulWidget for CheckList {
             return;
         }
 
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let look = Look { focused: self.focused, hover: false, enabled: self.enabled };
         let bg = th.background;
 
@@ -851,7 +851,7 @@ impl Segmented {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -865,7 +865,7 @@ impl StatefulWidget for Segmented {
             return;
         }
 
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let look = Look { focused: self.focused, hover: false, enabled: self.enabled };
         let bg = th.background;
 

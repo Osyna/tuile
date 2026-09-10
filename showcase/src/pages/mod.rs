@@ -5,6 +5,7 @@ use std::time::Instant;
 
 use tuiforge::prelude::*;
 
+pub mod ai;
 pub mod charts;
 pub mod content;
 pub mod controls;
@@ -15,6 +16,7 @@ pub mod inputs;
 pub mod layout;
 pub mod navigation;
 pub mod settings;
+pub mod spinners;
 pub mod themes;
 pub mod welcome;
 
@@ -86,6 +88,8 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(data::DataPage::default()),
         Box::new(charts::ChartsPage::default()),
         Box::new(feedback::FeedbackPage::default()),
+        Box::new(spinners::SpinnersPage::default()),
+        Box::new(ai::AiPage::default()),
         Box::new(layout::LayoutPage::default()),
         Box::new(content::ContentPage::default()),
         Box::new(settings::SettingsPage::default()),

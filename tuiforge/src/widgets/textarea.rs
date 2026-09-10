@@ -129,7 +129,7 @@ impl TextArea {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -666,6 +666,11 @@ impl StatefulWidget for TextArea {
         };
 
         state.hit.set_area(text_area);
+
+        // Placeholder (muted, under the cursor) while there is nothing typed
+        if !self.placeholder.is_empty() && state.lines.iter().all(String::is_empty) && text_area.width > 1 {
+            put(buf, text_area.x + 1, text_area.y, &self.placeholder, text_area.width - 1, st(th.text_muted, bg));
+        }
 
         // Scroll
         state.scroll_y = keep_visible(state.scroll_y, state.cursor.0, text_area.height as usize);

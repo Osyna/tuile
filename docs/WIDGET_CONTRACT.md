@@ -51,7 +51,11 @@ Rules:
 4. **Animation.** Time comes in through `.now(instant)` on the builder and `state.now(instant)`
    (or the `now` argument) for event handlers that start tweens. Store `Tween`s in the state;
    expose `animating(now)`. Respect `.duration(Duration)` / `Duration::ZERO` = instant.
-5. **Theme.** `let th = self.theme.clone().unwrap_or_else(theme::current);` inside `render`.
+   Looping animations (spinners, shimmers, marquees) take their phase from
+   `anim::since(now)` (seconds since the process-wide `anim::EPOCH`) and offer `.elapsed(f32)`
+   as the explicit, testable override; never ask the app for a start instant.
+5. **Theme.** `let th = self.theme.unwrap_or_else(theme::current);` inside `render` (`Theme` is
+   `Copy`; builders store `Option<Theme>` and `.theme(&Theme)` does `Some(*th)`).
    Use semantic roles (`th.surface`, `th.panel`, `th.primary`, `th.text_muted`, `th.cursor_bg`,
    `Variant` → `th.variant(v)` / `th.text_variant(v)`). Never hard-code colours.
 6. **Draw through `crate::draw`.** `fill`, `put`, `put_centered`, `Border::*.draw/draw_titled`,

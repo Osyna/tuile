@@ -67,7 +67,7 @@ impl Page for LayoutPage {
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
-        let th = ctx.theme.clone();
+        let th = ctx.theme;
         let now = ctx.now;
         let inner = pad(area, 1, 0);
         let [main, strip] = Layout::vertical([Constraint::Fill(1), Constraint::Length(4)]).areas(inner);

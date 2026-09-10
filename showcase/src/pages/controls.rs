@@ -107,7 +107,7 @@ impl Page for ControlsPage {
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
-        let th = ctx.theme.clone();
+        let th = ctx.theme;
         let now = ctx.now;
         let dur = ctx.dur(200);
         let f = |id: Id, focus: &Focus<Id>| focus.is(id);

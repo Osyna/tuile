@@ -194,14 +194,14 @@ impl Digits {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone());
+        self.theme = Some(*t);
         self
     }
 }
 
 impl Widget for Digits {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         if area.height < 3 {
             return;
         }

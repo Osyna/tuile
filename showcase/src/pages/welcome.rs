@@ -46,7 +46,7 @@ impl Page for WelcomePage {
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
-        let th = ctx.theme.clone();
+        let th = ctx.theme;
         let t = ctx.elapsed();
         let inner = pad(area, 2, 1);
         if inner.width < 20 || inner.height < 8 {

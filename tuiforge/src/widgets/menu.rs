@@ -126,7 +126,7 @@ impl MenuBar {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone());
+        self.theme = Some(*t);
         self
     }
 }
@@ -182,7 +182,7 @@ impl MenuBarState {
         if self.open.is_none() {
             return;
         }
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
 
         // main dropdown
         if self.dropdown_area.width > 0 && self.dropdown_area.height > 0 {
@@ -379,7 +379,7 @@ impl StatefulWidget for MenuBar {
             return;
         }
 
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let bg = th.panel;
         fill(buf, area, bg);
 
@@ -387,7 +387,7 @@ impl StatefulWidget for MenuBar {
         state.item_hits.clear();
         state.sub_hits.clear();
         state.bounds = buf.area;
-        state.theme = Some(th.clone());
+        state.theme = Some(th);
 
         let mut x = area.x;
 
@@ -549,7 +549,7 @@ impl ContextMenu {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone());
+        self.theme = Some(*t);
         self
     }
 }
@@ -591,7 +591,7 @@ impl ContextMenuState {
         if !self.open || self.area.width == 0 {
             return;
         }
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         render_dropdown(buf, self.area, &self.hits, self.highlight, None, &th);
     }
 }
@@ -676,9 +676,9 @@ impl StatefulWidget for ContextMenu {
             return;
         }
 
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         state.hits.clear();
-        state.theme = Some(th.clone());
+        state.theme = Some(th);
 
         // compute size
         let mut max_w = 0u16;

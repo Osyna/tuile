@@ -190,7 +190,7 @@ impl ListView {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone());
+        self.theme = Some(*t);
         self
     }
 }

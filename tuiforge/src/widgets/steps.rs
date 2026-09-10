@@ -131,7 +131,7 @@ impl Steps {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -142,7 +142,7 @@ impl StatefulWidget for Steps {
         if area.width == 0 || area.height == 0 || self.labels.is_empty() {
             return;
         }
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         fill(buf, area, th.surface);
 
         state.hits.clear();
@@ -296,7 +296,7 @@ impl Timeline {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }

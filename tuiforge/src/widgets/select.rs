@@ -179,7 +179,7 @@ impl Select {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -575,7 +575,7 @@ impl Combobox {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -817,7 +817,7 @@ impl StatefulWidget for Combobox {
     type State = ComboboxState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         state.hit.set_area(area);
 
         Input::new()
@@ -877,7 +877,7 @@ impl MultiSelect {
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }

@@ -165,7 +165,7 @@ impl Collapsible {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone()); self
+        self.theme = Some(*t); self
     }
 
     /// Render with a closure that draws content. Returns total height used.
@@ -407,7 +407,7 @@ impl Accordion {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone());
+        self.theme = Some(*t);
         self
     }
 
@@ -417,7 +417,7 @@ impl Accordion {
         F: FnMut(usize, Rect, &mut Buffer),
     {
         state.exclusive = self.exclusive;
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let mut y = area.y;
         for (i, (item_state, &content_h)) in state.states.iter_mut().zip(heights.iter()).enumerate() {
             if y >= area.bottom() {

@@ -207,7 +207,7 @@ impl ScrollView {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone()); self
+        self.theme = Some(*t); self
     }
 
     /// Render with a closure that draws into the content buffer.

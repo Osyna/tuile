@@ -197,7 +197,7 @@ impl Page for DashboardPage {
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
-        let th = ctx.theme.clone();
+        let th = ctx.theme;
         let now = ctx.now;
         // simulation tick
         if self.auto.on && self.last_tick.is_none_or(|t| now.duration_since(t) >= Duration::from_millis(600)) {

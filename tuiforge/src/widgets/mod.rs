@@ -48,8 +48,11 @@ pub mod log;
 pub mod markdown;
 pub mod steps;
 pub mod text;
+// ai / llm
+pub mod ai;
 
 pub use breadcrumbs::*;
+pub use ai::*;
 pub use button::*;
 pub use calendar::*;
 pub use charts::*;

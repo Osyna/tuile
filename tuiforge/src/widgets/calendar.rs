@@ -275,7 +275,7 @@ impl Calendar {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -536,7 +536,7 @@ impl DatePicker {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 
@@ -545,7 +545,7 @@ impl DatePicker {
         if !state.open {
             return;
         }
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let cal_w = 25;
         let cal_h = 10;
         let popup_area = popup_below(state.hit.area, cal_w, cal_h, bounds);

@@ -70,7 +70,7 @@ impl Shell {
     fn set_theme(&mut self, idx: usize) {
         let specs = theme::BUILTIN;
         let th = Theme::resolve(&specs[idx % specs.len()], None);
-        theme::set(th.clone());
+        theme::set(th);
         self.ctx.theme = th;
         let name = specs[idx % specs.len()].name.to_string();
         self.ctx.notify(format!("Theme: {name}"), Variant::Primary);
@@ -216,7 +216,7 @@ impl App for Shell {
     fn draw(&mut self, frame: &mut Frame, now: Instant) {
         let area = frame.area();
         let buf = frame.buffer_mut();
-        let th = self.ctx.theme.clone();
+        let th = self.ctx.theme;
         fill(buf, area, th.background);
         if area.width < 60 || area.height < 16 {
             put_centered(buf, Rect { y: area.y + area.height / 2, height: 1, ..area }, "Terminal too small (need 60×16)", st(th.text, th.background));

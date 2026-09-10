@@ -160,7 +160,7 @@ impl TabBar {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone());
+        self.theme = Some(*t);
         self
     }
 }
@@ -322,7 +322,7 @@ impl StatefulWidget for TabBar {
             return;
         }
 
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let bg = th.surface;
         let now = self.now.unwrap_or_else(Instant::now);
 
@@ -745,7 +745,7 @@ impl TabbedContent {
         }
         let bar_h = if matches!(self.bar.style, TabStyle::Underline) { 2 } else { 1 };
         let bar_area = Rect::new(area.x, area.y, area.width, bar_h);
-        let th = self.bar.theme.clone().unwrap_or_else(theme::current);
+        let th = self.bar.theme.unwrap_or_else(theme::current);
         self.bar.render(bar_area, buf, state);
 
         let content_area = Rect::new(area.x, area.y + bar_h, area.width, area.height.saturating_sub(bar_h));

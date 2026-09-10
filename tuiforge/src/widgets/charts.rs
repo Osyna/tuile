@@ -192,7 +192,7 @@ impl<'a> SparkChart<'a> {
     pub fn baseline(mut self, v: bool) -> Self { self.baseline = v; self }
     pub fn style(mut self, s: SparkStyle) -> Self { self.style = s; self }
     pub fn show_last_value(mut self, v: bool) -> Self { self.show_last = v; self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(th.clone()); self }
+    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
 }
 
 impl Widget for SparkChart<'_> {
@@ -321,7 +321,7 @@ impl<'a> BarGraph<'a> {
     pub fn gap(mut self, g: u16) -> Self { self.gap = g; self }
     pub fn max(mut self, m: f64) -> Self { self.max_override = Some(m); self }
     pub fn axis(mut self, v: bool) -> Self { self.axis = v; self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(th.clone()); self }
+    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
 }
 
 impl Widget for BarGraph<'_> {
@@ -492,7 +492,7 @@ impl<'a> LineGraph<'a> {
     pub fn grid(mut self, v: bool) -> Self { self.grid = v; self }
     pub fn legend(mut self, p: LegendPos) -> Self { self.legend = p; self }
     pub fn title(mut self, t: &'a str) -> Self { self.title = Some(t); self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(th.clone()); self }
+    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
 }
 
 impl Widget for LineGraph<'_> {
@@ -675,7 +675,7 @@ impl<'a> ScatterPlot<'a> {
 
     pub fn x_bounds(mut self, min: f64, max: f64) -> Self { self.x_bounds = Some((min, max)); self }
     pub fn y_bounds(mut self, min: f64, max: f64) -> Self { self.y_bounds = Some((min, max)); self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(th.clone()); self }
+    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
 }
 
 impl Widget for ScatterPlot<'_> {
@@ -732,7 +732,7 @@ impl<'a> Heatmap<'a> {
     pub fn show_values(mut self, v: bool) -> Self { self.show_values = v; self }
     pub fn legend(mut self, v: bool) -> Self { self.legend = v; self }
     pub fn null_color(mut self, c: Rgb) -> Self { self.null_color = c; self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(th.clone()); self }
+    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
 }
 
 impl Widget for Heatmap<'_> {
@@ -855,7 +855,7 @@ impl<'a> ActivityGraph<'a> {
     }
 
     pub fn levels(mut self, l: &'a [Rgb]) -> Self { self.levels = l; self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(th.clone()); self }
+    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
 }
 
 impl Widget for ActivityGraph<'_> {
@@ -954,7 +954,7 @@ impl Meter {
     pub fn thresholds(mut self, t: &[(f32, Variant)]) -> Self { self.thresholds = t.to_vec(); self }
     pub fn style(mut self, s: MeterStyle) -> Self { self.style = s; self }
     pub fn compact(mut self, v: bool) -> Self { self.compact = v; self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(th.clone()); self }
+    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
 }
 
 impl Default for Meter {
@@ -1067,7 +1067,7 @@ impl RadialGauge {
     pub fn value(mut self, v: f32) -> Self { self.value = v.clamp(0.0, 1.0); self }
     pub fn label(mut self, l: impl Into<String>) -> Self { self.label = Some(l.into()); self }
     pub fn thickness(mut self, t: u16) -> Self { self.thickness = t.max(1); self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(th.clone()); self }
+    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
 }
 
 impl Default for RadialGauge {

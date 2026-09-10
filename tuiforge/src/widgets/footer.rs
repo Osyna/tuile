@@ -156,7 +156,7 @@ impl KeyFooter {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone()); self
+        self.theme = Some(*t); self
     }
 
     pub fn render(self, area: Rect, buf: &mut Buffer, state: &mut KeyFooterState) {

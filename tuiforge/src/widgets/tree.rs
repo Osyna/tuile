@@ -196,7 +196,7 @@ impl TreeView {
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone());
+        self.theme = Some(*t);
         self
     }
 }
@@ -462,7 +462,7 @@ impl StatefulWidget for TreeView {
             return;
         }
 
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         let bg = th.surface;
         fill(buf, area, bg);
 

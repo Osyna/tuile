@@ -168,7 +168,7 @@ impl Scrollbar {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
     /// Draw nothing when the content fits (default). `false` keeps an empty track visible.

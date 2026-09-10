@@ -479,7 +479,7 @@ impl DataTable {
         self
     }
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone());
+        self.theme = Some(*t);
         self
     }
     pub fn show_row_numbers(mut self, s: bool) -> Self {
@@ -492,7 +492,7 @@ impl StatefulWidget for DataTable {
     type State = DataTableState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
 
         if area.width < 4 || area.height < 2 {
             return;
@@ -710,14 +710,14 @@ impl KeyValueList {
         self
     }
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(t.clone());
+        self.theme = Some(*t);
         self
     }
 }
 
 impl ratatui::widgets::Widget for KeyValueList {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let th = self.theme.clone().unwrap_or_else(theme::current);
+        let th = self.theme.unwrap_or_else(theme::current);
         if area.height < self.items.len() as u16 {
             return;
         }

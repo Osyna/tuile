@@ -100,7 +100,7 @@ impl Label {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 
@@ -229,7 +229,7 @@ impl Rule {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -348,7 +348,7 @@ impl Badge {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 
@@ -403,7 +403,7 @@ impl Pill {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -436,7 +436,7 @@ impl KeyCap {
         Self { key: key.into(), theme: None }
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -526,7 +526,7 @@ impl Link {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }
@@ -617,7 +617,7 @@ impl StatCard {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 
@@ -716,7 +716,7 @@ impl Widget for StatCard {
 // Markup parser
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Mini console markup parser: [b]bold[/b], [i]italic[/], [primary], [#rrggbb], etc.
+/// Mini console markup parser: `[b]bold[/b]`, `[i]italic[/]`, `[primary]`, `[#rrggbb]`, etc.
 pub struct Markup;
 
 impl Markup {
@@ -896,7 +896,7 @@ impl MarkupLabel {
         self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
-        self.theme = Some(th.clone());
+        self.theme = Some(*th);
         self
     }
 }

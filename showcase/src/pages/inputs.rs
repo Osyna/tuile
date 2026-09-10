@@ -119,7 +119,7 @@ impl Page for InputsPage {
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
         ctx.area = area;
-        let th = ctx.theme.clone();
+        let th = ctx.theme;
 
         if area.width < 80 || area.height < 30 {
             put(buf, area.x + 2, area.y + 2, "Window too small", area.width.saturating_sub(4), st(th.text_muted, th.background));

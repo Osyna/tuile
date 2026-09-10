@@ -12,19 +12,34 @@
 use std::time::Instant;
 
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
+use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
-use ratatui::style::Style;
+use ratatui::style::{Modifier, Style};
 use ratatui::widgets::StatefulWidget;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::*;
-use crate::draw::{FieldShape, fill, put, st};
-use crate::theme::{self, Theme};
+use crate::draw::{FieldShape, bold, fill, put, put_cell, st};
+use crate::theme::{self, Rgb, Theme};
+use crate::anim;
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
 // ───────────────────────────── types ─────────────────────────────
+/// Cursor drawing style.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CursorStyle {
+    /// Inverse cell (default).
+    #[default]
+    Block,
+    /// Thin bar (`▏`) drawn in cursor color.
+    Bar,
+    /// Cell keeps glyph, underlined + bold + accent fg.
+    Underline,
+    /// Cell bg = cursor_blurred_bg, fg unchanged.
+    Outline,
+}
+
 
 /// Builder for a multi-line text area.
 #[derive(Clone, Debug)]
@@ -37,6 +52,10 @@ pub struct TextArea {
     placeholder: String,
     shape: FieldShape,
     highlighter: Option<fn(&str) -> Vec<(usize, usize, Style)>>,
+    cursor_style: CursorStyle,
+    cursor_blink: bool,
+    cursor_when_unfocused: bool,
+    show_position: bool,
     focused: bool,
     enabled: bool,
     now: Option<Instant>,
@@ -72,6 +91,10 @@ impl TextArea {
             placeholder: String::new(),
             shape: FieldShape::default(),
             highlighter: None,
+            cursor_style: CursorStyle::default(),
+            cursor_blink: false,
+            cursor_when_unfocused: false,
+            show_position: false,
             focused: false,
             enabled: true,
             now: None,
@@ -117,6 +140,26 @@ impl TextArea {
 
     pub fn highlighter(mut self, f: fn(&str) -> Vec<(usize, usize, Style)>) -> Self {
         self.highlighter = Some(f);
+        self
+    }
+
+    pub fn cursor(mut self, style: CursorStyle) -> Self {
+        self.cursor_style = style;
+        self
+    }
+
+    pub fn cursor_blink(mut self, v: bool) -> Self {
+        self.cursor_blink = v;
+        self
+    }
+
+    pub fn cursor_when_unfocused(mut self, v: bool) -> Self {
+        self.cursor_when_unfocused = v;
+        self
+    }
+
+    pub fn show_position(mut self, v: bool) -> Self {
+        self.show_position = v;
         self
     }
 
@@ -619,11 +662,28 @@ impl Interactive for TextAreaState {
             self.scroll_x = self.hscroll_state.offset;
             return Outcome::Consumed;
         }
-        if wheel_delta(&m).is_some() && mouse_in(self.hit.area, &m) {
-            let delta = wheel_delta(&m).unwrap();
-            self.scroll_y = (self.scroll_y as i32 - delta).max(0) as usize;
+        
+        // Wheel scrolling
+        if let Some(delta) = wheel_delta(&m)
+            && mouse_in(self.hit.area, &m)
+        {
+            self.scroll_y = (self.scroll_y as i32 + delta * 3).max(0) as usize;
             return Outcome::Consumed;
         }
+        
+        // Click to position cursor
+        if m.kind == MouseEventKind::Down(MouseButton::Left) && mouse_in(self.hit.area, &m) {
+            let pos = mouse_pos(&m);
+            let dx = pos.x.saturating_sub(self.hit.area.x) as usize;
+            let dy = pos.y.saturating_sub(self.hit.area.y) as usize;
+            let row = (self.scroll_y + dy).min(self.lines.len().saturating_sub(1));
+            let line_len = self.lines.get(row).map(|l| l.graphemes(true).count()).unwrap_or(0);
+            let col = (self.scroll_x + dx).min(line_len);
+            self.cursor = (row, col);
+            self.selection = None;
+            return Outcome::Consumed;
+        }
+        
         let hit = self.hit.mouse(&m);
         if matches!(hit, Hit::Press | Hit::HoverChanged | Hit::Click | Hit::Cancel) {
             return Outcome::Consumed;
@@ -737,16 +797,44 @@ impl StatefulWidget for TextArea {
                         .find(|(start, end, _)| byte_pos >= *start && byte_pos < *end)
                         .map(|(_, _, s)| *s)
                         .unwrap_or_else(|| st(fg, line_bg));
-
                     // Draw cursor
-                    let is_cursor = look.focused && i == state.cursor.0 && char_pos == state.cursor.1;
-                    let final_style = if is_cursor {
-                        st(th.cursor_fg, th.cursor_bg)
+                    let draw_cursor = if look.focused {
+                        true
+                    } else {
+                        self.cursor_when_unfocused
+                    };
+                    
+                    let is_cursor = draw_cursor && i == state.cursor.0 && char_pos == state.cursor.1;
+                    let cursor_visible = !self.cursor_blink || self.now.is_none_or(|n| anim::blink(anim::since(n), 1.0));
+                    
+                    let final_style = if is_cursor && cursor_visible {
+                        match self.cursor_style {
+                            CursorStyle::Block => st(th.cursor_fg, th.cursor_bg),
+                            CursorStyle::Bar => {
+                                // Bar is drawn separately, use normal style for text
+                                style
+                            }
+                            CursorStyle::Underline => {
+                                bold(st(if look.focused { th.primary } else { th.cursor_blurred_bg }, line_bg))
+                                    .add_modifier(Modifier::UNDERLINED)
+                            }
+                            CursorStyle::Outline => {
+                                let style_fg = style.fg.and_then(Rgb::from_color).unwrap_or(fg);
+                                st(style_fg, th.cursor_blurred_bg)
+                            }
+                        }
                     } else {
                         style
                     };
 
                     put(buf, x, y, grapheme, grapheme.width() as u16, final_style);
+                    
+                    // Draw bar cursor after text
+                    if is_cursor && cursor_visible && self.cursor_style == CursorStyle::Bar {
+                        let cursor_color = if look.focused { th.cursor_bg } else { th.cursor_blurred_bg };
+                        put_cell(buf, x, y, "▎", st(cursor_color, line_bg));
+                    }
+                    
                     x += grapheme.width() as u16;
                     char_pos += 1;
                 }
@@ -754,15 +842,72 @@ impl StatefulWidget for TextArea {
                 put(buf, text_area.x, y, &display, text_area.width, st(fg, line_bg));
 
                 // Cursor
-                if look.focused && i == state.cursor.0 {
+                let draw_cursor = if look.focused {
+                    true
+                } else {
+                    self.cursor_when_unfocused
+                };
+                
+                if draw_cursor && i == state.cursor.0 {
                     let cursor_col = state.cursor.1.saturating_sub(state.scroll_x);
                     if cursor_col < text_area.width as usize {
                         let cursor_x = text_area.x + cursor_col as u16;
-                        if let Some(cell) = buf.cell_mut((cursor_x, y)) {
-                            cell.set_style(st(th.cursor_fg, th.cursor_bg));
+                        
+                        let cursor_visible = !self.cursor_blink || self.now.is_none_or(|n| anim::blink(anim::since(n), 1.0));
+
+                        if cursor_visible
+                            && let Some(cell) = buf.cell_mut((cursor_x, y))
+                        {
+                            match self.cursor_style {
+                                CursorStyle::Block => {
+                                    cell.set_style(st(th.cursor_fg, th.cursor_bg));
+                                }
+                                CursorStyle::Bar => {
+                                    let cursor_color = if look.focused { th.cursor_bg } else { th.cursor_blurred_bg };
+                                    cell.set_symbol("▎");
+                                    cell.set_style(st(cursor_color, line_bg));
+                                }
+                                CursorStyle::Underline => {
+                                    let accent = if look.focused { th.primary } else { th.cursor_blurred_bg };
+                                    cell.set_style(bold(st(accent, line_bg)).add_modifier(Modifier::UNDERLINED));
+                                }
+                                CursorStyle::Outline => {
+                                    let cell_fg = Rgb::from_color(cell.fg).unwrap_or(th.text);
+                                    cell.set_style(st(cell_fg, th.cursor_blurred_bg));
+                                }
+                            }
                         }
                     }
                 }
+            }
+        }
+
+        // Position indicator
+        if self.show_position {
+            let pos_text = format!("Ln {}, Col {}", state.cursor.0 + 1, state.cursor.1 + 1);
+            let pos_width = pos_text.width() as u16;
+            
+            // Draw right-aligned, avoiding scrollbars
+            // If there's a horizontal scrollbar, draw on the last visible text row
+            // Otherwise, draw in the bottom border row (if chrome) or last content row
+            let has_hscroll = max_line_w > text_area.width as usize;
+            let pos_y = if has_hscroll {
+                // Draw on the last visible text line to avoid horizontal scrollbar
+                text_area.bottom().saturating_sub(1)
+            } else if chrome > 0 {
+                // Draw in bottom border row
+                area.bottom().saturating_sub(1)
+            } else {
+                // Draw on last content row
+                text_area.bottom().saturating_sub(1)
+            };
+            
+            // Never over the vertical scrollbar column
+            let scrollbar_offset = if state.lines.len() > text_area.height as usize { 1 } else { 0 };
+            let pos_x = area.right().saturating_sub(pos_width + scrollbar_offset + 1);
+            
+            if pos_x >= text_area.x && pos_y < area.bottom() && pos_y >= text_area.y {
+                put(buf, pos_x, pos_y, &pos_text, pos_width, st(th.text_muted, bg));
             }
         }
 
@@ -817,5 +962,165 @@ mod tests {
         assert_eq!(s.lines[0], "");
         s.redo();
         assert_eq!(s.lines[0], "test");
+    }
+
+    #[test]
+    fn click_positions_cursor() {
+        let mut state = TextAreaState::with_text("line 1\nline 2\nline 3");
+        let area = Rect::new(5, 10, 20, 5);
+        let mut buf = Buffer::empty(area);
+        
+        // Render to set hit area
+        TextArea::new().render(area, &mut buf, &mut state);
+        
+        // Click at offset (4, 1) in text area
+        let text_x = state.hit.area.x;
+        let text_y = state.hit.area.y;
+        let click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: text_x + 4,
+            row: text_y + 1,
+            modifiers: KeyModifiers::empty(),
+        };
+        
+        let out = state.handle_mouse(click);
+        assert!(out.is_consumed());
+        assert_eq!(state.cursor, (1, 4));
+        assert_eq!(state.selection, None);
+    }
+    
+    #[test]
+    fn click_clamps_to_line_end() {
+        let mut state = TextAreaState::with_text("hi\nworld");
+        let area = Rect::new(0, 0, 20, 5);
+        let mut buf = Buffer::empty(area);
+        
+        TextArea::new().render(area, &mut buf, &mut state);
+        
+        // Click beyond line end
+        let text_x = state.hit.area.x;
+        let text_y = state.hit.area.y;
+        let click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: text_x + 10,
+            row: text_y,
+            modifiers: KeyModifiers::empty(),
+        };
+        
+        state.handle_mouse(click);
+        assert_eq!(state.cursor, (0, 2)); // clamped to "hi".len()
+    }
+    
+    #[test]
+    fn wheel_scrolls() {
+        let mut state = TextAreaState::with_text("1\n2\n3\n4\n5\n6\n7\n8\n9\n10");
+        let area = Rect::new(0, 0, 20, 3);
+        let mut buf = Buffer::empty(area);
+        
+        TextArea::new().render(area, &mut buf, &mut state);
+        
+        let wheel_down = MouseEvent {
+            kind: MouseEventKind::ScrollDown,
+            column: state.hit.area.x,
+            row: state.hit.area.y,
+            modifiers: KeyModifiers::empty(),
+        };
+        
+        let initial_scroll = state.scroll_y;
+        state.handle_mouse(wheel_down);
+        assert_eq!(state.scroll_y, initial_scroll + 3); // scrolls by 3
+        
+        let wheel_up = MouseEvent {
+            kind: MouseEventKind::ScrollUp,
+            column: state.hit.area.x,
+            row: state.hit.area.y,
+            modifiers: KeyModifiers::empty(),
+        };
+        
+        state.handle_mouse(wheel_up);
+        assert_eq!(state.scroll_y, initial_scroll);
+    }
+    
+    #[test]
+    fn cursor_styles_render() {
+        let mut state = TextAreaState::with_text("hello\nworld");
+        state.cursor = (0, 2);
+        let area = Rect::new(0, 0, 20, 5);
+        
+        // Test each cursor style doesn't panic
+        for style in [CursorStyle::Block, CursorStyle::Bar, CursorStyle::Underline, CursorStyle::Outline] {
+            let mut buf = Buffer::empty(area);
+            TextArea::new()
+                .cursor(style)
+                .focused(true)
+                .render(area, &mut buf, &mut state);
+        }
+    }
+    
+    #[test]
+    fn underline_cursor_preserves_glyph() {
+        let mut state = TextAreaState::with_text("hello");
+        state.cursor = (0, 2);
+        let area = Rect::new(0, 0, 20, 5);
+        let mut buf = Buffer::empty(area);
+        
+        TextArea::new()
+            .cursor(CursorStyle::Underline)
+            .focused(true)
+            .render(area, &mut buf, &mut state);
+        
+        // Cursor cell should still have the 'l' glyph - use text area coordinates
+        let text_x = state.hit.area.x;
+        let text_y = state.hit.area.y;
+        if let Some(cursor_cell) = buf.cell((text_x + 2, text_y)) {
+            assert_eq!(cursor_cell.symbol(), "l");
+        }
+    }
+    
+    #[test]
+    fn block_cursor_sets_colors() {
+        let mut state = TextAreaState::with_text("hello");
+        state.cursor = (0, 2);
+        let area = Rect::new(0, 0, 20, 5);
+        let mut buf = Buffer::empty(area);
+        
+        TextArea::new()
+            .cursor(CursorStyle::Block)
+            .focused(true)
+            .render(area, &mut buf, &mut state);
+        
+        // Cursor cell should have cursor colors
+        if let Some(cursor_cell) = buf.cell((2, 0)) {
+            // Just verify it has some style applied (exact colors depend on theme)
+            assert!(cursor_cell.fg != cursor_cell.bg);
+        }
+    }
+    
+    #[test]
+    fn render_does_not_panic_small() {
+        let mut state = TextAreaState::with_text("test");
+        
+        // 4x1 should not panic
+        let mut buf = Buffer::empty(Rect::new(0, 0, 4, 1));
+        TextArea::new()
+            .cursor(CursorStyle::Bar)
+            .render(Rect::new(0, 0, 4, 1), &mut buf, &mut state);
+        
+        // 0x0 should not panic
+        let mut buf = Buffer::empty(Rect::new(0, 0, 1, 1));
+        TextArea::new()
+            .cursor(CursorStyle::Underline)
+            .render(Rect::new(0, 0, 0, 0), &mut buf, &mut state);
+    }
+    
+    #[test]
+    fn position_indicator_shows() {
+        let mut state = TextAreaState::with_text("line 1\nline 2\nline 3");
+        state.cursor = (1, 3);
+        let area = Rect::new(0, 0, 40, 10);
+        let mut buf = Buffer::empty(area);
+        TextArea::new().show_position(true).focused(true).render(area, &mut buf, &mut state);
+        let rows: Vec<String> = (0..area.height).map(|y| (0..area.width).map(|x| buf[(x, y)].symbol().to_string()).collect()).collect();
+        assert!(rows.iter().any(|r| r.contains("Ln 2, Col 4")), "{rows:#?}");
     }
 }

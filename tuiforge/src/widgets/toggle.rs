@@ -30,6 +30,26 @@ use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
 use std::time::Duration;
 
+
+// ───────────────────────────── check styles ─────────────────────────────
+
+/// Visual style for checkboxes.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CheckStyle {
+    /// Painted `[X]` pill (default).
+    #[default]
+    Pill,
+    /// `[ ]` `[x]` `[-]` bracket style.
+    Bracket,
+    /// `☐` `☑` `☒` box symbols.
+    Box,
+    /// `○` `●` `◐` circle symbols.
+    Circle,
+    /// Bare `✓` / `−` when on/indeterminate, blank when off.
+    Check,
+    /// `□` `■` `▣` square symbols.
+    Square,
+}
 // ───────────────────────────── checkbox ─────────────────────────────
 
 /// Checkbox state: off/on/indeterminate.
@@ -50,6 +70,7 @@ pub struct Checkbox {
     focused: bool,
     enabled: bool,
     theme: Option<Theme>,
+    style: CheckStyle,
 }
 
 impl Checkbox {
@@ -61,6 +82,7 @@ impl Checkbox {
             focused: false,
             enabled: true,
             theme: None,
+            style: CheckStyle::default(),
         }
     }
 
@@ -88,6 +110,11 @@ impl Checkbox {
         self.theme = Some(*th);
         self
     }
+
+    pub fn style(mut self, s: CheckStyle) -> Self {
+        self.style = s;
+        self
+    }
 }
 
 impl StatefulWidget for Checkbox {
@@ -103,33 +130,136 @@ impl StatefulWidget for Checkbox {
         let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
         let bg = th.background;
 
-        let mark = match state.value {
-            CheckState::On => "X",
-            CheckState::Off => " ",
-            CheckState::Indeterminate => "-",
+        let (mark_w, box_x, label_x) = match self.style {
+            CheckStyle::Pill => {
+                let w = 3u16;
+                let bx = if self.label_first { area.x + self.label.width() as u16 + 1 } else { area.x };
+                let lx = if self.label_first { area.x } else { area.x + w };
+                (w, bx, lx)
+            }
+            CheckStyle::Bracket => {
+                let w = 3u16;
+                let bx = if self.label_first { area.x + self.label.width() as u16 + 1 } else { area.x };
+                let lx = if self.label_first { area.x } else { area.x + w };
+                (w, bx, lx)
+            }
+            CheckStyle::Box | CheckStyle::Circle | CheckStyle::Check | CheckStyle::Square => {
+                let w = 2u16;
+                let bx = if self.label_first { area.x + self.label.width() as u16 + 1 } else { area.x };
+                let lx = if self.label_first { area.x } else { area.x + w };
+                (w, bx, lx)
+            }
         };
-        let btn_bg = th.panel;
-        let mut mark_fg = if state.value == CheckState::On { th.text_success } else { Theme::shade(th.panel, -2) };
-        if !look.enabled {
-            mark_fg = mark_fg.blend(bg, 0.5);
+
+        match self.style {
+            CheckStyle::Pill => {
+                let mark = match state.value {
+                    CheckState::On => "X",
+                    CheckState::Off => " ",
+                    CheckState::Indeterminate => "-",
+                };
+                let btn_bg = th.panel;
+                let mut mark_fg = if state.value == CheckState::On { th.text_success } else { Theme::shade(th.panel, -2) };
+                if !look.enabled {
+                    mark_fg = mark_fg.blend(bg, 0.5);
+                }
+
+                let (side_fg, side_bg, btn) = if look.focused && self.label.is_empty() {
+                    (th.cursor_bg, bg, th.cursor_bg)
+                } else {
+                    (btn_bg, bg, btn_bg)
+                };
+
+                put(buf, box_x, area.y, " ", 1, st(side_bg, side_fg));
+                put(buf, box_x + 1, area.y, mark, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
+                put(buf, box_x + 2, area.y, " ", 1, st(side_bg, side_fg));
+            }
+            CheckStyle::Bracket => {
+                let mark = match state.value {
+                    CheckState::On => "[x]",
+                    CheckState::Off => "[ ]",
+                    CheckState::Indeterminate => "[-]",
+                };
+                let mut fg = if state.value == CheckState::On { th.text_success } else { th.text };
+                if look.focused && self.label.is_empty() {
+                    fg = th.cursor_fg;
+                }
+                if !look.enabled {
+                    fg = fg.blend(bg, 0.5);
+                }
+                let mark_bg = if look.focused && self.label.is_empty() { th.cursor_bg } else { bg };
+                let mark_style = if look.focused || state.value != CheckState::Off {
+                    st(fg, mark_bg).add_modifier(Modifier::BOLD)
+                } else {
+                    st(fg, mark_bg)
+                };
+                put(buf, box_x, area.y, mark, 3, mark_style);
+            }
+            CheckStyle::Box => {
+                let mark = match state.value {
+                    CheckState::On => "☑ ",
+                    CheckState::Off => "☐ ",
+                    CheckState::Indeterminate => "☒ ",
+                };
+                let mut fg = if state.value == CheckState::On { th.text_success } else { th.text };
+                if look.focused && self.label.is_empty() {
+                    fg = th.cursor_fg;
+                }
+                if !look.enabled {
+                    fg = fg.blend(bg, 0.5);
+                }
+                let mark_bg = if look.focused && self.label.is_empty() { th.cursor_bg } else { bg };
+                put(buf, box_x, area.y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+            }
+            CheckStyle::Circle => {
+                let mark = match state.value {
+                    CheckState::On => "● ",
+                    CheckState::Off => "○ ",
+                    CheckState::Indeterminate => "◐ ",
+                };
+                let mut fg = if state.value == CheckState::On { th.text_success } else { th.text };
+                if look.focused && self.label.is_empty() {
+                    fg = th.cursor_fg;
+                }
+                if !look.enabled {
+                    fg = fg.blend(bg, 0.5);
+                }
+                let mark_bg = if look.focused && self.label.is_empty() { th.cursor_bg } else { bg };
+                put(buf, box_x, area.y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+            }
+            CheckStyle::Check => {
+                let mark = match state.value {
+                    CheckState::On => "✓ ",
+                    CheckState::Off => "  ",
+                    CheckState::Indeterminate => "− ",
+                };
+                let mut fg = if state.value != CheckState::Off { th.text_success } else { bg };
+                if look.focused && self.label.is_empty() {
+                    fg = th.cursor_fg;
+                }
+                if !look.enabled {
+                    fg = fg.blend(bg, 0.5);
+                }
+                let mark_bg = if look.focused && self.label.is_empty() { th.cursor_bg } else { bg };
+                put(buf, box_x, area.y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+            }
+            CheckStyle::Square => {
+                let mark = match state.value {
+                    CheckState::On => "■ ",
+                    CheckState::Off => "□ ",
+                    CheckState::Indeterminate => "▣ ",
+                };
+                let mut fg = if state.value == CheckState::On { th.text_success } else { th.text };
+                if look.focused && self.label.is_empty() {
+                    fg = th.cursor_fg;
+                }
+                if !look.enabled {
+                    fg = fg.blend(bg, 0.5);
+                }
+                let mark_bg = if look.focused && self.label.is_empty() { th.cursor_bg } else { bg };
+                put(buf, box_x, area.y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+            }
         }
-
-        let (side_fg, side_bg, btn) = if look.focused && self.label.is_empty() {
-            (th.cursor_bg, bg, th.cursor_bg)
-        } else {
-            (btn_bg, bg, btn_bg)
-        };
-
-        let (box_x, label_x) = if self.label_first {
-            (area.x + self.label.width() as u16 + 1, area.x)
-        } else {
-            (area.x, area.x + 3)
-        };
-
-        // a painted 3-cell button: half-block ends get brightened by min-contrast terminals
-        put(buf, box_x, area.y, " ", 1, st(side_bg, side_fg));
-        put(buf, box_x + 1, area.y, mark, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
-        put(buf, box_x + 2, area.y, " ", 1, st(side_bg, side_fg));
 
         if !self.label.is_empty() {
             let style = if look.focused {
@@ -141,7 +271,7 @@ impl StatefulWidget for Checkbox {
             } else {
                 st(th.text, bg)
             };
-            let max_w = area.width.saturating_sub(if self.label_first { box_x - area.x } else { 3 });
+            let max_w = area.width.saturating_sub(if self.label_first { box_x - area.x } else { mark_w });
             let text = if self.label_first {
                 self.label.clone()
             } else {
@@ -203,12 +333,30 @@ impl Interactive for CheckboxState {
     }
 }
 
-// ───────────────────────────── switch ─────────────────────────────
+
+// ───────────────────────────── switch styles ─────────────────────────────
+
+/// Visual style for switches.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SwitchStyle {
+    /// 4-cell animated track (default).
+    #[default]
+    Pill,
+    /// 1-row 3-cell painted track with 1-cell painted thumb, animated.
+    Slim,
+    /// `━━●` / `●━━` box-drawing track, thumb `●`, on-colour vs muted.
+    Line,
+    /// `(●  )` ↔ `(  ●)` in parens, animated position.
+    Round,
+    /// Painted pill reading ` ON ` (success) / ` OFF ` (muted).
+    Text,
+    /// `✓` (success) / `✗` (muted) glyph.
+    Check,
+}
 
 const SWITCH_W: u16 = 14;
+// ───────────────────────────── switch ─────────────────────────────
 
-/// Textual `Switch`: 8-cell track with sliding 4-cell thumb.
-#[derive(Clone, Debug)]
 pub struct Switch {
     label: Option<String>,
     compact: bool,
@@ -217,6 +365,7 @@ pub struct Switch {
     enabled: bool,
     now: Option<Instant>,
     theme: Option<Theme>,
+    style: SwitchStyle,
 }
 
 impl Switch {
@@ -229,6 +378,7 @@ impl Switch {
             enabled: true,
             now: None,
             theme: None,
+            style: SwitchStyle::default(),
         }
     }
 
@@ -266,6 +416,11 @@ impl Switch {
         self.theme = Some(*th);
         self
     }
+
+    pub fn style(mut self, s: SwitchStyle) -> Self {
+        self.style = s;
+        self
+    }
 }
 
 impl Default for Switch {
@@ -278,62 +433,154 @@ impl StatefulWidget for Switch {
     type State = SwitchState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        let min_w = if self.compact { SWITCH_W - 2 } else { SWITCH_W };
-        let min_h = if self.compact { 1 } else { 3 };
         state.hit.set_area(area);
         state.duration = self.duration.unwrap_or(Duration::from_millis(200));
-        if area.width < min_w || area.height < min_h {
-            return;
-        }
 
         let th = self.theme.unwrap_or_else(theme::current);
         let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
         let t = state.anim.value(self.now.unwrap_or_else(Instant::now));
 
-        let bg = if !self.compact && look.focused {
+        let (min_w, min_h) = match self.style {
+            SwitchStyle::Pill if self.compact => (SWITCH_W - 2, 1),
+            SwitchStyle::Pill => (SWITCH_W, 3),
+            SwitchStyle::Slim => (3, 1),
+            SwitchStyle::Line => (3, 1),
+            SwitchStyle::Round => (5, 1),
+            SwitchStyle::Text => (6, 1),
+            SwitchStyle::Check => (1, 1),
+        };
+
+        if area.width < min_w || area.height < min_h {
+            return;
+        }
+
+        let bg = if !self.compact && look.focused && self.style == SwitchStyle::Pill {
             th.surface.blend(th.foreground, 0.05)
         } else {
             th.background
         };
-        fill(buf, area, bg);
-
-        if !self.compact {
-            let border = if look.focused { th.border } else { th.border_blurred };
-            Border::Tall.draw(buf, area, border, bg);
+        
+        if self.style == SwitchStyle::Pill {
+            fill(buf, area, bg);
+            if !self.compact {
+                let border = if look.focused { th.border } else { th.border_blurred };
+                Border::Tall.draw(buf, area, border, bg);
+            }
         }
 
-        let track_y = if self.compact { area.y } else { area.y + 1 };
-        let track_x = if self.compact { area.x } else { area.x + 3 };
-        let track = if !self.compact && look.focused { Theme::shade(th.panel, -2) } else { Theme::shade(bg.blend(th.foreground, 0.1), -2) };
-        let mut thumb = if state.on { th.success } else { th.panel };
-        if look.hover && look.enabled {
-            thumb = Theme::shade(thumb, 1);
-        }
-        if !look.enabled {
-            thumb = thumb.blend(bg, 0.5);
-        }
+        let track_y = if self.style == SwitchStyle::Pill && !self.compact { area.y + 1 } else { area.y };
+        let track_x = if self.style == SwitchStyle::Pill && !self.compact { area.x + 3 } else { area.x };
 
-        let start = t * 4.0;
-        let end = start + 4.0;
-        for i in 0..8u16 {
-            let (cl, cr) = (i as f32, i as f32 + 1.0);
-            let Some(cell) = buf.cell_mut((track_x + i, track_y)) else { continue };
-            if end <= cl || start >= cr {
-                cell.set_symbol(" ").set_bg(track.color());
-            } else if start <= cl && end >= cr {
-                cell.set_symbol(" ").set_bg(thumb.color());
-            } else if start > cl {
-                let idx = ((start - cl) * 8.0).round() as usize;
-                cell.set_symbol(LEFT_BLOCKS[idx.min(8)]).set_fg(track.color()).set_bg(thumb.color());
-            } else {
-                let idx = ((end - cl) * 8.0).round() as usize;
-                cell.set_symbol(LEFT_BLOCKS[idx.min(8)]).set_fg(thumb.color()).set_bg(track.color());
+        match self.style {
+            SwitchStyle::Pill => {
+                let track = if !self.compact && look.focused { Theme::shade(th.panel, -2) } else { Theme::shade(bg.blend(th.foreground, 0.1), -2) };
+                let mut thumb = if state.on { th.success } else { th.panel };
+                if look.hover && look.enabled {
+                    thumb = Theme::shade(thumb, 1);
+                }
+                if !look.enabled {
+                    thumb = thumb.blend(bg, 0.5);
+                }
+
+                let start = t * 4.0;
+                let end = start + 4.0;
+                for i in 0..8u16 {
+                    let (cl, cr) = (i as f32, i as f32 + 1.0);
+                    let Some(cell) = buf.cell_mut((track_x + i, track_y)) else { continue };
+                    if end <= cl || start >= cr {
+                        cell.set_symbol(" ").set_bg(track.color());
+                    } else if start <= cl && end >= cr {
+                        cell.set_symbol(" ").set_bg(thumb.color());
+                    } else if start > cl {
+                        let idx = ((start - cl) * 8.0).round() as usize;
+                        cell.set_symbol(LEFT_BLOCKS[idx.min(8)]).set_fg(track.color()).set_bg(thumb.color());
+                    } else {
+                        let idx = ((end - cl) * 8.0).round() as usize;
+                        cell.set_symbol(LEFT_BLOCKS[idx.min(8)]).set_fg(thumb.color()).set_bg(track.color());
+                    }
+                }
+            }
+            SwitchStyle::Slim => {
+                let track_bg = Theme::shade(th.panel, -2);
+                let mut thumb_bg = if state.on { th.success } else { th.panel };
+                if look.hover && look.enabled {
+                    thumb_bg = Theme::shade(thumb_bg, 1);
+                }
+                if !look.enabled {
+                    thumb_bg = thumb_bg.blend(bg, 0.5);
+                }
+
+                let thumb_pos = (t * 2.0).round() as u16;
+                for i in 0..3u16 {
+                    let cell_bg = if i == thumb_pos { thumb_bg } else { track_bg };
+                    put(buf, track_x + i, track_y, " ", 1, st(cell_bg, cell_bg));
+                }
+            }
+            SwitchStyle::Line => {
+                let mut on_fg = th.success;
+                let mut off_fg = th.text_muted;
+                if !look.enabled {
+                    on_fg = on_fg.blend(bg, 0.5);
+                    off_fg = off_fg.blend(bg, 0.5);
+                }
+                let line_fg = if state.on { on_fg } else { off_fg };
+
+                let thumb_pos = (t * 2.0).round() as u16;
+                for i in 0..3u16 {
+                    let sym = if i == thumb_pos { "●" } else { "━" };
+                    put(buf, track_x + i, track_y, sym, 1, st(line_fg, bg));
+                }
+            }
+            SwitchStyle::Round => {
+                let mut fg = if state.on { th.success } else { th.text };
+                if !look.enabled {
+                    fg = fg.blend(bg, 0.5);
+                }
+
+                let thumb_pos = (t * 3.0).round() as u16 + 1;
+                put(buf, track_x, track_y, "(", 1, st(fg, bg));
+                for i in 1..4u16 {
+                    let sym = if i == thumb_pos { "●" } else { " " };
+                    put(buf, track_x + i, track_y, sym, 1, st(fg, bg));
+                }
+                put(buf, track_x + 4, track_y, ")", 1, st(fg, bg));
+            }
+            SwitchStyle::Text => {
+                let (text, variant_bg) = if state.on {
+                    (" ON ", th.success)
+                } else {
+                    (" OFF ", th.text_muted)
+                };
+                let mut pill_bg = variant_bg;
+                if !look.enabled {
+                    pill_bg = pill_bg.blend(bg, 0.5);
+                }
+                let fg = pill_bg.text_on(0.9);
+                put(buf, track_x, track_y, text, 5, st(fg, pill_bg).add_modifier(Modifier::BOLD));
+            }
+            SwitchStyle::Check => {
+                let (sym, mut fg) = if state.on {
+                    ("✓", th.success)
+                } else {
+                    ("✗", th.text_muted)
+                };
+                if !look.enabled {
+                    fg = fg.blend(bg, 0.5);
+                }
+                put(buf, track_x, track_y, sym, 1, st(fg, bg).add_modifier(Modifier::BOLD));
             }
         }
 
         if let Some(label) = &self.label {
-            let label_x = track_x + 9;
-            let max_w = area.width.saturating_sub(label_x - area.x);
+            let label_x = track_x + match self.style {
+                SwitchStyle::Pill => 9,
+                SwitchStyle::Slim => 4,
+                SwitchStyle::Line => 4,
+                SwitchStyle::Round => 6,
+                SwitchStyle::Text => 6,
+                SwitchStyle::Check => 2,
+            };
+            let max_w = area.width.saturating_sub(label_x.saturating_sub(area.x));
             let fg = if look.enabled { th.text } else { th.text_disabled };
             put(buf, label_x, track_y, label, max_w, st(fg, bg));
         }
@@ -405,10 +652,24 @@ impl Interactive for SwitchState {
     }
 }
 
+// ───────────────────────────── radio styles ─────────────────────────────
+
+/// Visual style for radio buttons.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum RadioStyle {
+    /// Dot in painted pill (default).
+    #[default]
+    Dot,
+    /// `( )` `(•)` bracket style.
+    Bracket,
+    /// `✓` on the selected row.
+    Check,
+    /// `❯` on the selected row, others indented.
+    Arrow,
+}
+
 // ───────────────────────────── radio group ─────────────────────────────
 
-/// Textual-style radio button group.
-#[derive(Clone, Debug)]
 pub struct RadioGroup {
     options: Vec<String>,
     horizontal: bool,
@@ -417,6 +678,7 @@ pub struct RadioGroup {
     focused: bool,
     enabled: bool,
     theme: Option<Theme>,
+    style: RadioStyle,
 }
 
 impl RadioGroup {
@@ -429,6 +691,7 @@ impl RadioGroup {
             focused: false,
             enabled: true,
             theme: None,
+            style: RadioStyle::default(),
         }
     }
 
@@ -459,6 +722,11 @@ impl RadioGroup {
 
     pub fn theme(mut self, th: &Theme) -> Self {
         self.theme = Some(*th);
+        self
+    }
+
+    pub fn style(mut self, s: RadioStyle) -> Self {
+        self.style = s;
         self
     }
 }
@@ -520,22 +788,67 @@ impl RadioGroup {
         let selected = state.selected == Some(idx);
         let is_cursor = state.cursor == idx;
 
-        let mark = if selected { "●" } else { " " };
-        let btn_bg = th.panel;
-        let mut mark_fg = if selected { th.text_success } else { Theme::shade(th.panel, -2) };
-        if !look.enabled {
-            mark_fg = mark_fg.blend(bg, 0.5);
+        match self.style {
+            RadioStyle::Dot => {
+                let mark = if selected { "●" } else { " " };
+                let btn_bg = th.panel;
+                let mut mark_fg = if selected { th.text_success } else { Theme::shade(th.panel, -2) };
+                if !look.enabled {
+                    mark_fg = mark_fg.blend(bg, 0.5);
+                }
+
+                let (side_fg, side_bg, btn) = if is_cursor && look.focused {
+                    (th.cursor_bg, bg, th.cursor_bg)
+                } else {
+                    (btn_bg, bg, btn_bg)
+                };
+
+                put(buf, area.x, area.y, " ", 1, st(side_bg, side_fg));
+                put(buf, area.x + 1, area.y, mark, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
+                put(buf, area.x + 2, area.y, " ", 1, st(side_bg, side_fg));
+            }
+            RadioStyle::Bracket => {
+                let mark = if selected { "(•)" } else { "( )" };
+                let mut fg = if selected { th.text_success } else { th.text };
+                if is_cursor && look.focused {
+                    fg = th.cursor_fg;
+                }
+                if !look.enabled {
+                    fg = fg.blend(bg, 0.5);
+                }
+                let mark_bg = if is_cursor && look.focused { th.cursor_bg } else { bg };
+                let mark_style = if look.focused || selected {
+                    st(fg, mark_bg).add_modifier(Modifier::BOLD)
+                } else {
+                    st(fg, mark_bg)
+                };
+                put(buf, area.x, area.y, mark, 3, mark_style);
+            }
+            RadioStyle::Check => {
+                let mark = if selected { "✓ " } else { "  " };
+                let mut fg = if selected { th.text_success } else { bg };
+                if is_cursor && look.focused {
+                    fg = th.cursor_fg;
+                }
+                if !look.enabled {
+                    fg = fg.blend(bg, 0.5);
+                }
+                let mark_bg = if is_cursor && look.focused { th.cursor_bg } else { bg };
+                put(buf, area.x, area.y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+            }
+            RadioStyle::Arrow => {
+                let mark = if selected { "❯ " } else { "  " };
+                let mut fg = if selected { th.text_success } else { bg };
+                if is_cursor && look.focused {
+                    fg = th.cursor_fg;
+                }
+                if !look.enabled {
+                    fg = fg.blend(bg, 0.5);
+                }
+                let mark_bg = if is_cursor && look.focused { th.cursor_bg } else { bg };
+                put(buf, area.x, area.y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+            }
         }
-
-        let (side_fg, side_bg, btn) = if is_cursor && look.focused {
-            (th.cursor_bg, bg, th.cursor_bg)
-        } else {
-            (btn_bg, bg, btn_bg)
-        };
-
-        put(buf, area.x, area.y, " ", 1, st(side_bg, side_fg));
-        put(buf, area.x + 1, area.y, mark, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
-        put(buf, area.x + 2, area.y, " ", 1, st(side_bg, side_fg));
 
         let style = if is_cursor && look.focused {
             st(th.cursor_fg, th.cursor_bg).add_modifier(Modifier::BOLD)
@@ -544,8 +857,12 @@ impl RadioGroup {
         } else {
             st(th.text, bg)
         };
-        let max_w = area.width.saturating_sub(3);
-        put(buf, area.x + 3, area.y, &format!(" {}", label), max_w, style);
+        let spacing = match self.style {
+            RadioStyle::Dot | RadioStyle::Bracket => 3,
+            _ => 2,
+        };
+        let max_w = area.width.saturating_sub(spacing);
+        put(buf, area.x + spacing, area.y, &format!(" {}", label), max_w, style);
     }
 }
 
@@ -629,6 +946,7 @@ pub struct CheckList {
     enabled: bool,
     theme: Option<Theme>,
     now: Option<Instant>,
+    style: CheckStyle,
 }
 
 impl CheckList {
@@ -639,6 +957,7 @@ impl CheckList {
             enabled: true,
             theme: None,
             now: None,
+            style: CheckStyle::default(),
         }
     }
 
@@ -659,6 +978,11 @@ impl CheckList {
 
     pub fn now(mut self, n: Instant) -> Self {
         self.now = Some(n);
+        self
+    }
+
+    pub fn style(mut self, s: CheckStyle) -> Self {
+        self.style = s;
         self
     }
 }
@@ -694,22 +1018,61 @@ impl StatefulWidget for CheckList {
             let checked = state.checked.get(idx).copied().unwrap_or(false);
             let is_cursor = state.cursor == idx;
 
-            let mark = if checked { "X" } else { " " };
-            let btn_bg = th.panel;
-            let mut mark_fg = if checked { th.text_success } else { Theme::shade(th.panel, -2) };
-            if !look.enabled {
-                mark_fg = mark_fg.blend(bg, 0.5);
+            match self.style {
+                CheckStyle::Pill => {
+                    let mark = if checked { "X" } else { " " };
+                    let btn_bg = th.panel;
+                    let mut mark_fg = if checked { th.text_success } else { Theme::shade(th.panel, -2) };
+                    if !look.enabled {
+                        mark_fg = mark_fg.blend(bg, 0.5);
+                    }
+
+                    let (side_fg, side_bg, btn) = if is_cursor && look.focused {
+                        (th.cursor_bg, bg, th.cursor_bg)
+                    } else {
+                        (btn_bg, bg, btn_bg)
+                    };
+
+                    put(buf, r.x, y, " ", 1, st(side_bg, side_fg));
+                    put(buf, r.x + 1, y, mark, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
+                    put(buf, r.x + 2, y, " ", 1, st(side_bg, side_fg));
+                }
+                CheckStyle::Bracket => {
+                    let mark = if checked { "[x]" } else { "[ ]" };
+                    let mut fg = if checked { th.text_success } else { th.text };
+                    if is_cursor && look.focused {
+                        fg = th.cursor_fg;
+                    }
+                    if !look.enabled {
+                        fg = fg.blend(bg, 0.5);
+                    }
+                    let mark_bg = if is_cursor && look.focused { th.cursor_bg } else { bg };
+                    let mark_style = if look.focused || checked {
+                        st(fg, mark_bg).add_modifier(Modifier::BOLD)
+                    } else {
+                        st(fg, mark_bg)
+                    };
+                    put(buf, r.x, y, mark, 3, mark_style);
+                }
+                CheckStyle::Box | CheckStyle::Circle | CheckStyle::Check | CheckStyle::Square => {
+                    let mark = match self.style {
+                        CheckStyle::Box => if checked { "☑ " } else { "☐ " },
+                        CheckStyle::Circle => if checked { "● " } else { "○ " },
+                        CheckStyle::Check => if checked { "✓ " } else { "  " },
+                        CheckStyle::Square => if checked { "■ " } else { "□ " },
+                        _ => unreachable!(),
+                    };
+                    let mut fg = if checked { th.text_success } else { th.text };
+                    if is_cursor && look.focused {
+                        fg = th.cursor_fg;
+                    }
+                    if !look.enabled {
+                        fg = fg.blend(bg, 0.5);
+                    }
+                    let mark_bg = if is_cursor && look.focused { th.cursor_bg } else { bg };
+                    put(buf, r.x, y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+                }
             }
-
-            let (side_fg, side_bg, btn) = if is_cursor && look.focused {
-                (th.cursor_bg, bg, th.cursor_bg)
-            } else {
-                (btn_bg, bg, btn_bg)
-            };
-
-            put(buf, r.x, y, " ", 1, st(side_bg, side_fg));
-            put(buf, r.x + 1, y, mark, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
-            put(buf, r.x + 2, y, " ", 1, st(side_bg, side_fg));
 
             let style = if is_cursor && look.focused {
                 st(th.cursor_fg, th.cursor_bg).add_modifier(Modifier::BOLD)
@@ -718,8 +1081,12 @@ impl StatefulWidget for CheckList {
             } else {
                 st(th.text, bg)
             };
-            let max_w = r.width.saturating_sub(3);
-            put(buf, r.x + 3, y, &format!(" {}", self.options[idx]), max_w, style);
+            let spacing = match self.style {
+                CheckStyle::Pill | CheckStyle::Bracket => 3,
+                _ => 2,
+            };
+            let max_w = r.width.saturating_sub(spacing);
+            put(buf, r.x + spacing, y, &format!(" {}", self.options[idx]), max_w, style);
         }
 
         if self.options.len() > viewport {
@@ -819,6 +1186,22 @@ impl Interactive for CheckListState {
     }
 }
 
+
+// ───────────────────────────── segmented styles ─────────────────────────────
+
+/// Visual style for segmented controls.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SegmentedStyle {
+    /// Painted segments (default).
+    #[default]
+    Filled,
+    /// `[ Day ] [ Week ]` brackets, selected bold + accent.
+    Outline,
+    /// Labels with a 1-row underline (`▔` or painted) under the selected one; needs 2 rows, falls back to Filled when only 1 row.
+    Underline,
+    /// Plain labels, selected in accent bold, separated by ` │ `.
+    Text,
+}
 // ───────────────────────────── segmented ─────────────────────────────
 
 /// Textual-style segmented control: horizontal pill row.
@@ -828,6 +1211,7 @@ pub struct Segmented {
     focused: bool,
     enabled: bool,
     theme: Option<Theme>,
+    style: SegmentedStyle,
 }
 
 impl Segmented {
@@ -837,6 +1221,7 @@ impl Segmented {
             focused: false,
             enabled: true,
             theme: None,
+            style: SegmentedStyle::default(),
         }
     }
 
@@ -854,6 +1239,11 @@ impl Segmented {
         self.theme = Some(*th);
         self
     }
+
+    pub fn style(mut self, s: SegmentedStyle) -> Self {
+        self.style = s;
+        self
+    }
 }
 
 impl StatefulWidget for Segmented {
@@ -869,34 +1259,136 @@ impl StatefulWidget for Segmented {
         let look = Look { focused: self.focused, hover: false, enabled: self.enabled };
         let bg = th.background;
 
-        // flat painted segments (no half-block ends: fg glyphs near their bg colour get
-        // brightened by terminals with a minimum-contrast setting)
-        let seg_bg = Theme::shade(th.surface, 1);
-        let mut x = area.x;
-        for (idx, opt) in self.options.iter().enumerate() {
-            let w = opt.width() as u16 + 2;
-            if x + w > area.right() {
-                break;
+        let effective_style = if self.style == SegmentedStyle::Underline && area.height < 2 {
+            SegmentedStyle::Filled
+        } else {
+            self.style
+        };
+
+        match effective_style {
+            SegmentedStyle::Filled => {
+                let seg_bg = Theme::shade(th.surface, 1);
+                let mut x = area.x;
+                for (idx, opt) in self.options.iter().enumerate() {
+                    let w = opt.width() as u16 + 2;
+                    if x + w > area.right() {
+                        break;
+                    }
+                    let r = Rect { x, y: area.y, width: w, height: 1 };
+                    state.hits.push(r);
+
+                    let selected = state.selected == idx;
+                    let (fg, item_bg) = if selected && look.focused {
+                        (th.cursor_fg, th.cursor_bg)
+                    } else if selected {
+                        (th.primary.text_on(0.9), th.primary)
+                    } else if !look.enabled {
+                        (th.text_disabled, seg_bg)
+                    } else {
+                        (th.text, seg_bg)
+                    };
+                    put(buf, x, area.y, &format!(" {} ", opt), w, st(fg, item_bg).add_modifier(Modifier::BOLD));
+
+                    x += w;
+                    if idx + 1 < self.options.len() {
+                        put(buf, x, area.y, " ", 1, st(bg, bg));
+                        x += 1;
+                    }
+                }
             }
-            let r = Rect { x, y: area.y, width: w, height: 1 };
-            state.hits.push(r);
+            SegmentedStyle::Outline => {
+                let mut x = area.x;
+                for (idx, opt) in self.options.iter().enumerate() {
+                    let w = opt.width() as u16 + 4;
+                    if x + w > area.right() {
+                        break;
+                    }
+                    let r = Rect { x, y: area.y, width: w, height: 1 };
+                    state.hits.push(r);
 
-            let selected = state.selected == idx;
-            let (fg, item_bg) = if selected && look.focused {
-                (th.cursor_fg, th.cursor_bg)
-            } else if selected {
-                (th.primary.text_on(0.9), th.primary)
-            } else if !look.enabled {
-                (th.text_disabled, seg_bg)
-            } else {
-                (th.text, seg_bg)
-            };
-            put(buf, x, area.y, &format!(" {} ", opt), w, st(fg, item_bg).add_modifier(Modifier::BOLD));
+                    let selected = state.selected == idx;
+                    let mut fg = if selected { th.primary } else { th.text };
+                    if !look.enabled {
+                        fg = th.text_disabled;
+                    }
+                    let text = format!("[ {} ]", opt);
+                    let style = if selected {
+                        st(fg, bg).add_modifier(Modifier::BOLD)
+                    } else {
+                        st(fg, bg)
+                    };
+                    put(buf, x, area.y, &text, w, style);
 
-            x += w;
-            if idx + 1 < self.options.len() {
-                put(buf, x, area.y, " ", 1, st(bg, bg));
-                x += 1;
+                    x += w;
+                    if idx + 1 < self.options.len() {
+                        put(buf, x, area.y, " ", 1, st(bg, bg));
+                        x += 1;
+                    }
+                }
+            }
+            SegmentedStyle::Underline => {
+                let mut x = area.x;
+                for (idx, opt) in self.options.iter().enumerate() {
+                    let w = opt.width() as u16 + 2;
+                    if x + w > area.right() {
+                        break;
+                    }
+                    let r = Rect { x, y: area.y, width: w, height: 2 };
+                    state.hits.push(r);
+
+                    let selected = state.selected == idx;
+                    let mut fg = if selected { th.primary } else { th.text };
+                    if !look.enabled {
+                        fg = th.text_disabled;
+                    }
+                    let label_style = if selected {
+                        st(fg, bg).add_modifier(Modifier::BOLD)
+                    } else {
+                        st(fg, bg)
+                    };
+                    put(buf, x, area.y, &format!(" {} ", opt), w, label_style);
+
+                    if selected {
+                        for i in 0..w {
+                            put(buf, x + i, area.y + 1, "▔", 1, st(th.primary, bg));
+                        }
+                    }
+
+                    x += w;
+                    if idx + 1 < self.options.len() {
+                        put(buf, x, area.y, " ", 1, st(bg, bg));
+                        x += 1;
+                    }
+                }
+            }
+            SegmentedStyle::Text => {
+                let mut x = area.x;
+                for (idx, opt) in self.options.iter().enumerate() {
+                    let w = opt.width() as u16;
+                    if x + w > area.right() {
+                        break;
+                    }
+                    let r = Rect { x, y: area.y, width: w, height: 1 };
+                    state.hits.push(r);
+
+                    let selected = state.selected == idx;
+                    let mut fg = if selected { th.primary } else { th.text };
+                    if !look.enabled {
+                        fg = th.text_disabled;
+                    }
+                    let style = if selected {
+                        st(fg, bg).add_modifier(Modifier::BOLD)
+                    } else {
+                        st(fg, bg)
+                    };
+                    put(buf, x, area.y, opt, w, style);
+
+                    x += w;
+                    if idx + 1 < self.options.len() {
+                        put(buf, x, area.y, " │ ", 3, st(th.text_muted, bg));
+                        x += 3;
+                    }
+                }
             }
         }
     }
@@ -1024,5 +1516,87 @@ mod tests {
         let key = KeyEvent::from(KeyCode::Right);
         assert!(state.handle_key(key).is_changed());
         assert_eq!(state.selected, 1);
+    }
+
+    #[test]
+    fn checkbox_styles_render_without_panic() {
+        let mut state = CheckboxState::new(CheckState::On);
+        let area = Rect::new(0, 0, 20, 2);
+        let mut buf = Buffer::empty(area);
+
+        for style in [CheckStyle::Pill, CheckStyle::Bracket, CheckStyle::Box, CheckStyle::Circle, CheckStyle::Check, CheckStyle::Square] {
+            buf.reset();
+            Checkbox::new("Test").style(style).render(area, &mut buf, &mut state);
+        }
+    }
+
+    #[test]
+    fn checkbox_bracket_shows_correct_marks() {
+        let area = Rect::new(0, 0, 12, 1);
+        let mut buf = Buffer::empty(area);
+
+        let mut state = CheckboxState::new(CheckState::On);
+        Checkbox::new("").style(CheckStyle::Bracket).render(area, &mut buf, &mut state);
+        assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "[");
+        assert_eq!(buf.cell((1, 0)).unwrap().symbol(), "x");
+        assert_eq!(buf.cell((2, 0)).unwrap().symbol(), "]");
+
+        buf.reset();
+        state.value = CheckState::Indeterminate;
+        Checkbox::new("").style(CheckStyle::Bracket).render(area, &mut buf, &mut state);
+        assert_eq!(buf.cell((1, 0)).unwrap().symbol(), "-");
+    }
+
+    #[test]
+    fn switch_styles_render_without_panic() {
+        let mut state = SwitchState::new(true);
+        let area = Rect::new(0, 0, 20, 1);
+        let mut buf = Buffer::empty(area);
+
+        for style in [SwitchStyle::Pill, SwitchStyle::Slim, SwitchStyle::Line, SwitchStyle::Round, SwitchStyle::Text, SwitchStyle::Check] {
+            buf.reset();
+            Switch::new().style(style).compact(true).render(area, &mut buf, &mut state);
+        }
+    }
+
+    #[test]
+    fn switch_text_shows_on_off() {
+        let area = Rect::new(0, 0, 6, 1);
+        let mut buf = Buffer::empty(area);
+
+        let mut state = SwitchState::new(true);
+        Switch::new().style(SwitchStyle::Text).render(area, &mut buf, &mut state);
+        let text: String = (0..5).map(|x| buf.cell((x, 0)).unwrap().symbol()).collect();
+        assert!(text.contains("ON"));
+
+        buf.reset();
+        state.on = false;
+        Switch::new().style(SwitchStyle::Text).render(area, &mut buf, &mut state);
+        let text: String = (0..5).map(|x| buf.cell((x, 0)).unwrap().symbol()).collect();
+        assert!(text.contains("OFF"));
+    }
+
+    #[test]
+    fn radio_styles_render_without_panic() {
+        let mut state = RadioState::new(Some(1));
+        let area = Rect::new(0, 0, 20, 3);
+        let mut buf = Buffer::empty(area);
+
+        for style in [RadioStyle::Dot, RadioStyle::Bracket, RadioStyle::Check, RadioStyle::Arrow] {
+            buf.reset();
+            RadioGroup::new(vec!["A".into(), "B".into(), "C".into()]).style(style).render(area, &mut buf, &mut state);
+        }
+    }
+
+    #[test]
+    fn segmented_styles_render_without_panic() {
+        let mut state = SegmentedState::new(1);
+        let area = Rect::new(0, 0, 30, 2);
+        let mut buf = Buffer::empty(area);
+
+        for style in [SegmentedStyle::Filled, SegmentedStyle::Outline, SegmentedStyle::Underline, SegmentedStyle::Text] {
+            buf.reset();
+            Segmented::new(vec!["Day".into(), "Week".into(), "Month".into()]).style(style).render(area, &mut buf, &mut state);
+        }
     }
 }

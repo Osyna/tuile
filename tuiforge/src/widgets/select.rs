@@ -44,6 +44,27 @@ impl SelectOption {
     }
 }
 
+/// How wide the dropdown opens.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum DropdownWidth {
+    /// Fit the longest option (default).
+    #[default]
+    Auto,
+    /// Exactly as wide as the field it belongs to.
+    Field,
+    Fixed(u16),
+}
+
+impl DropdownWidth {
+    fn resolve(self, natural: u16, field: Rect) -> u16 {
+        match self {
+            DropdownWidth::Auto => natural,
+            DropdownWidth::Field => field.width.max(8),
+            DropdownWidth::Fixed(w) => w.max(8),
+        }
+    }
+}
+
 /// Builder for a select dropdown.
 #[derive(Clone, Debug)]
 pub struct Select {
@@ -72,6 +93,8 @@ pub struct SelectState {
     typeahead_reset: Instant,
     option_hits: Vec<HitBox>,
     pub dropdown_area: Rect,
+    /// Width policy for the open list (`DropdownWidth::Field` matches the field).
+    pub dropdown_width: DropdownWidth,
 }
 
 /// Builder for an editable combobox (filterable select).
@@ -101,6 +124,7 @@ pub struct ComboboxState {
     filtered: Vec<(usize, i32, Vec<usize>)>,
     option_hits: Vec<HitBox>,
     pub dropdown_area: Rect,
+    pub dropdown_width: DropdownWidth,
 }
 
 /// Builder for a multi-select with checkboxes.
@@ -128,6 +152,7 @@ pub struct MultiSelectState {
     pub scrollbar_state: ScrollbarState,
     option_hits: Vec<HitBox>,
     pub dropdown_area: Rect,
+    pub dropdown_width: DropdownWidth,
 }
 
 // ───────────────────────────── select builder ─────────────────────────────
@@ -216,6 +241,7 @@ impl SelectState {
             typeahead_reset: Instant::now(),
             option_hits: Vec::new(),
             dropdown_area: Rect::default(),
+            dropdown_width: DropdownWidth::Auto,
         }
     }
 
@@ -232,6 +258,7 @@ impl SelectState {
             typeahead_reset: Instant::now(),
             option_hits: Vec::new(),
             dropdown_area: Rect::default(),
+            dropdown_width: DropdownWidth::Auto,
         }
     }
 
@@ -435,7 +462,8 @@ impl SelectState {
 
         let visible = max_visible.min(self.options.len());
         let h = visible as u16 + 2;
-        let w = self.options.iter().map(|o| o.label.width()).max().unwrap_or(10).min(60) as u16 + 4;
+        let natural = self.options.iter().map(|o| o.label.width()).max().unwrap_or(10).min(60) as u16 + 4;
+        let w = self.dropdown_width.resolve(natural, self.hit.area);
 
         let dropdown = popup_below(self.hit.area, w, h, bounds);
         self.dropdown_area = dropdown;
@@ -616,6 +644,7 @@ impl ComboboxState {
             filtered: Vec::new(),
             option_hits: Vec::new(),
             dropdown_area: Rect::default(),
+            dropdown_width: DropdownWidth::Auto,
         }
     }
 
@@ -656,7 +685,8 @@ impl ComboboxState {
 
         let visible = max_visible.min(self.filtered.len());
         let h = visible as u16 + 2;
-        let w = self.options.iter().map(|o| o.label.width()).max().unwrap_or(10).min(60) as u16 + 4;
+        let natural = self.options.iter().map(|o| o.label.width()).max().unwrap_or(10).min(60) as u16 + 4;
+        let w = self.dropdown_width.resolve(natural, self.hit.area);
 
         let dropdown = popup_below(self.hit.area, w, h, bounds);
         self.dropdown_area = dropdown;
@@ -924,6 +954,7 @@ impl MultiSelectState {
             scrollbar_state: ScrollbarState::default(),
             option_hits: Vec::new(),
             dropdown_area: Rect::default(),
+            dropdown_width: DropdownWidth::Auto,
         }
     }
 
@@ -954,7 +985,8 @@ impl MultiSelectState {
 
         let visible = max_visible.min(self.options.len());
         let h = visible as u16 + 2;
-        let w = self.options.iter().map(|o| o.label.width() + 4).max().unwrap_or(14).min(60) as u16 + 4;
+        let natural = self.options.iter().map(|o| o.label.width() + 4).max().unwrap_or(14).min(60) as u16 + 4;
+        let w = self.dropdown_width.resolve(natural, self.hit.area);
 
         let dropdown = popup_below(self.hit.area, w, h, bounds);
         self.dropdown_area = dropdown;

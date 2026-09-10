@@ -19,6 +19,7 @@ enum Id {
     TabbedContent,
     List,
     Paginator,
+    BigMenu,
 }
 
 pub struct NavigationPage {
@@ -38,6 +39,7 @@ pub struct NavigationPage {
     context_menu: ContextMenuState,
     tree_roots: Vec<TreeNode>,
     list_filter: String,
+    big_menu: BigMenuState,
 }
 
 impl NavigationPage {
@@ -76,6 +78,7 @@ impl NavigationPage {
                 Id::TabbedContent,
                 Id::List,
                 Id::Paginator,
+                Id::BigMenu,
             ]),
             menu: MenuBarState::new(),
             breadcrumbs: BreadcrumbsState::new(),
@@ -92,6 +95,7 @@ impl NavigationPage {
             context_menu: ContextMenuState::new(),
             tree_roots,
             list_filter: String::new(),
+            big_menu: BigMenuState::default(),
         }
     }
 }
@@ -296,8 +300,15 @@ impl Page for NavigationPage {
                 .render(Rect::new(nav_area.x, nav_area.y + 2, nav_area.width, 1), buf, &mut PaginatorState::new());
         }
 
-        // RIGHT: tabbed content
+        // RIGHT: tabbed content on top, the btop-style big-font menu below when there is room
+        let menu_h = if right.height >= 30 { 13 } else { 0 };
+        let (right, big_area) = (Rect { height: right.height - menu_h, ..right }, Rect { y: right.bottom() - menu_h, height: menu_h, ..right });
         let right_inner = Border::Round.draw_titled_with(buf, right, th.border_blurred, th.background, "Tabbed Content", Alignment::Left, tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD));
+        if menu_h > 0 {
+            let inner = Border::Round.draw_titled_with(buf, big_area, th.border_blurred, th.background, "Big menu (BigMenu · btop style, also on Monitor: m)", Alignment::Left, tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD));
+            let items = ["OPTIONS", "HELP", "QUIT"];
+            BigMenu::new(&items).gap(1).focused(self.focus.is(Id::BigMenu)).theme(th).render(inner, buf, &mut self.big_menu);
+        }
 
         let tabs_items = vec!["List".into(), "Tree".into(), "Multi-select".into()];
 
@@ -479,6 +490,11 @@ impl Page for NavigationPage {
                     out |= self.paginator.handle_key(*k);
                 } else if self.focus.is(Id::Breadcrumbs) {
                     out |= self.breadcrumbs.handle_key(*k);
+                } else if self.focus.is(Id::BigMenu) {
+                    out |= self.big_menu.handle_key(*k);
+                    if let Some(i) = self.big_menu.take_activated() {
+                        ctx.notify(format!("Big menu: {}", ["Options", "Help", "Quit"][i.min(2)]), Variant::Primary);
+                    }
                 }
             }
             Event::Mouse(m) => {
@@ -500,6 +516,11 @@ impl Page for NavigationPage {
                 }
 
                 out |= self.paginator.handle_mouse(*m);
+                out |= self.big_menu.handle_mouse(*m);
+                if let Some(i) = self.big_menu.take_activated() {
+                    self.focus.set(Id::BigMenu);
+                    ctx.notify(format!("Big menu: {}", ["Options", "Help", "Quit"][i.min(2)]), Variant::Primary);
+                }
 
                 // right-click in list opens context menu
                 if matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(ratatui::crossterm::event::MouseButton::Right)) {

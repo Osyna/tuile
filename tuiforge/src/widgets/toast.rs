@@ -19,7 +19,7 @@ use ratatui::widgets::StatefulWidget;
 
 use crate::anim::Easing;
 use crate::core::{HitBox, Hit, Outcome, Interactive};
-use crate::draw::{fill, put, wrap, st, blend_area, bold, Border};
+use crate::draw::{Edge, fill, hbar, put, wrap, st, blend_area, bold, Border};
 use crate::theme::{self, Theme, Variant};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -113,6 +113,8 @@ pub struct Toaster {
     toasts: Vec<Toast>,
     max_visible: usize,
     pub corner: ToastCorner,
+    /// Thickness of the variant-coloured bar on the left (`Edge::Full` fills the cell).
+    pub bar: Edge,
     reduce_motion: bool,
     fade_duration: Duration,
     now: Instant,
@@ -124,10 +126,17 @@ impl Toaster {
             toasts: Vec::new(),
             max_visible: 3,
             corner: ToastCorner::BottomRight,
+            bar: Edge::Thin,
             reduce_motion: false,
             fade_duration: Duration::from_millis(150),
             now: Instant::now(),
         }
+    }
+
+    /// Left accent bar: `Edge::Thin` (flush, default), `Edge::Half`, or `Edge::Full` (painted).
+    pub fn bar(mut self, e: Edge) -> Self {
+        self.bar = e;
+        self
     }
 
     pub fn push(&mut self, mut toast: Toast) {
@@ -308,11 +317,9 @@ impl StatefulWidget for ToastStack {
             let bg = th.toast_bg;
             fill(buf, r, bg);
             
-            // Left bar in variant color
+            // Left bar in the variant colour, flush with the edge
             let bar_color = th.variant(toast.variant);
-            for dy in 0..r.height {
-                put(buf, r.x, r.y + dy, "┃", 1, st(bar_color, bg));
-            }
+            state.bar.draw(buf, r.x, r.y, r.height, false, bar_color, bg);
 
             let text_x = r.x + 2;
             let text_w = r.width.saturating_sub(3);
@@ -327,17 +334,14 @@ impl StatefulWidget for ToastStack {
                 put(buf, text_x, ly, line, text_w, st(th.foreground, bg));
             }
 
-            // Progress bar if enabled
+            // Remaining-time bar: a painted strip on the bottom row that shrinks to the left
             if toast.show_progress
-                && let Some(timeout) = toast.timeout {
-                    let elapsed = now.saturating_duration_since(toast.created);
-                    let p = 1.0 - (elapsed.as_secs_f32() / timeout.as_secs_f32()).min(1.0);
-                    let bar_y = r.bottom().saturating_sub(1);
-                    let bar_w = (r.width as f32 * p) as u16;
-                    for dx in 0..bar_w {
-                        put(buf, r.x + dx, bar_y, "▔", 1, st(bar_color, bg));
-                    }
-                }
+                && let Some(timeout) = toast.timeout
+            {
+                let elapsed = now.saturating_duration_since(toast.created);
+                let p = 1.0 - (elapsed.as_secs_f32() / timeout.as_secs_f32()).min(1.0);
+                hbar(buf, r.x, r.bottom() - 1, r.width, p, bar_color, bg);
+            }
 
             toast.hit.set_area(r);
 
@@ -361,7 +365,9 @@ pub struct Callout {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CalloutBorder {
+    /// Variant-coloured bar on the left; `LeftBar` is `Edge::Thin`, pick a thickness with `Bar(..)`.
     LeftBar,
+    Bar(Edge),
     Round,
 }
 
@@ -440,11 +446,10 @@ impl StatefulWidget for Callout {
         let var_color = th.variant(self.variant);
 
         match self.border_style {
-            CalloutBorder::LeftBar => {
+            CalloutBorder::LeftBar | CalloutBorder::Bar(_) => {
                 fill(buf, area, bg);
-                for y in area.top()..area.bottom() {
-                    put(buf, area.x, y, "┃", 1, st(var_color, bg));
-                }
+                let edge = if let CalloutBorder::Bar(e) = self.border_style { e } else { Edge::Thin };
+                edge.draw(buf, area.x, area.y, area.height, false, var_color, bg);
             }
             CalloutBorder::Round => {
                 fill(buf, area, bg);
@@ -461,8 +466,9 @@ impl StatefulWidget for Callout {
             Variant::Secondary | Variant::Accent => "ⓘ",
         };
 
-        let text_x = area.x + if self.border_style == CalloutBorder::LeftBar { 2 } else { 3 };
-        let text_w = area.width.saturating_sub(if self.border_style == CalloutBorder::LeftBar { 3 } else { 6 });
+        let round = self.border_style == CalloutBorder::Round;
+        let text_x = area.x + if round { 3 } else { 2 };
+        let text_w = area.width.saturating_sub(if round { 6 } else { 3 });
 
         put(buf, text_x, area.y + 1, icon, 1, st(var_color, bg));
         put(buf, text_x + 2, area.y + 1, &self.title, text_w.saturating_sub(2), bold(st(th.text, bg)));

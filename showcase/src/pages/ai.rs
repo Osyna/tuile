@@ -156,18 +156,28 @@ impl Page for AiPage {
                 .render(Rect { y: c.y + 1, height: 1, ..c }, buf);
         }
 
-        if let Some(r) = slot(5, &mut y) {
+        if let Some(r) = slot(6, &mut y) {
             let c = pad(card(buf, r, &th, "Context"), 1, 0);
             ContextGauge::new(TokenUsage { prompt: 12_400, completion: 3_200, limit: 200_000 })
                 .label("context")
                 .cost_usd(0.0123)
                 .theme(&th)
                 .render(Rect { height: 2, ..c }, buf);
-            put(buf, c.x, c.y + 2, "near the limit", 14, st(th.text_muted, th.background));
-            ContextGauge::new(TokenUsage { prompt: 180_000, completion: 12_000, limit: 200_000 })
+            // the same gauge in btop's LED style with a heat gradient (any MeterStyle works)
+            let heat = [th.success, th.warning, th.error];
+            put(buf, c.x, c.y + 2, "leds", 14, st(th.text_muted, th.background));
+            ContextGauge::new(TokenUsage { prompt: 96_000, completion: 20_000, limit: 200_000 })
                 .compact(true)
+                .style(MeterStyle::Blocks)
+                .gradient(&heat)
                 .theme(&th)
                 .render(Rect { x: c.x + 15, y: c.y + 2, width: c.width.saturating_sub(15), height: 1 }, buf);
+            put(buf, c.x, c.y + 3, "near the limit", 14, st(th.text_muted, th.background));
+            ContextGauge::new(TokenUsage { prompt: 180_000, completion: 12_000, limit: 200_000 })
+                .compact(true)
+                .style(MeterStyle::Dots)
+                .theme(&th)
+                .render(Rect { x: c.x + 15, y: c.y + 3, width: c.width.saturating_sub(15), height: 1 }, buf);
         }
 
         let calls = [

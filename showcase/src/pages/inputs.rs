@@ -5,7 +5,7 @@ use std::time::Instant;
 use tuiforge::draw::{Border, fill, put, st};
 use tuiforge::prelude::*;
 use tuiforge::widgets::input::{Input, InputRestrict, InputState};
-use tuiforge::widgets::textarea::{TextArea, TextAreaState};
+use tuiforge::widgets::textarea::{CursorStyle, TextArea, TextAreaState};
 
 use super::{Ctx, Page};
 
@@ -90,6 +90,7 @@ impl InputsPage {
             readonly: TextAreaState::with_text("This textarea is read-only.\nYou can scroll but not edit.\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7"),
         };
         s.country.set_selected(Some(0));
+        s.country.dropdown_width = DropdownWidth::Field; // list opens as wide as the field
         s.language.input.set_value("Rust");
         s.language.selected = Some(0);
         s.tags.selected[0] = true;
@@ -255,7 +256,7 @@ impl Page for InputsPage {
     }
 
     fn bindings(&self) -> &'static [(&'static str, &'static str)] {
-        &[("Tab", "next field"), ("Enter", "submit")]
+        &[("Tab", "next field"), ("Enter", "submit"), ("click", "Move cursor")]
     }
 }
 
@@ -444,16 +445,17 @@ impl InputsPage {
                 .line_numbers(true)
                 .highlight_line(true)
                 .highlighter(highlight_rust)
+                .shape(FieldShape::Tall(Edge::Thin))
+                .cursor(CursorStyle::Bar)
+                .cursor_blink(true)
+                .cursor_when_unfocused(true)
+                .show_position(true)
                 .focused(self.focus.is(Id::Editor))
                 .now(now)
                 .theme(th)
                 .render(text_area, buf, &mut self.editor);
 
-            let status_y = editor_inner.bottom().saturating_sub(1);
-            let (row, col) = self.editor.cursor();
-            let char_count = self.editor.text().len();
-            let status = format!(" Ln {}, Col {} • {} chars", row + 1, col + 1, char_count);
-            put(buf, editor_inner.x, status_y, &status, editor_inner.width, st(th.text_muted, bg));
+            // Position indicator is now shown by the widget itself
         }
 
         // Read-only textarea

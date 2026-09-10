@@ -27,6 +27,7 @@ use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
 use crate::draw::{Border, Edge, FieldShape, fill, put, put_centered, put_right, st, wrap};
 use crate::theme::{self, Rgb, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
+use crate::widgets::charts::{Meter, MeterStyle};
 use crate::widgets::spinner::{SpinnerDef, spinners};
 use crate::widgets::textarea::{TextArea, TextAreaState};
 
@@ -681,20 +682,24 @@ pub fn fmt_tokens(n: u32) -> String {
 
 // ───────────────────────────── ContextGauge ─────────────────────────────
 
-/// Token usage gauge with segmented bar.
+/// Token usage gauge: `context 15.6k / 200k  8%  $0.0123` over a bar. The bar is a [`Meter`],
+/// so every meter style works (`Block` default, `Line`, `Segments`, btop `Blocks`/`Dots`) and a
+/// gradient can replace the warning/error thresholds.
 #[derive(Clone, Debug)]
-pub struct ContextGauge {
+pub struct ContextGauge<'a> {
     usage: TokenUsage,
     compact: bool,
     cost_usd: Option<f32>,
     label: String,
+    style: MeterStyle,
+    gradient: Option<&'a [Rgb]>,
     theme: Option<Theme>,
 }
 
-impl ContextGauge {
+impl<'a> ContextGauge<'a> {
     /// Create from usage.
     pub fn new(usage: TokenUsage) -> Self {
-        Self { usage, compact: false, cost_usd: None, label: "context".to_string(), theme: None }
+        Self { usage, compact: false, cost_usd: None, label: "context".to_string(), style: MeterStyle::Block, gradient: None, theme: None }
     }
 
     /// Compact mode (bar only).
@@ -715,6 +720,18 @@ impl ContextGauge {
         self
     }
 
+    /// Bar style (any [`MeterStyle`]; `Block` splits prompt/completion, the others show usage).
+    pub fn style(mut self, s: MeterStyle) -> Self {
+        self.style = s;
+        self
+    }
+
+    /// Colour stops for the bar (replaces the 80 % warning / 95 % error thresholds).
+    pub fn gradient(mut self, stops: &'a [Rgb]) -> Self {
+        self.gradient = Some(stops);
+        self
+    }
+
     /// Set theme.
     pub fn theme(mut self, th: &Theme) -> Self {
         self.theme = Some(*th);
@@ -722,72 +739,42 @@ impl ContextGauge {
     }
 }
 
-impl Widget for ContextGauge {
+impl Widget for ContextGauge<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         if area.height == 0 || area.width < 4 {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
         let frac = self.usage.fraction();
-        
-        let color = if frac >= 0.95 {
-            th.error
-        } else if frac >= 0.8 {
-            th.warning
-        } else {
-            th.primary
-        };
+        let level = if frac >= 0.95 { th.error } else if frac >= 0.8 { th.warning } else { th.primary };
 
-        if self.compact {
-            // bar only
-            let prompt_f = self.usage.prompt as f32 / self.usage.limit as f32;
-            let used_f = self.usage.used() as f32 / self.usage.limit as f32;
-            
-            for i in 0..area.width {
-                let cell_f = i as f32 / area.width as f32;
-                let _next_f = (i + 1) as f32 / area.width as f32;
-                
-                if cell_f < prompt_f {
-                    let c = if frac >= 0.95 { th.error } else if frac >= 0.8 { th.warning } else { th.primary };
-                    fill(buf, Rect { x: area.x + i, y: area.y, width: 1, height: 1 }, c);
-                } else if cell_f < used_f {
-                    let c = if frac >= 0.95 { th.error } else if frac >= 0.8 { th.warning } else { th.accent };
-                    fill(buf, Rect { x: area.x + i, y: area.y, width: 1, height: 1 }, c);
-                } else {
-                    fill(buf, Rect { x: area.x + i, y: area.y, width: 1, height: 1 }, th.surface);
-                }
-            }
+        let bar_y = if self.compact {
+            area.y
         } else {
-            // label + bar
-            let mut label_text = format!("{} {} / {}  {:.0}%", 
-                self.label, 
-                fmt_tokens(self.usage.used()), 
-                fmt_tokens(self.usage.limit),
-                frac * 100.0
-            );
-            
+            let mut text = format!("{} {} / {}  {:.0}%", self.label, fmt_tokens(self.usage.used()), fmt_tokens(self.usage.limit), frac * 100.0);
             if let Some(cost) = self.cost_usd {
-                label_text.push_str(&format!(" ${:.4}", cost));
+                text.push_str(&format!(" ${cost:.4}"));
             }
-            
-            put(buf, area.x, area.y, &label_text, area.width, st(th.text, th.background));
-            
-            if area.height > 1 {
-                let bar_y = area.y + 1;
-                let prompt_w = ((self.usage.prompt as f32 / self.usage.limit as f32) * area.width as f32).round() as u16;
-                let used_w = ((self.usage.used() as f32 / self.usage.limit as f32) * area.width as f32).round() as u16;
-                
-                for i in 0..area.width {
-                    if i < prompt_w {
-                        fill(buf, Rect { x: area.x + i, y: bar_y, width: 1, height: 1 }, color);
-                    } else if i < used_w {
-                        let c = if frac >= 0.95 { th.error } else if frac >= 0.8 { th.warning } else { th.accent };
-                        fill(buf, Rect { x: area.x + i, y: bar_y, width: 1, height: 1 }, c);
-                    } else {
-                        fill(buf, Rect { x: area.x + i, y: bar_y, width: 1, height: 1 }, th.surface);
-                    }
-                }
+            put(buf, area.x, area.y, &text, area.width, st(th.text, th.background));
+            if area.height < 2 {
+                return;
             }
+            area.y + 1
+        };
+        let bar = Rect { x: area.x, y: bar_y, width: area.width, height: 1 };
+
+        let mut meter = Meter::new().value(frac.min(1.0)).style(self.style).color(level).theme(&th);
+        if let Some(g) = self.gradient {
+            meter = meter.gradient(g);
+        }
+        meter.render(bar, buf);
+
+        // the painted style also shows where the prompt ends and the completion begins
+        if self.style == MeterStyle::Block && self.gradient.is_none() && self.usage.limit > 0 {
+            let prompt_w = ((self.usage.prompt as f32 / self.usage.limit as f32) * area.width as f32).round() as u16;
+            let used_w = ((self.usage.used() as f32 / self.usage.limit as f32) * area.width as f32).round() as u16;
+            let completion = if frac >= 0.8 { level } else { th.accent };
+            fill(buf, Rect { x: area.x + prompt_w.min(area.width), y: bar_y, width: used_w.saturating_sub(prompt_w).min(area.width.saturating_sub(prompt_w)), height: 1 }, completion);
         }
     }
 }

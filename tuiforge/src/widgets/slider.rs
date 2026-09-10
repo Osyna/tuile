@@ -21,7 +21,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{Easing, Tween};
 use crate::core::{Hit, HitBox, Interactive, Look, Outcome, is_left_down, is_press, mouse_in, mouse_pos, wheel_delta};
-use crate::draw::{Border, fill, put, st};
+use crate::draw::{FieldShape, fill, put, st};
 use crate::theme::{self, Theme, Variant};
 
 // ───────────────────────────── slider ─────────────────────────────
@@ -34,6 +34,7 @@ pub struct Slider {
     format: Option<fn(f32) -> String>,
     ticks: bool,
     variant: Variant,
+    shape: FieldShape,
     duration: Option<Duration>,
     focused: bool,
     enabled: bool,
@@ -49,12 +50,20 @@ impl Slider {
             format: None,
             ticks: false,
             variant: Variant::Primary,
+            shape: FieldShape::None,
             duration: None,
             focused: false,
             enabled: true,
             now: None,
             theme: None,
         }
+    }
+
+    /// Frame around the slider. `FieldShape::None` (default) shows focus only through the
+    /// track/label colours; e.g. `FieldShape::Tall(Edge::Thin)` for a focus frame.
+    pub fn shape(mut self, s: FieldShape) -> Self {
+        self.shape = s;
+        self
     }
 
     pub fn label(mut self, l: impl Into<String>) -> Self {
@@ -119,7 +128,7 @@ impl StatefulWidget for Slider {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         state.duration = self.duration.unwrap_or(Duration::from_millis(150));
-        if area.width < 10 || area.height < 3 {
+        if area.width < 10 || area.height < 1 + self.shape.vertical_chrome() {
             state.hit.set_area(Rect::default());
             state.track = Rect::default();
             return;
@@ -131,14 +140,21 @@ impl StatefulWidget for Slider {
         fill(buf, area, bg);
 
         let border = if look.focused { th.border } else { th.border_blurred };
-        Border::Tall.draw(buf, area, border, bg);
+        let inner = self.shape.draw(buf, area, border, bg);
+        if inner.width < 8 || inner.height == 0 {
+            state.hit.set_area(Rect::default());
+            return;
+        }
+        // label on the last row, track just above it (or on the only row)
+        let label_text = self.label.as_deref().unwrap_or("");
+        let has_label = !label_text.is_empty() && inner.height >= 2;
+        let track_y = if has_label { inner.bottom() - 2 } else { inner.bottom() - 1 };
 
         let fmt_value = |v: f32| match self.format {
             Some(fmt) => fmt(v),
             None => format!("{v:.0}"),
         };
         let value_text = if self.show_value { fmt_value(state.value) } else { String::new() };
-        let label_text = self.label.as_deref().unwrap_or("");
         // slot sized for the widest value the range can produce, so the track keeps its width
         let right_w = if self.show_value {
             (fmt_value(state.min).width().max(fmt_value(state.max).width()).max(value_text.width())) as u16
@@ -147,9 +163,9 @@ impl StatefulWidget for Slider {
         };
 
         state.track = Rect {
-            x: area.x + 3,
-            y: area.y + 1,
-            width: area.width.saturating_sub(6 + right_w + if right_w > 0 { 1 } else { 0 }),
+            x: inner.x + 2,
+            y: track_y,
+            width: inner.width.saturating_sub(4 + right_w + u16::from(right_w > 0)),
             height: 1,
         };
         state.hit.set_area(area);
@@ -192,9 +208,9 @@ impl StatefulWidget for Slider {
             put(buf, vx, state.track.y, &value_text, right_w, st(fg, bg).add_modifier(Modifier::BOLD));
         }
 
-        if !label_text.is_empty() {
-            let fg = if look.enabled { th.text } else { th.text_disabled };
-            put(buf, area.x + 1, area.bottom() - 1, label_text, area.width.saturating_sub(2), st(fg, bg));
+        if has_label {
+            let fg = if !look.enabled { th.text_disabled } else if look.focused { th.text_primary } else { th.text };
+            put(buf, inner.x, inner.bottom() - 1, label_text, inner.width, st(fg, bg));
         }
     }
 }
@@ -335,6 +351,7 @@ impl Interactive for SliderState {
 pub struct RangeSlider {
     label: Option<String>,
     variant: Variant,
+    shape: FieldShape,
     focused: bool,
     enabled: bool,
     now: Option<Instant>,
@@ -346,11 +363,18 @@ impl RangeSlider {
         Self {
             label: None,
             variant: Variant::Primary,
+            shape: FieldShape::None,
             focused: false,
             enabled: true,
             now: None,
             theme: None,
         }
+    }
+
+    /// Frame around the slider (`FieldShape::None` by default; focus shows in the colours).
+    pub fn shape(mut self, s: FieldShape) -> Self {
+        self.shape = s;
+        self
     }
 
     pub fn label(mut self, l: impl Into<String>) -> Self {
@@ -394,7 +418,7 @@ impl StatefulWidget for RangeSlider {
     type State = RangeState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 10 || area.height < 3 {
+        if area.width < 10 || area.height < 1 + self.shape.vertical_chrome() {
             state.hit.set_area(Rect::default());
             state.track = Rect::default();
             return;
@@ -406,16 +430,22 @@ impl StatefulWidget for RangeSlider {
         fill(buf, area, bg);
 
         let border = if look.focused { th.border } else { th.border_blurred };
-        Border::Tall.draw(buf, area, border, bg);
+        let inner = self.shape.draw(buf, area, border, bg);
+        if inner.width < 10 || inner.height == 0 {
+            state.hit.set_area(Rect::default());
+            return;
+        }
+        let has_label = self.label.as_deref().is_some_and(|l| !l.is_empty()) && inner.height >= 2;
+        let track_y = if has_label { inner.bottom() - 2 } else { inner.bottom() - 1 };
 
         let label_text = format!("{:.0} – {:.0}", state.lo, state.hi);
         let bound_w = format!("{:.0}", state.min).width().max(format!("{:.0}", state.max).width());
         let right_w = (bound_w * 2 + 3).max(label_text.width()) as u16;
 
         state.track = Rect {
-            x: area.x + 3,
-            y: area.y + 1,
-            width: area.width.saturating_sub(6 + right_w + 1),
+            x: inner.x + 2,
+            y: track_y,
+            width: inner.width.saturating_sub(4 + right_w + 1),
             height: 1,
         };
         state.hit.set_area(area);
@@ -456,9 +486,9 @@ impl StatefulWidget for RangeSlider {
         let lx = state.track.right() + 1 + right_w.saturating_sub(label_text.width() as u16);
         put(buf, lx, state.track.y, &label_text, right_w, st(fg, bg).add_modifier(Modifier::BOLD));
 
-        if let Some(label) = &self.label {
-            let fg = if look.enabled { th.text } else { th.text_disabled };
-            put(buf, area.x + 1, area.bottom() - 1, label, area.width.saturating_sub(2), st(fg, bg));
+        if has_label && let Some(label) = &self.label {
+            let fg = if !look.enabled { th.text_disabled } else if look.focused { th.text_primary } else { th.text };
+            put(buf, inner.x, inner.bottom() - 1, label, inner.width, st(fg, bg));
         }
     }
 }

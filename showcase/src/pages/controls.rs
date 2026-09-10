@@ -27,11 +27,17 @@ enum Id {
     Icon,
     Wide,
     Check(usize),
+    CheckStyle(usize),
     Switch(usize),
+    SwitchStyle(usize),
     Radio,
     RadioH,
+    RadioBracket,
+    RadioArrow,
     CheckList,
     Segmented,
+    SegmentedOutline,
+    SegmentedUnderline,
     Volume,
     Brightness,
     Range,
@@ -45,11 +51,17 @@ pub struct ControlsPage {
     icon_btn: ButtonState,
     wide_btn: ButtonState,
     checks: [CheckboxState; 4],
+    check_styles: [CheckboxState; 6],
     switches: [SwitchState; 3],
+    switch_styles: [SwitchState; 6],
     radio: RadioState,
     radio_h: RadioState,
+    radio_bracket: RadioState,
+    radio_arrow: RadioState,
     checklist: CheckListState,
     segmented: SegmentedState,
+    segmented_outline: SegmentedState,
+    segmented_underline: SegmentedState,
     volume: SliderState,
     brightness: SliderState,
     range: RangeState,
@@ -64,8 +76,10 @@ impl Default for ControlsPage {
         order.extend((0..BUTTONS.len()).map(Id::Button));
         order.extend([Id::Icon, Id::Wide]);
         order.extend((0..4).map(Id::Check));
+        order.extend((0..6).map(Id::CheckStyle));
         order.extend((0..3).map(Id::Switch));
-        order.extend([Id::Radio, Id::RadioH, Id::CheckList, Id::Segmented, Id::Volume, Id::Brightness, Id::Range, Id::Stepper, Id::Rating]);
+        order.extend((0..6).map(Id::SwitchStyle));
+        order.extend([Id::Radio, Id::RadioH, Id::RadioBracket, Id::RadioArrow, Id::CheckList, Id::Segmented, Id::SegmentedOutline, Id::SegmentedUnderline, Id::Volume, Id::Brightness, Id::Range, Id::Stepper, Id::Rating]);
         let mut checks = [CheckboxState::new(CheckState::Off), CheckboxState::new(CheckState::On), CheckboxState::new(CheckState::Indeterminate), CheckboxState::new(CheckState::On)];
         checks[2].set_tri_state(true);
         let mut checklist = CheckListState::new(8);
@@ -77,11 +91,24 @@ impl Default for ControlsPage {
             icon_btn: ButtonState::new(),
             wide_btn: ButtonState::new(),
             checks,
+            check_styles: [
+                CheckboxState::new(CheckState::On),
+                CheckboxState::new(CheckState::On),
+                CheckboxState::new(CheckState::On),
+                CheckboxState::new(CheckState::On),
+                CheckboxState::new(CheckState::On),
+                CheckboxState::new(CheckState::On),
+            ],
             switches: [SwitchState::new(true), SwitchState::new(false), SwitchState::new(true)],
+            switch_styles: [SwitchState::new(true), SwitchState::new(false), SwitchState::new(true), SwitchState::new(false), SwitchState::new(true), SwitchState::new(false)],
             radio: RadioState::new(Some(1)),
             radio_h: RadioState::new(Some(0)),
+            radio_bracket: RadioState::new(Some(1)),
+            radio_arrow: RadioState::new(Some(0)),
             checklist,
             segmented: SegmentedState::new(1),
+            segmented_outline: SegmentedState::new(0),
+            segmented_underline: SegmentedState::new(1),
             volume: SliderState::new(60.0, 0.0, 100.0, 1.0),
             brightness: SliderState::new(0.75, 0.0, 1.0, 0.05),
             range: RangeState::new(20.0, 80.0, 0.0, 100.0, 1.0),
@@ -97,7 +124,7 @@ impl Page for ControlsPage {
         "Controls"
     }
     fn subtitle(&self) -> &'static str {
-        "Buttons, toggles, radios, segmented, sliders, steppers, rating"
+        "Buttons, toggles with styles, sliders, steppers, rating"
     }
     fn icon(&self) -> &'static str {
         "◉"
@@ -112,7 +139,8 @@ impl Page for ControlsPage {
         let dur = ctx.dur(200);
         let f = |id: Id, focus: &Focus<Id>| focus.is(id);
         let inner = pad(area, 1, 0);
-        let [buttons_a, toggles_a, sliders_a] = Layout::vertical([Constraint::Length(13), Constraint::Length(15), Constraint::Fill(1)]).areas(inner);
+        let toggles_h = if inner.height >= 40 { 19 } else { 15 };
+        let [buttons_a, toggles_a, sliders_a] = Layout::vertical([Constraint::Length(13), Constraint::Length(toggles_h), Constraint::Fill(1)]).areas(inner);
 
         // ── Buttons: variants × styles ──
         let b = pad(card(buf, buttons_a, &th, &format!("Buttons  ·  {} presses", self.presses)), 1, 0);
@@ -145,53 +173,84 @@ impl Page for ControlsPage {
             let wide_r = Rect { x: icon_r.right() + 1, y, width: b.right().saturating_sub(icon_r.right() + 1), height: 3 };
             Button::new("Full-width button (flat)").style(ButtonStyle::Flat).full_width(true).focused(f(Id::Wide, &self.focus)).now(now).theme(&th).render(wide_r, buf, &mut self.wide_btn);
         }
+        // ── Toggles (styles) ──
+        let t = pad(card(buf, toggles_a, &th, "Toggles (styles)"), 1, 0);
+        let [c1, c2, c3, c4] = Layout::horizontal([Constraint::Length(30), Constraint::Length(30), Constraint::Length(26), Constraint::Fill(1)]).areas(t);
+        let muted = st(th.text_muted, th.background);
+        let room = |r: Rect| r.bottom() <= t.bottom();
+        let seg_items = || vec!["Day".into(), "Week".into(), "Month".into()];
 
-        // ── Toggles ──
-        let t = pad(card(buf, toggles_a, &th, "Toggles"), 1, 0);
-        let [c1, c2, c3, c4] = Layout::horizontal([Constraint::Length(30), Constraint::Length(30), Constraint::Length(24), Constraint::Fill(1)]).areas(t);
-        // checkboxes + switches
+        // c1: checkbox states, then every CheckStyle
         let labels = ["Checkbox", "Checked", "Indeterminate (tri-state)", "Disabled"];
         for (i, label) in labels.iter().enumerate() {
             let r = Rect { y: c1.y + i as u16, height: 1, ..c1 };
-            Checkbox::new(*label).tri_state(i == 2).enabled(i != 3).focused(f(Id::Check(i), &self.focus)).theme(&th).render(r, buf, &mut self.checks[i]);
-        }
-        let sw_labels = ["Dark mode", "Telemetry", "compact"];
-        for (i, label) in sw_labels.iter().enumerate() {
-            let compact = i == 2;
-            let r = if compact {
-                Rect { x: c1.x, y: c1.y + 5 + 3 * 2, width: c1.width, height: 1 }
-            } else {
-                Rect { x: c1.x, y: c1.y + 5 + i as u16 * 3, width: c1.width, height: 3 }
-            };
-            if r.bottom() <= t.bottom() {
-                Switch::new().label(*label).compact(compact).duration(dur).focused(f(Id::Switch(i), &self.focus)).now(now).theme(&th).render(r, buf, &mut self.switches[i]);
+            if room(r) {
+                Checkbox::new(*label).tri_state(i == 2).enabled(i != 3).focused(f(Id::Check(i), &self.focus)).theme(&th).render(r, buf, &mut self.checks[i]);
             }
         }
-        // radios
-        RadioGroup::new(vec!["Small".into(), "Medium".into(), "Large".into(), "Extra large".into()])
-            .bordered(true)
-            .title("Size")
-            .focused(f(Id::Radio, &self.focus))
-            .theme(&th)
-            .render(Rect { height: 6.min(c2.height), ..c2 }, buf, &mut self.radio);
-        let rh = Rect { y: c2.y + 7, height: 1, width: c2.width, x: c2.x };
-        if rh.bottom() <= t.bottom() {
-            put(buf, rh.x, rh.y - 1, "Colour", 10, st(th.text_muted, th.background));
-            RadioGroup::new(vec!["Red".into(), "Green".into(), "Blue".into()]).horizontal(true).focused(f(Id::RadioH, &self.focus)).theme(&th).render(rh, buf, &mut self.radio_h);
+        let check_styles = [(CheckStyle::Pill, "Pill"), (CheckStyle::Bracket, "Bracket"), (CheckStyle::Box, "Box"), (CheckStyle::Circle, "Circle"), (CheckStyle::Check, "Check"), (CheckStyle::Square, "Square")];
+        if room(Rect { y: c1.y + 6, height: 1, ..c1 }) {
+            put(buf, c1.x, c1.y + 5, "CheckStyle", c1.width, muted);
         }
-        let seg = Rect { y: c2.y + 10, height: 1, width: c2.width, x: c2.x };
-        if seg.bottom() <= t.bottom() {
-            put(buf, seg.x, seg.y - 1, "Segmented", 10, st(th.text_muted, th.background));
-            Segmented::new(vec!["Day".into(), "Week".into(), "Month".into()]).focused(f(Id::Segmented, &self.focus)).theme(&th).render(seg, buf, &mut self.segmented);
+        for (i, (style, name)) in check_styles.iter().enumerate() {
+            let r = Rect { y: c1.y + 6 + i as u16, height: 1, ..c1 };
+            if room(r) {
+                Checkbox::new(*name).style(*style).focused(f(Id::CheckStyle(i), &self.focus)).theme(&th).render(r, buf, &mut self.check_styles[i]);
+            }
         }
-        // checklist with scrollbar
-        put(buf, c3.x, c3.y, "CheckList", c3.width, st(th.text_muted, th.background));
-        let cl = Rect { y: c3.y + 1, height: c3.height.saturating_sub(1).min(7), width: c3.width.saturating_sub(2), x: c3.x };
+
+        // c2: switches in every SwitchStyle, then two radio styles side by side
+        let switch_styles = [(SwitchStyle::Pill, "Dark mode"), (SwitchStyle::Slim, "Telemetry"), (SwitchStyle::Line, "Line"), (SwitchStyle::Round, "Round"), (SwitchStyle::Text, "Text"), (SwitchStyle::Check, "Check")];
+        put(buf, c2.x, c2.y, "SwitchStyle", c2.width, muted);
+        for (i, (style, label)) in switch_styles.iter().enumerate() {
+            let r = Rect { x: c2.x, y: c2.y + 1 + i as u16, width: c2.width, height: 1 };
+            if !room(r) {
+                break;
+            }
+            let (state, id) = if i < 3 { (&mut self.switches[i], Id::Switch(i)) } else { (&mut self.switch_styles[i], Id::SwitchStyle(i)) };
+            Switch::new().label(*label).compact(true).style(*style).duration(dur).focused(f(id, &self.focus)).now(now).theme(&th).render(r, buf, state);
+        }
+        let radios_y = c2.y + 8;
+        if room(Rect { y: radios_y + 3, height: 1, ..c2 }) {
+            put(buf, c2.x, radios_y, "RadioStyle: Bracket · Arrow", c2.width, muted);
+            let half = c2.width / 2;
+            RadioGroup::new(vec!["One".into(), "Two".into(), "Three".into()]).style(RadioStyle::Bracket).focused(f(Id::RadioBracket, &self.focus)).theme(&th).render(Rect { x: c2.x, y: radios_y + 1, width: half, height: 3 }, buf, &mut self.radio_bracket);
+            RadioGroup::new(vec!["Left".into(), "Center".into(), "Right".into()]).style(RadioStyle::Arrow).focused(f(Id::RadioArrow, &self.focus)).theme(&th).render(Rect { x: c2.x + half, y: radios_y + 1, width: c2.width - half, height: 3 }, buf, &mut self.radio_arrow);
+        }
+
+        // c3: the classic radio group, horizontal radios, three Segmented styles
+        let rg = Rect { y: c3.y, height: 6.min(c3.height), width: c3.width.saturating_sub(2), x: c3.x };
+        RadioGroup::new(vec!["Small".into(), "Medium".into(), "Large".into(), "Extra large".into()]).bordered(true).title("Size").focused(f(Id::Radio, &self.focus)).theme(&th).render(rg, buf, &mut self.radio);
+        let mut y3 = rg.bottom();
+        if room(Rect { y: y3 + 1, height: 1, ..c3 }) {
+            put(buf, c3.x, y3, "Colour", c3.width, muted);
+            RadioGroup::new(vec!["Red".into(), "Green".into(), "Blue".into()]).horizontal(true).focused(f(Id::RadioH, &self.focus)).theme(&th).render(Rect { y: y3 + 1, height: 1, width: c3.width.saturating_sub(2), x: c3.x }, buf, &mut self.radio_h);
+            y3 += 2;
+        }
+        if room(Rect { y: y3 + 1, height: 1, ..c3 }) {
+            put(buf, c3.x, y3, "Segmented: Filled · Outline · Underline", c3.width, muted);
+            Segmented::new(seg_items()).focused(f(Id::Segmented, &self.focus)).theme(&th).render(Rect { y: y3 + 1, height: 1, width: c3.width, x: c3.x }, buf, &mut self.segmented);
+            y3 += 2;
+        }
+        if room(Rect { y: y3, height: 1, ..c3 }) {
+            Segmented::new(seg_items()).style(SegmentedStyle::Outline).focused(f(Id::SegmentedOutline, &self.focus)).theme(&th).render(Rect { y: y3, height: 1, width: c3.width, x: c3.x }, buf, &mut self.segmented_outline);
+            y3 += 1;
+        }
+        if room(Rect { y: y3 + 1, height: 1, ..c3 }) {
+            Segmented::new(seg_items()).style(SegmentedStyle::Underline).focused(f(Id::SegmentedUnderline, &self.focus)).theme(&th).render(Rect { y: y3, height: 2, width: c3.width, x: c3.x }, buf, &mut self.segmented_underline);
+        }
+
+        // c4: checklist (bracket style) + state summary
+        let [c4a, c4b] = Layout::horizontal([Constraint::Length(24), Constraint::Fill(1)]).areas(c4);
+        put(buf, c4a.x, c4a.y, "CheckList", c4a.width, muted);
+        let cl = Rect { y: c4a.y + 1, height: c4a.height.saturating_sub(1).min(7), width: c4a.width.saturating_sub(2), x: c4a.x };
         CheckList::new(["Autosave", "Format on save", "Line numbers", "Minimap", "Word wrap", "Ligatures", "Bracket pairs", "Sticky scroll"].iter().map(|s| s.to_string()).collect())
+            .style(CheckStyle::Bracket)
             .focused(f(Id::CheckList, &self.focus))
             .now(now)
             .theme(&th)
             .render(cl, buf, &mut self.checklist);
+        let c4 = c4b;
         // state summary
         let checked: Vec<&str> = ["Autosave", "Format on save", "Line numbers", "Minimap", "Word wrap", "Ligatures", "Bracket pairs", "Sticky scroll"]
             .iter()
@@ -286,11 +345,17 @@ impl Page for ControlsPage {
                         o
                     }
                     Some(Id::Check(i)) if i != 3 => self.checks[i].handle_key(*k),
+                    Some(Id::CheckStyle(i)) => self.check_styles[i].handle_key(*k),
                     Some(Id::Switch(i)) => self.switches[i].handle_key(*k),
+                    Some(Id::SwitchStyle(i)) => self.switch_styles[i].handle_key(*k),
                     Some(Id::Radio) => self.radio.handle_key(*k),
                     Some(Id::RadioH) => self.radio_h.handle_key(*k),
+                    Some(Id::RadioBracket) => self.radio_bracket.handle_key(*k),
+                    Some(Id::RadioArrow) => self.radio_arrow.handle_key(*k),
                     Some(Id::CheckList) => self.checklist.handle_key(*k),
                     Some(Id::Segmented) => self.segmented.handle_key(*k),
+                    Some(Id::SegmentedOutline) => self.segmented_outline.handle_key(*k),
+                    Some(Id::SegmentedUnderline) => self.segmented_underline.handle_key(*k),
                     Some(Id::Volume) => self.volume.handle_key(*k),
                     Some(Id::Brightness) => self.brightness.handle_key(*k),
                     Some(Id::Range) => self.range.handle_key(*k),
@@ -336,18 +401,23 @@ impl Page for ControlsPage {
                 for i in 0..3 {
                     route!(self.checks[i], Id::Check(i));
                 }
+                for i in 0..6 {
+                    route!(self.check_styles[i], Id::CheckStyle(i));
+                }
                 for i in 0..3 {
                     route!(self.switches[i], Id::Switch(i));
                 }
+                for i in 0..6 {
+                    route!(self.switch_styles[i], Id::SwitchStyle(i));
+                }
                 route!(self.radio, Id::Radio);
                 route!(self.radio_h, Id::RadioH);
+                route!(self.radio_bracket, Id::RadioBracket);
+                route!(self.radio_arrow, Id::RadioArrow);
                 route!(self.checklist, Id::CheckList);
                 route!(self.segmented, Id::Segmented);
-                route!(self.volume, Id::Volume);
-                route!(self.brightness, Id::Brightness);
-                route!(self.range, Id::Range);
-                route!(self.stepper, Id::Stepper);
-                route!(self.rating, Id::Rating);
+                route!(self.segmented_outline, Id::SegmentedOutline);
+                route!(self.segmented_underline, Id::SegmentedUnderline);
                 out
             }
             _ => Outcome::Ignored,
@@ -356,6 +426,7 @@ impl Page for ControlsPage {
 
     fn animating(&self, now: Instant) -> bool {
         self.switches.iter().any(|s| s.animating(now))
+            || self.switch_styles.iter().any(|s| s.animating(now))
             || self.volume.animating(now)
             || self.brightness.animating(now)
             || self.range.animating(now)

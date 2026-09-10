@@ -339,6 +339,127 @@ pub fn thick_border(buf: &mut Buffer, area: Rect, color: Rgb, bg: Rgb) {
     Border::Thick.draw(buf, area, color, bg);
 }
 
+// ───────────────────────────── edge bars & field shapes ─────────────────────────────
+
+/// Thickness of a vertical accent bar. `Full` paints the whole cell (Textual's `tall`
+/// border); the others draw an eighth-block glyph, so `Hair` is one pixel column in most fonts.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Edge {
+    /// `▏` / `▕` - 1/8 cell.
+    Hair,
+    /// `▎` / `▕` - 2/8 cell (default for accent bars).
+    #[default]
+    Thin,
+    /// `▌` / `▐` - half cell.
+    Half,
+    /// Whole cell, painted as background.
+    Full,
+}
+
+impl Edge {
+    /// Draw `height` rows of bar at `x`; `right` anchors the glyph to the cell's right side.
+    pub fn draw(self, buf: &mut Buffer, x: u16, y: u16, height: u16, right: bool, color: Rgb, bg: Rgb) {
+        let (glyph, style) = match (self, right) {
+            (Edge::Full, _) => (" ", st(color, color)),
+            (Edge::Hair, false) => ("▏", st(color, bg)),
+            (Edge::Thin, false) => ("▎", st(color, bg)),
+            (Edge::Half, false) => ("▌", st(color, bg)),
+            (Edge::Hair | Edge::Thin, true) => ("▕", st(color, bg)),
+            (Edge::Half, true) => ("▐", st(color, bg)),
+        };
+        for dy in 0..height {
+            put_cell(buf, x, y.saturating_add(dy), glyph, style);
+        }
+    }
+}
+
+/// Frame of a text field: the shapes omp's composer offers, with Textual's `tall` as default.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FieldShape {
+    /// Side bars of the given thickness plus thin `▔`/`▁` lines above and below.
+    Tall(Edge),
+    /// Left and right bars only.
+    Bars(Edge),
+    /// Left bar only.
+    Bar(Edge),
+    /// A `─` rule above and below.
+    Rule,
+    /// Rounded box.
+    Round,
+    /// A `❯` prompt glyph before the first line, no frame.
+    Prompt,
+    /// Nothing.
+    None,
+}
+
+impl Default for FieldShape {
+    fn default() -> Self {
+        FieldShape::Tall(Edge::Full)
+    }
+}
+
+impl FieldShape {
+    /// Rows the shape adds around the content.
+    pub fn vertical_chrome(self) -> u16 {
+        match self {
+            FieldShape::Tall(_) | FieldShape::Rule | FieldShape::Round => 2,
+            _ => 0,
+        }
+    }
+
+    /// Draw the shape in `color` over `bg`; returns the content rect.
+    pub fn draw(self, buf: &mut Buffer, area: Rect, color: Rgb, bg: Rgb) -> Rect {
+        if area.is_empty() {
+            return area;
+        }
+        match self {
+            FieldShape::Tall(Edge::Full) => {
+                Border::Tall.draw(buf, area, color, bg);
+                Border::Tall.inner(area)
+            }
+            FieldShape::Tall(edge) => {
+                if area.height < 2 || area.width < 2 {
+                    return area;
+                }
+                hline(buf, area.x, area.y, area.width, "▔", st(color, bg));
+                hline(buf, area.x, area.bottom() - 1, area.width, "▁", st(color, bg));
+                edge.draw(buf, area.x, area.y + 1, area.height - 2, false, color, bg);
+                edge.draw(buf, area.right() - 1, area.y + 1, area.height - 2, true, color, bg);
+                crate::layout::pad(area, 1, 1)
+            }
+            FieldShape::Bars(edge) => {
+                if area.width < 2 {
+                    return area;
+                }
+                edge.draw(buf, area.x, area.y, area.height, false, color, bg);
+                edge.draw(buf, area.right() - 1, area.y, area.height, true, color, bg);
+                crate::layout::pad(area, 1, 0)
+            }
+            FieldShape::Bar(edge) => {
+                edge.draw(buf, area.x, area.y, area.height, false, color, bg);
+                Rect { x: area.x + 1, width: area.width - 1, ..area }
+            }
+            FieldShape::Rule => {
+                if area.height < 2 {
+                    return area;
+                }
+                hline(buf, area.x, area.y, area.width, "─", st(color, bg));
+                hline(buf, area.x, area.bottom() - 1, area.width, "─", st(color, bg));
+                crate::layout::pad(area, 0, 1)
+            }
+            FieldShape::Round => {
+                Border::Round.draw(buf, area, color, bg);
+                Border::Round.inner(area)
+            }
+            FieldShape::Prompt => {
+                put(buf, area.x, area.y, "❯", 1, st(color, bg).add_modifier(Modifier::BOLD));
+                Rect { x: area.x + 2, width: area.width.saturating_sub(2), ..area }
+            }
+            FieldShape::None => area,
+        }
+    }
+}
+
 /// Simple drop shadow (one cell right and below), Textual `.-shadow` look.
 pub fn shadow(buf: &mut Buffer, area: Rect, toward: Rgb, f: f32) {
     let right = Rect { x: area.right(), y: area.y + 1, width: 1, height: area.height };
@@ -460,6 +581,29 @@ pub fn grapheme_len(s: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn field_shapes_return_the_content_rect_and_draw_their_edges() {
+        let area = Rect::new(0, 0, 10, 3);
+        let c = Rgb(0, 0, 255);
+        let bg = Rgb(0, 0, 0);
+        let mut buf = Buffer::empty(area);
+        assert_eq!(FieldShape::Bars(Edge::Hair).draw(&mut buf, area, c, bg), Rect::new(1, 0, 8, 3));
+        assert_eq!(buf[(0, 1)].symbol(), "▏");
+        assert_eq!(buf[(9, 1)].symbol(), "▕");
+        let mut buf = Buffer::empty(area);
+        assert_eq!(FieldShape::Bar(Edge::Full).draw(&mut buf, area, c, bg), Rect::new(1, 0, 9, 3));
+        assert_eq!(buf[(0, 2)].bg, c.color(), "full edge is painted background");
+        let mut buf = Buffer::empty(area);
+        assert_eq!(FieldShape::Rule.draw(&mut buf, area, c, bg), Rect::new(0, 1, 10, 1));
+        assert_eq!(buf[(5, 0)].symbol(), "─");
+        assert_eq!(buf[(5, 2)].symbol(), "─");
+        let mut buf = Buffer::empty(area);
+        assert_eq!(FieldShape::Prompt.draw(&mut buf, area, c, bg), Rect::new(2, 0, 8, 3));
+        assert_eq!(buf[(0, 0)].symbol(), "❯");
+        assert_eq!(FieldShape::Tall(Edge::Thin).vertical_chrome(), 2);
+        assert_eq!(FieldShape::Bars(Edge::Thin).vertical_chrome(), 0);
+    }
 
     #[test]
     fn wrap_respects_width_and_splits_long_words() {

@@ -20,8 +20,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::*;
-use crate::draw::{Border, fill, put, st};
-use crate::layout::pad;
+use crate::draw::{FieldShape, fill, put, st};
 use crate::theme::{self, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
@@ -36,6 +35,7 @@ pub struct TextArea {
     tab_size: usize,
     max_lines: Option<usize>,
     placeholder: String,
+    shape: FieldShape,
     highlighter: Option<fn(&str) -> Vec<(usize, usize, Style)>>,
     focused: bool,
     enabled: bool,
@@ -70,6 +70,7 @@ impl TextArea {
             tab_size: 4,
             max_lines: None,
             placeholder: String::new(),
+            shape: FieldShape::default(),
             highlighter: None,
             focused: false,
             enabled: true,
@@ -105,6 +106,12 @@ impl TextArea {
 
     pub fn placeholder(mut self, s: &str) -> Self {
         self.placeholder = s.to_string();
+        self
+    }
+
+    /// Frame shape (`FieldShape::Tall(Edge::Full)` by default).
+    pub fn shape(mut self, s: FieldShape) -> Self {
+        self.shape = s;
         self
     }
 
@@ -631,7 +638,8 @@ impl StatefulWidget for TextArea {
     type State = TextAreaState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.height < 3 || area.width < 4 {
+        let chrome = self.shape.vertical_chrome();
+        if area.height < 1 + chrome || area.width < 4 {
             state.hit.set_area(Rect::default());
             return;
         }
@@ -642,9 +650,7 @@ impl StatefulWidget for TextArea {
         fill(buf, area, bg);
 
         let border = if look.focused { th.border } else { th.border_blurred };
-        Border::Tall.draw(buf, area, border, bg);
-
-        let inner = pad(area, 1, 1);
+        let inner = self.shape.draw(buf, area, border, bg);
         if inner.width < 2 || inner.height == 0 {
             state.hit.set_area(area);
             return;

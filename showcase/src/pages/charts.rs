@@ -29,10 +29,6 @@ pub struct ChartsPage {
     paused: bool,
     spark_style: SparkStyle,
     bar_horizontal: bool,
-    // Widget states
-    meter1: MeterState,
-    meter2: MeterState,
-    meter3: MeterState,
     last_update: Option<Instant>,
 }
 
@@ -51,9 +47,6 @@ impl Default for ChartsPage {
             paused: false,
             spark_style: SparkStyle::Bars,
             bar_horizontal: false,
-            meter1: MeterState::new(),
-            meter2: MeterState::new(),
-            meter3: MeterState::new(),
             last_update: None,
         }
     }
@@ -269,48 +262,23 @@ impl Page for ChartsPage {
         if let Some(&r4) = rows.get(3) {
             let inner = Border::Round.draw_titled_with(buf, r4, th.border_blurred, th.background, "Gauges", Alignment::Left, bold(st(th.text, th.background)));
             if inner.height >= 3 {
-                let rows = stack(inner, &[1, 1, 1], 0);
-
-                // Meter 1: Line style with thresholds
-                if let Some(&mr) = rows.first() {
-                    StatefulWidget::render(
-                        Meter::new()
-                            .value(0.65)
-                            .label("CPU Load")
-                            .show_percent(true)
-                            .thresholds(&[(0.0, Variant::Success), (0.7, Variant::Warning), (0.9, Variant::Error)])
-                            .style(MeterStyle::Line)
-                            .theme(th),
-                        mr, buf, &mut self.meter1);
-                }
-
-                // Meter 2: Block style
-                if let Some(&mr) = rows.get(1) {
-                    StatefulWidget::render(
-                        Meter::new()
-                            .value(0.82)
-                            .label("Memory")
-                            .show_percent(true)
-                            .thresholds(&[(0.0, Variant::Primary), (0.8, Variant::Warning)])
-                            .style(MeterStyle::Block)
-                            .theme(th),
-                        mr, buf, &mut self.meter2);
-                }
-
-                // Meter 3: Segments
-                if let Some(&mr) = rows.get(2) {
-                    StatefulWidget::render(
-                        Meter::new()
-                            .value(0.45)
-                            .label("Disk")
-                            .show_percent(true)
-                            .style(MeterStyle::Segments(20))
-                            .theme(th),
-                        mr, buf, &mut self.meter3);
+                let rows = stack(inner, &[1, 1, 1, 1, 1], 0);
+                let heat = [th.success, th.warning, th.error];
+                let cool = [th.primary.blend(th.background, 0.5), th.primary];
+                let meters = [
+                    Meter::new().value(0.65).label("CPU Load").show_percent(true).thresholds(&[(0.0, Variant::Success), (0.7, Variant::Warning), (0.9, Variant::Error)]).style(MeterStyle::Line),
+                    Meter::new().value(0.82).label("Memory  ").show_percent(true).thresholds(&[(0.0, Variant::Primary), (0.8, Variant::Warning)]).style(MeterStyle::Block),
+                    Meter::new().value(0.45).label("Disk    ").show_percent(true).style(MeterStyle::Segments(20)),
+                    Meter::new().value(0.73).label("Used    ").show_percent(true).suffix("665 GiB").style(MeterStyle::Blocks).gradient(&heat),
+                    Meter::new().value(0.30).label("Core 3  ").show_percent(true).style(MeterStyle::Dots).gradient(&cool),
+                ];
+                for (m, r) in meters.into_iter().zip(rows) {
+                    m.theme(th).render(r, buf);
                 }
             }
         }
     }
+
 
     fn event(&mut self, ev: &Event, ctx: &mut Ctx) -> Outcome {
         match ev {
@@ -364,11 +332,7 @@ impl Page for ChartsPage {
                 }
                 _ => Outcome::Ignored,
             },
-            Event::Mouse(m) => {
-                self.meter1.handle_mouse(*m)
-                    | self.meter2.handle_mouse(*m)
-                    | self.meter3.handle_mouse(*m)
-            }
+            Event::Mouse(_) => Outcome::Ignored,
             _ => Outcome::Ignored,
         }
     }

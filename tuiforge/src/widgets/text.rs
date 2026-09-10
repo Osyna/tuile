@@ -713,6 +713,151 @@ impl Widget for StatCard {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// StatusLine
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Separator between [`StatusLine`] segments.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum StatusSep {
+    /// ` › ` - omp's "powerline-thin".
+    #[default]
+    Chevron,
+    /// ` · `
+    Dot,
+    /// ` │ `
+    Pipe,
+    /// ` ❯ `
+    Arrow,
+    /// two spaces
+    Space,
+}
+
+impl StatusSep {
+    fn glyph(self) -> &'static str {
+        match self {
+            StatusSep::Chevron => " › ",
+            StatusSep::Dot => " · ",
+            StatusSep::Pipe => " │ ",
+            StatusSep::Arrow => " ❯ ",
+            StatusSep::Space => "  ",
+        }
+    }
+}
+
+/// One segment: optional icon, text, optional colour (default `th.text_muted`).
+#[derive(Clone, Copy, Debug)]
+pub struct StatusSegment<'a> {
+    pub icon: Option<&'a str>,
+    pub text: &'a str,
+    pub color: Option<Rgb>,
+}
+
+impl<'a> StatusSegment<'a> {
+    pub fn new(text: &'a str) -> Self {
+        Self { icon: None, text, color: None }
+    }
+    pub fn icon(mut self, i: &'a str) -> Self {
+        self.icon = Some(i);
+        self
+    }
+    pub fn color(mut self, c: Rgb) -> Self {
+        self.color = Some(c);
+        self
+    }
+}
+
+/// One-row status line of separated segments with optional right-aligned text - the strip
+/// under a composer (`π › Opus 5 › /tmp › 4.0%/1M › (sub)            omp`).
+///
+/// ```no_run
+/// use tuiforge::prelude::*;
+/// # let area = Rect::new(0, 0, 60, 1);
+/// # let mut buf = Buffer::empty(area);
+/// StatusLine::new(&[
+///     StatusSegment::new("π"),
+///     StatusSegment::new("Opus 5").icon("◕").color(Rgb(255, 140, 0)),
+///     StatusSegment::new("/tmp").icon("⌂"),
+///     StatusSegment::new("4.0%/1M"),
+/// ]).sep(StatusSep::Chevron).right("omp").render(area, &mut buf);
+/// ```
+#[derive(Clone, Debug)]
+pub struct StatusLine<'a> {
+    segments: &'a [StatusSegment<'a>],
+    sep: StatusSep,
+    right: Option<&'a str>,
+    right_color: Option<Rgb>,
+    bg: Option<Rgb>,
+    theme: Option<Theme>,
+}
+
+impl<'a> StatusLine<'a> {
+    pub fn new(segments: &'a [StatusSegment<'a>]) -> Self {
+        Self { segments, sep: StatusSep::Chevron, right: None, right_color: None, bg: None, theme: None }
+    }
+    pub fn sep(mut self, s: StatusSep) -> Self {
+        self.sep = s;
+        self
+    }
+    /// Right-aligned text (default colour `th.accent`).
+    pub fn right(mut self, r: &'a str) -> Self {
+        self.right = Some(r);
+        self
+    }
+    pub fn right_color(mut self, c: Rgb) -> Self {
+        self.right_color = Some(c);
+        self
+    }
+    /// Paint a background strip (default: transparent over `th.background`).
+    pub fn bg(mut self, c: Rgb) -> Self {
+        self.bg = Some(c);
+        self
+    }
+    pub fn theme(mut self, th: &Theme) -> Self {
+        self.theme = Some(*th);
+        self
+    }
+}
+
+impl Widget for StatusLine<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        if area.width < 4 || area.height == 0 {
+            return;
+        }
+        let th = self.theme.unwrap_or_else(theme::current);
+        let bg = self.bg.unwrap_or(th.background);
+        let row = Rect { height: 1, ..area };
+        fill(buf, row, bg);
+
+        let mut limit = area.right();
+        if let Some(r) = self.right {
+            let w = r.width() as u16 + 1;
+            put(buf, area.right().saturating_sub(w), area.y, &format!("{r} "), w, st(self.right_color.unwrap_or(th.accent), bg).add_modifier(Modifier::BOLD));
+            limit = area.right().saturating_sub(w + 1);
+        }
+
+        let mut x = area.x + 1;
+        for (i, seg) in self.segments.iter().enumerate() {
+            let color = seg.color.unwrap_or(th.text_muted);
+            let mut text = String::new();
+            if let Some(icon) = seg.icon {
+                text.push_str(icon);
+                text.push(' ');
+            }
+            text.push_str(seg.text);
+            let sep_w = if i > 0 { self.sep.glyph().width() as u16 } else { 0 };
+            let w = text.width() as u16;
+            if x + sep_w + w > limit {
+                break;
+            }
+            if i > 0 {
+                x += put(buf, x, area.y, self.sep.glyph(), sep_w, st(th.text_disabled, bg));
+            }
+            x += put(buf, x, area.y, &text, w, st(color, bg));
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Markup parser
 // ─────────────────────────────────────────────────────────────────────────────
 

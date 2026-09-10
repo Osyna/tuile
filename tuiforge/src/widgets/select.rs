@@ -18,7 +18,7 @@ use ratatui::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::*;
-use crate::draw::{Border, fill, put, st};
+use crate::draw::{Border, FieldShape, fill, put, st};
 use crate::fuzzy;
 use crate::layout::{pad, popup_below};
 use crate::theme::{self, Theme};
@@ -51,6 +51,7 @@ pub struct Select {
     max_visible: usize,
     allow_blank: bool,
     compact: bool,
+    shape: FieldShape,
     focused: bool,
     enabled: bool,
     now: Option<Instant>,
@@ -79,6 +80,7 @@ pub struct Combobox {
     placeholder: String,
     max_visible: usize,
     compact: bool,
+    shape: FieldShape,
     focused: bool,
     enabled: bool,
     now: Option<Instant>,
@@ -107,6 +109,7 @@ pub struct MultiSelect {
     placeholder: String,
     max_visible: usize,
     compact: bool,
+    shape: FieldShape,
     focused: bool,
     enabled: bool,
     now: Option<Instant>,
@@ -136,6 +139,7 @@ impl Select {
             max_visible: 8,
             allow_blank: false,
             compact: false,
+            shape: FieldShape::default(),
             focused: false,
             enabled: true,
             now: None,
@@ -160,6 +164,12 @@ impl Select {
 
     pub fn compact(mut self, v: bool) -> Self {
         self.compact = v;
+        self
+    }
+
+    /// Field frame (`FieldShape::Tall(Edge::Full)` by default).
+    pub fn shape(mut self, s: FieldShape) -> Self {
+        self.shape = s;
         self
     }
 
@@ -411,7 +421,7 @@ impl StatefulWidget for Select {
         if self.compact {
             render_select_compact(area, buf, &mut state.hit, &th, look, label.as_deref(), &self.placeholder, state.open);
         } else {
-            render_field(area, buf, &mut state.hit, &th, look, label.as_deref(), &self.placeholder, state.open);
+            render_field(area, buf, &mut state.hit, &th, look, self.shape, label.as_deref(), &self.placeholder, state.open);
         }
     }
 }
@@ -452,9 +462,10 @@ fn render_select_compact(area: Rect, buf: &mut Buffer, hit: &mut HitBox, th: &Th
     put(buf, area.right().saturating_sub(2), area.y, arrow, 1, st(th.text_muted, bg));
 }
 
-/// The 3-row `Tall` field shared by Select and MultiSelect: label or placeholder, arrow.
-fn render_field(area: Rect, buf: &mut Buffer, hit: &mut HitBox, th: &Theme, look: Look, label: Option<&str>, placeholder: &str, open: bool) {
-    if area.height < 3 || area.width < 8 {
+/// The field shared by Select and MultiSelect: label or placeholder, arrow, framed per `shape`.
+fn render_field(area: Rect, buf: &mut Buffer, hit: &mut HitBox, th: &Theme, look: Look, shape: FieldShape, label: Option<&str>, placeholder: &str, open: bool) {
+    let chrome = shape.vertical_chrome();
+    if area.height < 1 + chrome || area.width < 8 {
         hit.set_area(Rect::default());
         return;
     }
@@ -464,9 +475,7 @@ fn render_field(area: Rect, buf: &mut Buffer, hit: &mut HitBox, th: &Theme, look
     fill(buf, area, bg);
 
     let border = if look.focused { th.border } else { th.border_blurred };
-    Border::Tall.draw(buf, area, border, bg);
-
-    let inner = pad(area, 3, 1);
+    let inner = pad(shape.draw(buf, Rect { height: 1 + chrome, ..area }, border, bg), 2, 0);
     let fg = if look.enabled { th.text } else { th.text_disabled };
     let label_fg = if label.is_some() { fg } else { th.text_muted };
     let arrow = if open { "▲" } else { "▼" };
@@ -537,6 +546,7 @@ impl Combobox {
             placeholder: "Type to filter".to_string(),
             max_visible: 8,
             compact: false,
+            shape: FieldShape::default(),
             focused: false,
             enabled: true,
             now: None,
@@ -559,6 +569,11 @@ impl Combobox {
         self
     }
 
+    /// Field frame (`FieldShape::Tall(Edge::Full)` by default).
+    pub fn shape(mut self, s: FieldShape) -> Self {
+        self.shape = s;
+        self
+    }
     pub fn focused(mut self, v: bool) -> Self {
         self.focused = v;
         self
@@ -823,6 +838,7 @@ impl StatefulWidget for Combobox {
         Input::new()
             .placeholder(&self.placeholder)
             .compact(self.compact)
+            .shape(self.shape)
             .focused(self.focused)
             .enabled(self.enabled)
             .now(self.now.unwrap_or_else(Instant::now))
@@ -839,6 +855,7 @@ impl MultiSelect {
             placeholder: "Select multiple".to_string(),
             max_visible: 8,
             compact: false,
+            shape: FieldShape::default(),
             focused: false,
             enabled: true,
             now: None,
@@ -861,6 +878,11 @@ impl MultiSelect {
         self
     }
 
+    /// Field frame (`FieldShape::Tall(Edge::Full)` by default).
+    pub fn shape(mut self, s: FieldShape) -> Self {
+        self.shape = s;
+        self
+    }
     pub fn focused(mut self, v: bool) -> Self {
         self.focused = v;
         self
@@ -1106,7 +1128,7 @@ impl StatefulWidget for MultiSelect {
         if self.compact {
             render_select_compact(area, buf, &mut state.hit, &th, look, label, &self.placeholder, state.open);
         } else {
-            render_field(area, buf, &mut state.hit, &th, look, label, &self.placeholder, state.open);
+            render_field(area, buf, &mut state.hit, &th, look, self.shape, label, &self.placeholder, state.open);
         }
     }
 }

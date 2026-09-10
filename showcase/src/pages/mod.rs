@@ -14,7 +14,9 @@ pub mod data;
 pub mod feedback;
 pub mod inputs;
 pub mod layout;
+pub mod monitor;
 pub mod navigation;
+pub mod options;
 pub mod settings;
 pub mod spinners;
 pub mod themes;
@@ -82,6 +84,7 @@ pub fn all() -> Vec<Box<dyn Page>> {
     vec![
         Box::new(welcome::WelcomePage::default()),
         Box::new(dashboard::DashboardPage::default()),
+        Box::new(monitor::MonitorPage::default()),
         Box::new(controls::ControlsPage::default()),
         Box::new(inputs::InputsPage::default()),
         Box::new(navigation::NavigationPage::default()),
@@ -93,6 +96,7 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(layout::LayoutPage::default()),
         Box::new(content::ContentPage::default()),
         Box::new(settings::SettingsPage::default()),
+        Box::new(options::OptionsPage::default()),
         Box::new(themes::ThemesPage::default()),
     ]
 }

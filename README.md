@@ -101,6 +101,11 @@ Spinner::new(&spinners::SPARKLE).elapsed(1.25).render(area, buf);     // determi
 // look: focus is yours, hover is the widget's, variants are semantic
 Button::new("Delete").variant(Variant::Error).style(ButtonStyle::Outline).focused(is_focused);
 
+// chrome thickness: every text field takes a shape; accent bars take an Edge
+Input::new().shape(FieldShape::Bars(Edge::Hair));          // omp-style thin side bars
+TextArea::new().shape(FieldShape::Rule);                    // a line above and below
+ChatView::new().bar(Edge::Thin);                            // role bar: Hair / Thin / Half / Full
+
 // your own content: borrow slices, nothing is copied until it is drawn
 const PULSE: SpinnerDef = SpinnerDef::new("pulse", 120, &["·", "•", "●", "•"]);
 Spinner::new(&PULSE);
@@ -131,13 +136,14 @@ take an explicit `.theme(&Theme)`.
 | Family | Widgets |
 |---|---|
 | Controls | `Button` (3D / flat / outline / ghost, compact, icon), `Checkbox` (tri-state), `Switch` (animated), `RadioGroup`, `CheckList`, `Segmented`, `Slider`, `RangeSlider`, `Stepper`, `Rating` |
-| Text entry | `Input` (selection, validation, restrict, suggester, password, prefix/suffix), `TextArea` (line numbers, undo/redo, highlighter hook), `Select`, `Combobox` (fuzzy), `MultiSelect` |
+| Text entry | `Input` (selection, validation, restrict, suggester, password, prefix/suffix), `TextArea` (line numbers, undo/redo, highlighter hook), `Select`, `Combobox` (fuzzy), `MultiSelect` - all with `.shape(FieldShape)`: Textual `Tall`, thin side `Bars`/`Bar` of any `Edge` thickness, `Rule`, `Round`, `Prompt`, `None` (omp's composer shapes) |
 | Navigation | `TabBar` (underline / boxed / pills / segmented / minimal, closable, animated), `TabbedContent`, `ListView` (filter, multi-select, details), `TreeView` (guides, expand/collapse), `MenuBar` + `ContextMenu` (submenus, shortcuts), `Breadcrumbs`, `Paginator` |
 | Data | `DataTable` (sortable, zebra, row/cell cursor, multi-select, column resize, filter), `KeyValueList`, `Digits` (Textual big numerals) |
-| Charts | `SparkChart`, `BarGraph` (grouped, horizontal), `LineGraph` (braille, area, grid, legend), `ScatterPlot`, `Heatmap`, `ActivityGraph`, `Meter`, `RadialGauge`, `BrailleCanvas` |
+| Charts | `SparkChart` (bars, braille line/area, btop dot `Field`, `mirrored`), `BarGraph` (grouped, horizontal), `LineGraph` (braille, area, grid, legend), `ScatterPlot`, `Heatmap`, `ActivityGraph`, `Meter` (line / block / segments / LED `Blocks` / `Dots`, gradient, suffix), `RadialGauge`, `BrailleCanvas` |
 | Feedback | `ProgressBar` (tweened, ETA, indeterminate), `StepProgress`, `Spinner` + `spinners::*` (all 90 [yaspin](https://github.com/pavdmyt/yaspin) / cli-spinners + 12 originals: `SPARKLE`, `RING`, `WAVE`, `EQUALIZER`, `SCANNER`, `SHIMMER`, `DNA`, `MATRIX`…), `LoadingIndicator`, `Skeleton`, `Marquee`, `Blinker`, `Toaster`/`ToastStack`, `Callout`, `Modal` (confirm / alert / prompt), `CommandPalette` (fuzzy), `Tooltip` |
 | AI / LLM | `ChatView` (bubbles, streaming), `StreamText`, `Thinking`, `ContextGauge`, `ToolCall`, `TokenHeat`, `DiffView`, `PromptComposer`, `Approval` |
-| Layout & chrome | `SplitPane` (draggable), `ScrollView` (offscreen buffer, smooth), `Scrollbar`, `Panel` / card / section, `Collapsible` + `Accordion`, `AppHeader`, `KeyFooter`, `Placeholder` |
+| Layout & chrome | `SplitPane` (draggable), `ScrollView` (offscreen buffer, smooth), `Scrollbar`, `Panel` (title, right title, footer keys, badge) / card / section, `Collapsible` + `Accordion`, `AppHeader`, `KeyFooter`, `StatusLine` (segments + separators), `Placeholder` |
+| Menus & settings | `OptionList` (grouped `label  value` rows, cursor, in-place bool/choice/int cycling, group index for a sidebar), `BigText` (3-row box-drawing font) + `BigMenu` (btop's `OPTIONS / HELP / QUIT`), `CommandPalette`, `MenuBar` |
 | Content | `Label`, `Rule`, `Badge`, `Pill`, `KeyCap`, `Link`, `StatCard`, `Markup` (Rich-style `[b]…[/b]`), `Markdown`, `LogView`, `Calendar` + `DatePicker`, `Swatches`, `ColorPicker`, `GradientBar`, `ThemePalette`, `Steps`, `Timeline` |
 
 Foundation modules: `core` (Outcome, Look, Focus, HitBox, key helpers), `draw` (clipped text,
@@ -151,11 +157,13 @@ Regenerate the spinner catalog from `tools/spinners.json` with `python tools/gen
 
 ## Showcase
 
-`showcase/` is a 14-page gallery: Welcome, Dashboard (everything composed on one screen),
-Controls, Inputs, Navigation, Tables, Charts, Feedback, Spinners (the whole catalog, filterable,
-with the one-liner for each), AI (chat, streaming, tool calls, context gauge, approvals, diffs),
-Layout, Content, Settings (a complete preferences form in ~300 lines), Themes (live primary-hue
-override).
+`showcase/` is a 16-page gallery: Welcome, Dashboard (everything composed on one screen),
+Monitor (btop-style: LED meters, dot-field graphs, mirrored net graph, process tree, big-font
+menu on `m`), Controls, Inputs, Navigation, Tables, Charts, Feedback, Spinners (the whole
+catalog, filterable, with the one-liner for each), AI (chat, streaming, tool calls, context
+gauge, approvals, diffs), Layout, Content, Settings (a complete preferences form in ~300 lines),
+Options (omp-style settings screen: icon tabs + group sidebar + `OptionList`, with a live
+composer-shape / status-line preview), Themes (live primary-hue override).
 
 Keys: `]`/`[` pages, `alt+1..9` jump, `^p` palette, `^t` theme, `^b` sidebar, `F1` help,
 `F3` reduce motion, `Tab` focus, mouse everywhere.
@@ -177,6 +185,8 @@ Headless screenshots for review/CI: `python tools/shot.py -s 130x42 -k "Tab Ente
 | ![themes](docs/screenshots/themes.png) | ![palette](docs/screenshots/palette.png) |
 | **AI / LLM** (chat, streaming, tool calls, approvals, diff) | **Spinners** (102-entry catalog) |
 | ![ai](docs/screenshots/ai.png) | ![spinners](docs/screenshots/spinners.png) |
+| **Monitor** (btop-style) | **Options** (omp-style settings) |
+| ![monitor](docs/screenshots/monitor.png) | ![options](docs/screenshots/options.png) |
 
 ## Writing a widget
 

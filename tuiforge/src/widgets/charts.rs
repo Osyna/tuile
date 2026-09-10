@@ -5,7 +5,6 @@
 //! # let area = Rect::new(0, 0, 80, 24);
 //! # let mut buf = Buffer::empty(area);
 //! # let th = theme::current();
-//! # let mut meter_state = MeterState::default();
 //! // Live sparkline
 //! let mut spark_data = vec![1.0, 2.0, 5.0, 3.0];
 //! SparkChart::new(&spark_data)
@@ -17,11 +16,9 @@
 use std::f64::consts::PI;
 
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::layout::Rect;
-use ratatui::widgets::{StatefulWidget, Widget};
+use ratatui::widgets::Widget;
 
-use crate::core::{Hit, HitBox, Interactive, Outcome};
 use crate::draw::{bold, fill, hbar, put, put_centered, put_right, st, truncate, vbar, width as text_width};
 use crate::theme::{Rgb, Theme, Variant, gradient as color_gradient, self};
 
@@ -152,11 +149,15 @@ pub enum SparkStyle {
     Bars,
     /// Braille line connecting values.
     Line,
-    /// Braille line with area fill below.
+    /// Braille line with a dimmed area fill below.
     Area,
+    /// btop-style braille dot field: every dot under the value lit, coloured by its own height
+    /// when a gradient is set.
+    Field,
 }
 
-/// Compact sparkline: `▁▂▃▄▅▆▇█` bars, braille line, or area fill. Fits width by showing the last N values.
+/// Compact sparkline: `▁▂▃▄▅▆▇█` bars, braille line, area or dot field. Fits width by showing
+/// the last N values. `.mirrored(true)` hangs the graph from the top edge (btop's upload half).
 #[derive(Clone, Debug)]
 pub struct SparkChart<'a> {
     values: &'a [f64],
@@ -165,6 +166,7 @@ pub struct SparkChart<'a> {
     color: Option<Rgb>,
     gradient_stops: Option<&'a [Rgb]>,
     baseline: bool,
+    mirrored: bool,
     style: SparkStyle,
     show_last: bool,
     theme: Option<Theme>,
@@ -179,6 +181,7 @@ impl<'a> SparkChart<'a> {
             color: None,
             gradient_stops: None,
             baseline: false,
+            mirrored: false,
             style: SparkStyle::Bars,
             show_last: false,
             theme: None,
@@ -190,6 +193,8 @@ impl<'a> SparkChart<'a> {
     pub fn color(mut self, c: Rgb) -> Self { self.color = Some(c); self }
     pub fn gradient(mut self, stops: &'a [Rgb]) -> Self { self.gradient_stops = Some(stops); self }
     pub fn baseline(mut self, v: bool) -> Self { self.baseline = v; self }
+    /// Grow downward from the top edge instead of up from the bottom.
+    pub fn mirrored(mut self, v: bool) -> Self { self.mirrored = v; self }
     pub fn style(mut self, s: SparkStyle) -> Self { self.style = s; self }
     pub fn show_last_value(mut self, v: bool) -> Self { self.show_last = v; self }
     pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
@@ -222,44 +227,73 @@ impl Widget for SparkChart<'_> {
         let min = self.min.unwrap_or_else(|| vals.iter().copied().fold(f64::INFINITY, f64::min));
         let max = self.max.unwrap_or_else(|| vals.iter().copied().fold(f64::NEG_INFINITY, f64::max));
 
+        let frac_of = |v: f64| if (max - min).abs() < 1e-9 { 0.5 } else { ((v - min) / (max - min)).clamp(0.0, 1.0) };
+        let color_at = |frac: f64| self.gradient_stops.map_or(self.color.unwrap_or(th.primary), |stops| color_gradient(stops, frac as f32));
+
         match self.style {
             SparkStyle::Bars => {
                 for (i, &v) in vals.iter().enumerate() {
+                    let frac = frac_of(v);
                     let x = area.x + i as u16;
-                    let frac = if (max - min).abs() < 1e-9 { 0.5 } else { ((v - min) / (max - min)).clamp(0.0, 1.0) };
-                    let color = if let Some(stops) = self.gradient_stops {
-                        color_gradient(stops, frac as f32)
+                    if self.mirrored {
+                        // hang from the top: full cells painted, the partial cell uses upper eighths
+                        let cells = frac as f32 * area.height as f32;
+                        let full = cells.floor() as u16;
+                        fill(buf, Rect { x, y: area.y, width: 1, height: full.min(area.height) }, color_at(frac));
+                        if full < area.height {
+                            let idx = ((cells - full as f32) * 8.0).round() as usize;
+                            if idx > 0 {
+                                // an upper partial is the inverse of a lower one: paint fg=bg, bg=color
+                                put(buf, x, area.y + full, crate::draw::LOWER_BLOCKS[8 - idx.min(8)], 1, st(th.background, color_at(frac)));
+                            }
+                        }
                     } else {
-                        self.color.unwrap_or(th.primary)
-                    };
-                    vbar(buf, x, area.y, area.height, frac as f32, color, th.background);
+                        vbar(buf, x, area.y, area.height, frac as f32, color_at(frac), th.background);
+                    }
                 }
             }
-            SparkStyle::Line | SparkStyle::Area => {
+            SparkStyle::Line | SparkStyle::Area | SparkStyle::Field => {
                 let mut canvas = BrailleCanvas::new(chart_w, area.height as usize);
                 let h_dots = (area.height as usize) * 4;
-                for i in 0..vals.len() {
-                    let frac = if (max - min).abs() < 1e-9 { 0.5 } else { ((vals[i] - min) / (max - min)).clamp(0.0, 1.0) };
-                    let y = ((1.0 - frac) * (h_dots as f64 - 1.0)).round() as usize;
-                    let color = if let Some(stops) = self.gradient_stops {
-                        color_gradient(stops, frac as f32)
-                    } else {
-                        self.color.unwrap_or(th.primary)
-                    };
-                    if i > 0 {
-                        let prev_frac = if (max - min).abs() < 1e-9 { 0.5 } else { ((vals[i - 1] - min) / (max - min)).clamp(0.0, 1.0) };
-                        let prev_y = ((1.0 - prev_frac) * (h_dots as f64 - 1.0)).round() as usize;
-                        canvas.line(i * 2 - 2, prev_y, i * 2, y, color);
-                    } else {
-                        canvas.set(i * 2, y, color);
-                        canvas.set(i * 2 + 1, y, color);
-                    }
-                    if self.style == SparkStyle::Area {
-                        for dy in y..h_dots {
-                            canvas.set(i * 2, dy, color.blend(th.background, 0.3));
-                            canvas.set(i * 2 + 1, dy, color.blend(th.background, 0.3));
+                // dot row for a fraction; mirrored charts hang from row 0
+                let row_of = |frac: f64| {
+                    let r = (frac * (h_dots as f64 - 1.0)).round() as usize;
+                    if self.mirrored { r } else { h_dots - 1 - r }
+                };
+                let mut prev: Option<usize> = None;
+                for (i, &v) in vals.iter().enumerate() {
+                    let frac = frac_of(v);
+                    let y = row_of(frac);
+                    let color = color_at(frac);
+                    match self.style {
+                        SparkStyle::Field => {
+                            // every dot between the edge and the value, coloured by its own height
+                            let (lo, hi) = if self.mirrored { (0, y) } else { (y, h_dots - 1) };
+                            for dy in lo..=hi {
+                                let h = if self.mirrored { dy as f64 } else { (h_dots - 1 - dy) as f64 } / (h_dots as f64 - 1.0).max(1.0);
+                                let c = if self.gradient_stops.is_some() { color_at(h) } else { color };
+                                canvas.set(i * 2, dy, c);
+                                canvas.set(i * 2 + 1, dy, c);
+                            }
+                        }
+                        _ => {
+                            match prev {
+                                Some(py) => canvas.line(i * 2 - 2, py, i * 2, y, color),
+                                None => {
+                                    canvas.set(i * 2, y, color);
+                                    canvas.set(i * 2 + 1, y, color);
+                                }
+                            }
+                            if self.style == SparkStyle::Area {
+                                let (lo, hi) = if self.mirrored { (0, y) } else { (y, h_dots - 1) };
+                                for dy in lo..=hi {
+                                    canvas.set(i * 2, dy, color.blend(th.background, 0.3));
+                                    canvas.set(i * 2 + 1, dy, color.blend(th.background, 0.3));
+                                }
+                            }
                         }
                     }
+                    prev = Some(y);
                 }
                 canvas.render(Rect { width: chart_w as u16, ..area }, buf, th.background);
             }
@@ -918,30 +952,49 @@ pub enum MeterStyle {
     /// Horizontal line `━━━━╺━━`.
     #[default]
     Line,
-    /// Block fill `█▓░`.
+    /// Painted fill.
     Block,
-    /// Segmented display.
+    /// `n` painted segments with one-cell gaps.
     Segments(u16),
+    /// btop-style LED row: one `■` per cell, empties dimmed.
+    Blocks,
+    /// Compact LED row of `●` dots (per-core meters).
+    Dots,
 }
 
-/// Horizontal gauge/meter with threshold coloring.
-pub struct Meter {
+/// Horizontal gauge/meter with threshold or gradient colouring.
+///
+/// ```no_run
+/// use tuiforge::prelude::*;
+/// # let area = Rect::new(0, 0, 40, 1);
+/// # let mut buf = Buffer::empty(area);
+/// Meter::new().value(0.73).label("Used:").show_percent(true).suffix("665 GiB")
+///     .style(MeterStyle::Blocks).gradient(&[Rgb(80, 200, 120), Rgb(240, 200, 60), Rgb(230, 80, 80)])
+///     .render(area, &mut buf);
+/// ```
+pub struct Meter<'a> {
     value: f32,
     label: Option<String>,
+    suffix: Option<String>,
     show_percent: bool,
     thresholds: Vec<(f32, Variant)>,
+    color: Option<Rgb>,
+    gradient: Option<&'a [Rgb]>,
     style: MeterStyle,
     compact: bool,
     theme: Option<Theme>,
 }
 
-impl Meter {
+impl<'a> Meter<'a> {
     pub fn new() -> Self {
         Self {
             value: 0.0,
             label: None,
+            suffix: None,
             show_percent: false,
             thresholds: Vec::new(),
+            color: None,
+            gradient: None,
             style: MeterStyle::Line,
             compact: false,
             theme: None,
@@ -950,82 +1003,68 @@ impl Meter {
 
     pub fn value(mut self, v: f32) -> Self { self.value = v.clamp(0.0, 1.0); self }
     pub fn label(mut self, l: impl Into<String>) -> Self { self.label = Some(l.into()); self }
+    /// Right-aligned text after the bar (`665 GiB`).
+    pub fn suffix(mut self, s: impl Into<String>) -> Self { self.suffix = Some(s.into()); self }
     pub fn show_percent(mut self, v: bool) -> Self { self.show_percent = v; self }
     pub fn thresholds(mut self, t: &[(f32, Variant)]) -> Self { self.thresholds = t.to_vec(); self }
+    /// Fixed bar colour (overrides thresholds; a gradient still wins).
+    pub fn color(mut self, c: Rgb) -> Self { self.color = Some(c); self }
+    /// Colour stops along the bar (LED styles colour each cell by position, solid styles by value).
+    pub fn gradient(mut self, stops: &'a [Rgb]) -> Self { self.gradient = Some(stops); self }
     pub fn style(mut self, s: MeterStyle) -> Self { self.style = s; self }
     pub fn compact(mut self, v: bool) -> Self { self.compact = v; self }
     pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
 }
 
-impl Default for Meter {
+impl Default for Meter<'_> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// Meter state (for future interactivity; currently minimal).
-#[derive(Clone, Debug, Default)]
-pub struct MeterState {
-    pub hit: HitBox,
-}
-
-impl MeterState {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl Interactive for MeterState {
-    fn handle_key(&mut self, _key: KeyEvent) -> Outcome {
-        Outcome::Ignored
-    }
-    fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
-        match self.hit.mouse(&m) {
-            Hit::HoverChanged => Outcome::Consumed,
-            _ => Outcome::Ignored,
-        }
-    }
-}
-
-impl StatefulWidget for Meter {
-    type State = MeterState;
-
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut MeterState) {
+impl Widget for Meter<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
         if area.width < 4 || area.height == 0 {
             return;
         }
-        state.hit.set_area(area);
         let th = self.theme.unwrap_or_else(theme::current);
-        fill(buf, area, th.background);
+        let bg = th.background;
+        fill(buf, area, bg);
 
         let label_w = self.label.as_ref().map(|l| text_width(l) as u16 + 1).unwrap_or(0);
         let pct_w = if self.show_percent { 5 } else { 0 };
-        let bar_w = area.width.saturating_sub(label_w + pct_w);
+        let suffix_w = self.suffix.as_ref().map(|s| text_width(s) as u16 + 1).unwrap_or(0);
+        let bar_w = area.width.saturating_sub(label_w + pct_w + suffix_w);
         if bar_w == 0 {
             return;
         }
 
-        if let Some(ref l) = self.label {
-            put(buf, area.x, area.y, l, label_w, st(th.text, th.background));
+        if let Some(l) = &self.label {
+            put(buf, area.x, area.y, l, label_w, st(th.text, bg));
+        }
+        // `Label: 73% [bar] 665 GiB` - percent sits between label and bar like btop
+        let mut x = area.x + label_w;
+        if self.show_percent {
+            put(buf, x, area.y, &format!("{:>3.0}% ", self.value * 100.0), pct_w, st(th.text_muted, bg));
+            x += pct_w;
         }
 
-        let color = self.thresholds.iter().rev().find(|&&(t, _)| self.value >= t).map(|&(_, v)| th.variant(v)).unwrap_or(th.primary);
+        let solid = self.color.unwrap_or_else(|| self.thresholds.iter().rev().find(|&&(t, _)| self.value >= t).map(|&(_, v)| th.variant(v)).unwrap_or(th.primary));
+        let color = self.gradient.map_or(solid, |g| color_gradient(g, self.value));
+        let empty = th.text_disabled.blend(bg, 0.5);
 
-        let bar_x = area.x + label_w;
         match self.style {
-            MeterStyle::Line => {
-                hbar(buf, bar_x, area.y, bar_w, self.value, color, th.panel);
-            }
+            MeterStyle::Line => hbar(buf, x, area.y, bar_w, self.value, color, th.panel),
             MeterStyle::Block => {
-                fill(buf, Rect { x: bar_x, y: area.y, width: bar_w, height: 1 }, th.panel);
+                fill(buf, Rect { x, y: area.y, width: bar_w, height: 1 }, th.panel);
                 let fill_w = (bar_w as f32 * self.value).round() as u16;
-                fill(buf, Rect { x: bar_x, y: area.y, width: fill_w, height: 1 }, color);
+                fill(buf, Rect { x, y: area.y, width: fill_w, height: 1 }, color);
             }
             MeterStyle::Segments(n) => {
                 let seg_w = bar_w / n.max(1);
                 let active = (n as f32 * self.value).ceil() as u16;
                 for i in 0..n {
-                    let sx = bar_x + i * seg_w;
+                    let sx = x + i * seg_w;
                     if sx >= area.right() {
                         break;
                     }
@@ -1033,19 +1072,25 @@ impl StatefulWidget for Meter {
                     fill(buf, Rect { x: sx, y: area.y, width: seg_w.saturating_sub(1), height: 1 }, seg_color);
                 }
             }
+            MeterStyle::Blocks | MeterStyle::Dots => {
+                let glyph = if self.style == MeterStyle::Blocks { "■" } else { "●" };
+                let lit = (bar_w as f32 * self.value).round() as u16;
+                for i in 0..bar_w {
+                    let c = if i >= lit {
+                        empty
+                    } else if let Some(g) = self.gradient {
+                        color_gradient(g, i as f32 / bar_w.saturating_sub(1).max(1) as f32)
+                    } else {
+                        solid
+                    };
+                    put(buf, x + i, area.y, glyph, 1, st(c, bg));
+                }
+            }
         }
 
-        if self.show_percent {
-            let pct = format!("{:>3.0}%", self.value * 100.0);
-            put(buf, area.right().saturating_sub(pct_w), area.y, &pct, pct_w, st(th.text_muted, th.background));
+        if let Some(s) = &self.suffix {
+            put_right(buf, Rect { y: area.y, height: 1, ..area }, s, st(th.text, bg));
         }
-    }
-}
-
-impl Widget for Meter {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let mut dummy_state = MeterState::new();
-        <Self as StatefulWidget>::render(self, area, buf, &mut dummy_state);
     }
 }
 
@@ -1131,6 +1176,40 @@ impl Widget for RadialGauge {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn led_meter_lights_cells_by_value_and_keeps_label_percent_suffix() {
+        // "Used: 73% ■■■…  665 GiB" - label(6) + pct(5) + bar + suffix(8)
+        let mut buf = Buffer::empty(Rect::new(0, 0, 40, 1));
+        Meter::new().value(0.5).label("Used:").show_percent(true).suffix("665 GiB").style(MeterStyle::Blocks).render(buf.area, &mut buf);
+        let row: String = (0..40).map(|x| buf[(x, 0)].symbol().to_string()).collect();
+        assert!(row.starts_with("Used:  50% ■"), "{row}");
+        assert!(row.ends_with("665 GiB"), "{row}");
+        let bar_w = 40 - 6 - 5 - 8;
+        let lit = (0..bar_w).filter(|i| buf[(11 + i, 0)].fg != buf[(11 + bar_w - 1, 0)].fg).count();
+        assert_eq!(lit, (bar_w as f32 * 0.5).round() as usize, "half the cells take the lit colour");
+    }
+
+    #[test]
+    fn field_graph_mirrors_from_the_top_edge() {
+        let vals = [1.0, 1.0, 1.0, 1.0];
+        let mut up = Buffer::empty(Rect::new(0, 0, 2, 2));
+        SparkChart::new(&vals).min(0.0).max(1.0).style(SparkStyle::Field).render(up.area, &mut up);
+        let mut down = Buffer::empty(Rect::new(0, 0, 2, 2));
+        SparkChart::new(&vals).min(0.0).max(1.0).style(SparkStyle::Field).mirrored(true).render(down.area, &mut down);
+        // full value fills both rows either way; a zero value lights only the edge row
+        assert_ne!(up[(0, 0)].symbol(), " ");
+        assert_ne!(down[(0, 1)].symbol(), " ");
+        let zero = [0.0, 0.0];
+        let mut z_up = Buffer::empty(Rect::new(0, 0, 1, 2));
+        SparkChart::new(&zero).min(0.0).max(1.0).style(SparkStyle::Field).render(z_up.area, &mut z_up);
+        assert_eq!(z_up[(0, 0)].symbol(), " ");
+        assert_ne!(z_up[(0, 1)].symbol(), " ");
+        let mut z_down = Buffer::empty(Rect::new(0, 0, 1, 2));
+        SparkChart::new(&zero).min(0.0).max(1.0).style(SparkStyle::Field).mirrored(true).render(z_down.area, &mut z_down);
+        assert_ne!(z_down[(0, 0)].symbol(), " ");
+        assert_eq!(z_down[(0, 1)].symbol(), " ");
+    }
 
     #[test]
     fn test_nice_bounds() {

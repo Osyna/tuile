@@ -24,7 +24,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{blink, since};
 use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
-use crate::draw::{Border, fill, put, put_centered, put_right, st, wrap};
+use crate::draw::{Border, Edge, FieldShape, fill, put, put_centered, put_right, st, wrap};
 use crate::theme::{self, Rgb, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
 use crate::widgets::spinner::{SpinnerDef, spinners};
@@ -210,12 +210,14 @@ impl Interactive for ChatState {
 
 // ───────────────────────────── ChatView ─────────────────────────────
 
-/// Chat view with bubbles or full-width messages.
+/// Chat view with bubbles or full-width messages. Assistant messages carry a role-coloured
+/// bar on the left; its thickness is `.bar(Edge)` (thin by default, `Edge::Full` for a block).
 #[derive(Clone, Debug)]
 pub struct ChatView {
     bubbles: bool,
     show_time: bool,
     focused: bool,
+    bar: Edge,
     now: Option<Instant>,
     theme: Option<Theme>,
     max_width: Option<u16>,
@@ -224,12 +226,18 @@ pub struct ChatView {
 impl ChatView {
     /// Create a chat view.
     pub fn new() -> Self {
-        Self { bubbles: true, show_time: false, focused: false, now: None, theme: None, max_width: None }
+        Self { bubbles: true, show_time: false, focused: false, bar: Edge::Thin, now: None, theme: None, max_width: None }
     }
 
     /// Enable bubble mode (user messages right-aligned).
     pub fn bubbles(mut self, v: bool) -> Self {
         self.bubbles = v;
+        self
+    }
+
+    /// Thickness of the assistant role bar.
+    pub fn bar(mut self, e: Edge) -> Self {
+        self.bar = e;
         self
     }
 
@@ -394,7 +402,7 @@ impl StatefulWidget for ChatView {
             let line = Rect { x: area.x + row.x, y, width: row.w, height: 1 };
             fill(buf, line, bg);
             if row.role == Role::Assistant && self.bubbles {
-                fill(buf, Rect { width: 1, ..line }, color); // painted role bar
+                self.bar.draw(buf, line.x, y, 1, false, color, bg);
             }
             let inner = Rect { x: line.x + 1, width: line.width.saturating_sub(2), ..line };
             match row.kind {
@@ -1235,19 +1243,11 @@ impl Interactive for ComposerState {
             return Outcome::Consumed;
         }
         
-        // Shift+Enter or Ctrl+J → newline
+        // Shift+Enter or Ctrl+J → newline (the editor's Enter path is grapheme-safe)
         if (k.code == KeyCode::Enter && k.modifiers.contains(KeyModifiers::SHIFT))
-            || (k.code == KeyCode::Char('j') && k.modifiers.contains(KeyModifiers::CONTROL)) {
-            // insert newline
-            let (row, col) = self.editor.cursor;
-            if row < self.editor.lines.len() {
-                let line = &mut self.editor.lines[row];
-                let tail = line[col..].to_string();
-                line.truncate(col);
-                self.editor.lines.insert(row + 1, tail);
-                self.editor.cursor = (row + 1, 0);
-            }
-            return Outcome::Consumed;
+            || (k.code == KeyCode::Char('j') && k.modifiers.contains(KeyModifiers::CONTROL))
+        {
+            return self.editor.handle_key(KeyEvent::from(KeyCode::Enter));
         }
         
         // forward to editor
@@ -1261,11 +1261,14 @@ impl Interactive for ComposerState {
 
 // ───────────────────────────── PromptComposer ─────────────────────────────
 
-/// Prompt composer with model indicator and hints.
+/// Prompt composer: a text field in one of the omp composer shapes (thin side bars by
+/// default) with a hint row - model pill, send/newline keys, attachments, token estimate.
 #[derive(Clone, Debug)]
 pub struct PromptComposer {
     model: String,
+    placeholder: String,
     attachments: Vec<String>,
+    shape: FieldShape,
     focused: bool,
     now: Option<Instant>,
     theme: Option<Theme>,
@@ -1274,12 +1277,33 @@ pub struct PromptComposer {
 impl PromptComposer {
     /// Create composer.
     pub fn new() -> Self {
-        Self { model: String::new(), attachments: Vec::new(), focused: false, now: None, theme: None }
+        Self {
+            model: String::new(),
+            placeholder: "Message…".to_string(),
+            attachments: Vec::new(),
+            shape: FieldShape::Bars(Edge::Thin),
+            focused: false,
+            now: None,
+            theme: None,
+        }
     }
 
     /// Set model name.
     pub fn model(mut self, m: impl Into<String>) -> Self {
         self.model = m.into();
+        self
+    }
+
+    /// Placeholder shown while empty.
+    pub fn placeholder(mut self, p: impl Into<String>) -> Self {
+        self.placeholder = p.into();
+        self
+    }
+
+    /// Field frame: `FieldShape::Bars(Edge::Thin)` by default; `Bar(Edge::Hair)`, `Rule`,
+    /// `Round`, `Prompt`, `Tall(..)`, `None`.
+    pub fn shape(mut self, s: FieldShape) -> Self {
+        self.shape = s;
         self
     }
 
@@ -1319,15 +1343,16 @@ impl StatefulWidget for PromptComposer {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         state.hit.set_area(area);
-        if area.width < 8 || area.height < 4 {
+        if area.width < 8 || area.height < 2 + self.shape.vertical_chrome() {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
 
-        // the editor draws the Tall frame (focus colour included); one hint row sits under it
+        // the editor draws the frame (focus colour included); one hint row sits under it
         let editor_area = Rect { height: area.height - 1, ..area };
         TextArea::new()
-            .placeholder("Message…")
+            .placeholder(&self.placeholder)
+            .shape(self.shape)
             .focused(self.focused)
             .now(self.now.unwrap_or_else(Instant::now))
             .theme(&th)

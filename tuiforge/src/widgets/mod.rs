@@ -30,6 +30,7 @@ pub mod table;
 // feedback & overlays
 pub mod modal;
 pub mod palette;
+pub mod options;
 pub mod progress;
 pub mod spinner;
 pub mod toast;
@@ -42,6 +43,7 @@ pub mod panel;
 pub mod scroll;
 pub mod split;
 // content
+pub mod bigtext;
 pub mod calendar;
 pub mod color;
 pub mod log;
@@ -53,6 +55,7 @@ pub mod ai;
 
 pub use breadcrumbs::*;
 pub use ai::*;
+pub use bigtext::*;
 pub use button::*;
 pub use calendar::*;
 pub use charts::*;
@@ -67,6 +70,7 @@ pub use log::*;
 pub use markdown::*;
 pub use menu::*;
 pub use modal::*;
+pub use options::*;
 pub use palette::*;
 pub use panel::*;
 pub use progress::*;

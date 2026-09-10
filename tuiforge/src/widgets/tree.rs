@@ -589,11 +589,17 @@ impl StatefulWidget for TreeView {
             if is_cursor && !node.disabled {
                 style = style.add_modifier(Modifier::BOLD);
             }
-            put(buf, x, y, &node.label, label_w, style);
+            let used = put(buf, x, y, &node.label, label_w, style);
 
-            // detail (right-aligned, muted)
+            // detail: right-aligned when there is room after the label, else inline and truncated
             if let Some(detail) = &node.detail {
-                put_right(buf, Rect::new(body.x, y, body.width, 1), detail, st(th.text_muted, row_bg));
+                let after = x + used + 2;
+                let free = body.right().saturating_sub(after);
+                if (detail.width() as u16) < free {
+                    put_right(buf, Rect::new(after, y, free, 1), detail, st(th.text_muted, row_bg));
+                } else if free > 3 {
+                    put(buf, after, y, &crate::draw::truncate(detail, free as usize), free, st(th.text_muted, row_bg));
+                }
             }
         }
 

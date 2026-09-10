@@ -58,6 +58,9 @@ Rules:
    `Copy`; builders store `Option<Theme>` and `.theme(&Theme)` does `Some(*th)`).
    Use semantic roles (`th.surface`, `th.panel`, `th.primary`, `th.text_muted`, `th.cursor_bg`,
    `Variant` → `th.variant(v)` / `th.text_variant(v)`). Never hard-code colours.
+   Text fields (`Input`, `TextArea`, `Select`, `Combobox`, `MultiSelect`, `PromptComposer`) frame
+   themselves through `draw::FieldShape` (`.shape(..)`, default `Tall(Edge::Full)`); accent bars
+   use `draw::Edge` (`Hair`/`Thin`/`Half`/`Full`). Never hard-code a side-bar glyph in a widget.
 6. **Draw through `crate::draw`.** `fill`, `put`, `put_centered`, `Border::*.draw/draw_titled`,
    `hbar`, `blend_area`, `truncate`, `wrap`. They clip to the buffer; you never index `buf[(x, y)]`
    without first checking `buf.area.contains(..)` (or use the helpers).

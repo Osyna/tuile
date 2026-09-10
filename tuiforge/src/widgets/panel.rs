@@ -40,6 +40,8 @@ pub struct Panel {
     title: Option<String>,
     title_align: Alignment,
     subtitle: Option<String>,
+    title_right: Option<String>,
+    footer: Option<String>,
     border: Option<Border>,
     border_color: Option<Rgb>,
     variant: Option<Variant>,
@@ -57,6 +59,8 @@ impl Panel {
             title: None,
             title_align: Alignment::Left,
             subtitle: None,
+            title_right: None,
+            footer: None,
             border: Some(Border::Round),
             border_color: None,
             variant: None,
@@ -89,6 +93,16 @@ impl Panel {
 
     pub fn subtitle(mut self, s: impl Into<String>) -> Self {
         self.subtitle = Some(s.into()); self
+    }
+
+    /// Second title, right-aligned in the top border (btop's `┤ io ├`).
+    pub fn title_right(mut self, s: impl Into<String>) -> Self {
+        self.title_right = Some(s.into()); self
+    }
+
+    /// Key hints embedded left in the bottom border (`┤ sync ├┤ auto ├`).
+    pub fn footer(mut self, s: impl Into<String>) -> Self {
+        self.footer = Some(s.into()); self
     }
 
     pub fn border(mut self, b: Border) -> Self {
@@ -188,14 +202,28 @@ impl Panel {
                     } else {
                         title.clone()
                     };
-                    // Textual: titles are `$text` bold regardless of the (often dim) border colour
-                    let title_fg = if self.focused || self.variant.is_some() || self.border_color.is_some() { border_color } else { th.text };
+                    // Textual: titles are `$text` bold; only focus / a semantic variant tint them
+                    let title_fg = if self.focused || self.variant.is_some() { border_color } else { th.text };
                     bord.draw_titled_with(buf, area, border_color, border_bg, &full_title, self.title_align, st(title_fg, border_bg).add_modifier(Modifier::BOLD));
                 } else {
                     bord.draw(buf, area, border_color, border_bg);
                 }
                 
-                // Subtitle in bottom-right corner
+                // Right title in the top border, footer in the bottom border, subtitle bottom-right
+                if let Some(t) = &self.title_right {
+                    let text = format!(" {t} ");
+                    let tw = crate::draw::width(&text) as u16;
+                    if area.width > tw + 4 {
+                        put(buf, area.right() - tw - 2, area.y, &text, tw, st(th.text, border_bg).add_modifier(Modifier::BOLD));
+                    }
+                }
+                if let Some(f) = &self.footer {
+                    let text = format!(" {f} ");
+                    let fw = crate::draw::width(&text) as u16;
+                    if area.width > fw + 4 && area.height > 1 {
+                        put(buf, area.x + 2, area.bottom() - 1, &text, fw, st(th.text_muted, border_bg));
+                    }
+                }
                 if let Some(subtitle) = &self.subtitle {
                     let sw = crate::draw::width(subtitle) as u16;
                     if area.width > sw + 4 && area.height > 1 {

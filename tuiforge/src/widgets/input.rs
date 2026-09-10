@@ -21,7 +21,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{blink, elapsed};
 use crate::core::*;
-use crate::draw::{Border, fill, put, st};
+use crate::draw::{FieldShape, fill, put, st};
 use crate::layout::pad;
 use crate::theme::{self, Theme};
 
@@ -50,6 +50,7 @@ pub struct Input {
     prefix: String,
     suffix: String,
     compact: bool,
+    shape: FieldShape,
     tab_accepts: bool,
     show_error: bool,
     select_on_focus: bool,
@@ -94,6 +95,7 @@ impl Input {
             prefix: String::new(),
             suffix: String::new(),
             compact: false,
+            shape: FieldShape::default(),
             tab_accepts: false,
             show_error: false,
             select_on_focus: false,
@@ -147,6 +149,13 @@ impl Input {
 
     pub fn compact(mut self, v: bool) -> Self {
         self.compact = v;
+        self
+    }
+
+    /// Frame shape: `FieldShape::Tall(Edge::Full)` (Textual) by default; `Bars(Edge::Hair)`,
+    /// `Rule`, `Prompt`… for omp-style fields.
+    pub fn shape(mut self, s: FieldShape) -> Self {
+        self.shape = s;
         self
     }
 
@@ -646,8 +655,9 @@ impl StatefulWidget for Input {
             return;
         }
 
-        // Full mode: 3 rows with Border::Tall
-        if area.height < 3 || area.width < 7 {
+        // Full mode: frame per `shape` (Textual tall by default), 1 content row
+        let chrome = self.shape.vertical_chrome();
+        if area.height < 1 + chrome || area.width < 7 {
             state.hit.set_area(Rect::default());
             return;
         }
@@ -657,9 +667,8 @@ impl StatefulWidget for Input {
         fill(buf, area, bg);
 
         let border = if state.error.is_some() { th.error } else if look.focused { th.border } else { th.border_blurred };
-        Border::Tall.draw(buf, area, border, bg);
-
-        let inner = pad(area, 3, 1);
+        let frame = Rect { height: 1 + chrome, ..area };
+        let inner = pad(self.shape.draw(buf, frame, border, bg), 2, 0);
         if inner.width == 0 {
             return;
         }

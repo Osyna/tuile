@@ -20,11 +20,12 @@ use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::StatefulWidget;
 
-use crate::core::{HitBox, Hit, Outcome, Interactive, is_press, wheel_delta};
-use crate::draw::{fill, put, put_right, Border, st, bold, blend_area};
+use crate::core::{HitBox, Hit, Outcome, Interactive, is_press, is_left_down, mouse_pos, wheel_delta};
+use crate::draw::{fill, put, hline, truncate, Border, st, bold, blend_area};
 use crate::fuzzy;
 use crate::theme::{self, Theme};
-use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
+use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
+use unicode_width::UnicodeWidthStr;
 
 /// A single palette entry.
 #[derive(Clone, Debug)]
@@ -73,8 +74,10 @@ pub struct CommandPaletteState {
     highlight: usize,
     scroll: usize,
     results: Vec<(usize, i32, Vec<usize>)>,
-    backdrop_hit: HitBox,
-    input_hit: HitBox,
+    /// Frame rect from the last render; presses outside it close the palette.
+    panel: Rect,
+    /// Result rows that fit in the last render (variable row heights).
+    visible: usize,
     row_hits: Vec<HitBox>,
     scrollbar_state: ScrollbarState,
     pub selected: Option<usize>,
@@ -139,12 +142,25 @@ impl CommandPaletteState {
         }
     }
 
+    fn scroll_by(&mut self, delta: i32) {
+        // ponytail: `visible` is the last frame's count, close enough with mixed row heights
+        let max = self.results.len().saturating_sub(self.visible.max(1));
+        self.scroll = (self.scroll as i64 + delta as i64).clamp(0, max as i64) as usize;
+        let last = (self.scroll + self.visible.max(1)).saturating_sub(1);
+        self.highlight = self.highlight.clamp(self.scroll, last.max(self.scroll));
+    }
+
     fn select(&mut self) {
         if !self.results.is_empty() && self.highlight < self.results.len() {
             let item_idx = self.results[self.highlight].0;
             self.selected = Some(item_idx);
             self.open = false;
         }
+    }
+
+    /// Byte offset of char index `ci` in the query (cursor is a char index).
+    fn byte_at(&self, ci: usize) -> usize {
+        self.query.char_indices().nth(ci).map_or(self.query.len(), |(b, _)| b)
     }
 }
 impl Interactive for CommandPaletteState {
@@ -187,31 +203,29 @@ impl Interactive for CommandPaletteState {
                 Outcome::Consumed
             }
             KeyCode::End => {
-                self.cursor = self.query.len();
+                self.cursor = self.query.chars().count();
                 Outcome::Consumed
             }
             KeyCode::Left => {
-                if self.cursor > 0 {
-                    self.cursor -= 1;
-                }
+                self.cursor = self.cursor.saturating_sub(1);
                 Outcome::Consumed
             }
             KeyCode::Right => {
-                if self.cursor < self.query.len() {
-                    self.cursor += 1;
-                }
+                self.cursor = (self.cursor + 1).min(self.query.chars().count());
                 Outcome::Consumed
             }
             KeyCode::Backspace => {
                 if self.cursor > 0 {
                     self.cursor -= 1;
-                    self.query.remove(self.cursor);
+                    let b = self.byte_at(self.cursor);
+                    self.query.remove(b);
                     self.recompute_results();
                 }
                 Outcome::Consumed
             }
             KeyCode::Char(c) => {
-                self.query.insert(self.cursor, c);
+                let b = self.byte_at(self.cursor);
+                self.query.insert(b, c);
                 self.cursor += 1;
                 self.recompute_results();
                 Outcome::Consumed
@@ -221,12 +235,7 @@ impl Interactive for CommandPaletteState {
     }
 
     fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
-        let backdrop_hit = self.backdrop_hit.mouse(&m);
-        if matches!(backdrop_hit, Hit::Press) {
-            self.close();
-            return Outcome::Changed;
-        }
-
+        // rows first: a press on a result must select it, not fall through to the backdrop
         for (i, hit) in self.row_hits.iter_mut().enumerate() {
             let h = hit.mouse(&m);
             if hit.hover {
@@ -240,19 +249,19 @@ impl Interactive for CommandPaletteState {
         }
 
         if let Some(delta) = wheel_delta(&m) {
-            if delta > 0 {
-                self.move_down();
-            } else {
-                self.move_up();
-            }
+            self.scroll_by(delta);
             return Outcome::Consumed;
         }
 
         let sb_out = self.scrollbar_state.handle_mouse(m);
         if sb_out.is_changed() || sb_out.is_consumed() {
-            self.scroll = self.scrollbar_state.offset;
-            self.highlight = keep_visible(self.scroll, self.highlight, 8);
+            self.scroll_by(self.scrollbar_state.offset as i32 - self.scroll as i32);
             return sb_out;
+        }
+
+        if is_left_down(&m) && !self.panel.contains(mouse_pos(&m)) {
+            self.close();
+            return Outcome::Changed;
         }
 
         Outcome::Ignored
@@ -300,157 +309,174 @@ impl StatefulWidget for CommandPalette {
 
         // Backdrop
         blend_area(buf, area, th.background, 0.5);
-        state.backdrop_hit.set_area(area);
 
-        let w = area.width.saturating_sub(4).clamp(40, (area.width * 9 / 10).min(100));
+        let lo = area.width.min(40);
+        let hi = (area.width * 9 / 10).min(100).max(lo);
+        let w = area.width.saturating_sub(4).clamp(lo, hi);
         let x = area.x + (area.width - w) / 2;
-        let y = area.y + 2;
+        let y = area.y + 1;
 
-        // Input box
-        let input_area = Rect { x, y, width: w, height: 3 };
-        let input_bg = th.surface.blend(th.foreground, 0.05);
-        fill(buf, input_area, input_bg);
-        Border::Tall.draw(buf, input_area, th.border, input_bg);
-
-        let prompt_x = x + 1;
-        put(buf, prompt_x, y + 1, ">", 1, bold(st(th.primary, input_bg)));
-
-        let text_x = prompt_x + 2;
-        let text_w = w.saturating_sub(4);
-        let display_text = if state.query.is_empty() { "Search for commands…" } else { &state.query };
-        let text_style = if state.query.is_empty() {
-            st(th.text_muted, input_bg)
-        } else {
-            st(th.text, input_bg)
-        };
-        put(buf, text_x, y + 1, display_text, text_w, text_style);
-
-        // Cursor
-        if !state.query.is_empty() {
-            let cursor_x = text_x + state.cursor as u16;
-            if cursor_x < input_area.right().saturating_sub(1) {
-                let cursor_char = if state.cursor < state.query.len() {
-                    state.query.chars().nth(state.cursor).unwrap_or(' ')
-                } else {
-                    ' '
-                };
-                put(buf, cursor_x, y + 1, &cursor_char.to_string(), 1, st(th.cursor_fg, th.cursor_bg));
-            }
-        }
-
-        state.input_hit.set_area(input_area);
-
-        // Results list
-        let max_rows = 8;
-        let shown = state.results.len().min(max_rows);
-        if shown == 0 {
-            let empty_area = Rect { x, y: y + 4, width: w, height: 3 };
-            fill(buf, empty_area, th.surface);
-            Border::Tall.draw(buf, empty_area, th.border, th.surface);
-            put(buf, x + 2, y + 5, "No matches", w.saturating_sub(4), st(th.text_muted, th.surface));
+        // Frame rows: border, input, separator, body…, footer, border.
+        const CHROME: u16 = 5;
+        let avail = area.height.saturating_sub(2).min(area.height * 4 / 5); // popup, not a full-screen list
+        if avail <= CHROME || w < 8 {
             return;
         }
+        let max_body = avail - CHROME;
 
-        // Calculate list height accounting for variable row heights
-        let mut total_h = 0u16;
-        let mut last_group: Option<String> = None;
-        for (i, &(item_idx, _, _)) in state.results.iter().enumerate().take(shown) {
-            let item = &state.items[item_idx];
-            if item.group.is_some() && item.group != last_group {
-                if i > 0 { total_h += 1; } // group gap
-                total_h += 1; // group header line
-                last_group = item.group.clone();
+        // Rows that fit from `start`, honouring group headers and two-line entries.
+        let fit = |start: usize| -> usize {
+            let mut used = 0u16;
+            let mut shown = 0;
+            let mut last_group: Option<&str> = None;
+            for (i, &(item_idx, _, _)) in state.results.iter().enumerate().skip(start) {
+                let item = &state.items[item_idx];
+                let mut per = if item.hint.is_some() { 2 } else { 1 };
+                if item.group.is_some() && item.group.as_deref() != last_group {
+                    per += 1 + u16::from(i > start);
+                    last_group = item.group.as_deref();
+                }
+                if used + per > max_body {
+                    break;
+                }
+                used += per;
+                shown += 1;
             }
-            total_h += if item.hint.is_some() { 2 } else { 1 };
+            shown
+        };
+
+        // Keep the highlight inside the window.
+        if state.highlight < state.scroll {
+            state.scroll = state.highlight;
         }
-
-        let list_h = total_h + 3; // +2 for border, +1 for footer
-        let list_area = Rect { x, y: y + 4, width: w, height: list_h };
-        fill(buf, list_area, th.surface);
-        Border::Tall.draw(buf, list_area, th.border, th.surface);
-
-        state.scroll = keep_visible(state.scroll, state.highlight, shown);
+        let mut shown = fit(state.scroll);
+        while shown > 0 && state.highlight >= state.scroll + shown && state.scroll < state.highlight {
+            state.scroll += 1;
+            shown = fit(state.scroll);
+        }
+        state.visible = shown;
         let start = state.scroll;
 
-        state.row_hits.clear();
-        last_group = None;
-        let mut row_y = list_area.y + 1;
+        // Body height for the rows we will draw.
+        let mut body_h = 0u16;
+        let mut last_group: Option<&str> = None;
+        for (i, &(item_idx, _, _)) in state.results.iter().enumerate().skip(start).take(shown) {
+            let item = &state.items[item_idx];
+            if item.group.is_some() && item.group.as_deref() != last_group {
+                body_h += 1 + u16::from(i > start);
+                last_group = item.group.as_deref();
+            }
+            body_h += if item.hint.is_some() { 2 } else { 1 };
+        }
+        let body_h = body_h.max(1);
 
+        let panel = Rect { x, y, width: w, height: body_h + CHROME };
+        state.panel = panel;
+        fill(buf, panel, th.surface);
+        Border::Tall.draw(buf, panel, th.border, th.surface);
+        let inner_x = x + 1;
+        let inner_w = w - 2;
+
+        // Input strip
+        let input_bg = th.surface.blend(th.foreground, 0.05);
+        fill(buf, Rect { x: inner_x, y: y + 1, width: inner_w, height: 1 }, input_bg);
+        put(buf, inner_x + 1, y + 1, ">", 1, bold(st(th.primary, input_bg)));
+        let text_x = inner_x + 3;
+        let text_w = inner_w.saturating_sub(4);
+        if state.query.is_empty() {
+            put(buf, text_x, y + 1, "Search for commands…", text_w, st(th.text_muted, input_bg));
+        } else {
+            put(buf, text_x, y + 1, &state.query, text_w, st(th.text, input_bg));
+        }
+        let cursor_x = text_x + state.query[..state.byte_at(state.cursor)].width() as u16;
+        if cursor_x < text_x + text_w {
+            let under = state.query.chars().nth(state.cursor).map_or(" ".to_string(), |c| c.to_string());
+            put(buf, cursor_x, y + 1, &under, 1, st(th.cursor_fg, th.cursor_bg));
+        }
+        hline(buf, inner_x, y + 2, inner_w, "─", st(th.border_blurred, th.surface));
+
+        // Footer
+        let footer_y = panel.bottom() - 2;
+        let hint = "↑↓ navigate • enter run • esc close";
+        let hint = truncate(hint, inner_w as usize);
+        put(buf, inner_x + (inner_w.saturating_sub(hint.width() as u16)) / 2, footer_y, &hint, inner_w, st(th.text_muted, th.surface).add_modifier(Modifier::DIM));
+
+        // Body
+        let body_y = y + 3;
+        state.row_hits.clear();
+        if shown == 0 {
+            put(buf, inner_x + 2, body_y, "No matches", inner_w.saturating_sub(2), st(th.text_muted, th.surface));
+            return;
+        }
+        let has_sb = state.results.len() > shown;
+        let row_w = inner_w - u16::from(has_sb);
+
+        let mut row_y = body_y;
+        let mut last_group: Option<&str> = None;
         for (row, &(item_idx, _score, ref positions)) in state.results.iter().enumerate().skip(start).take(shown) {
             let item = &state.items[item_idx];
 
-            // Group header
-            if item.group.is_some() && item.group != last_group {
+            if item.group.is_some() && item.group.as_deref() != last_group {
                 if row > start {
-                    row_y += 1; // gap before new group
-                }
-                if let Some(g) = &item.group {
-                    put(buf, x + 2, row_y, g, w.saturating_sub(4), st(th.text_muted, th.surface).add_modifier(Modifier::DIM));
                     row_y += 1;
                 }
-                last_group = item.group.clone();
+                if let Some(g) = &item.group {
+                    put(buf, inner_x + 2, row_y, g, row_w.saturating_sub(2), st(th.text_muted, th.surface).add_modifier(Modifier::DIM));
+                    row_y += 1;
+                }
+                last_group = item.group.as_deref();
             }
 
             let per = if item.hint.is_some() { 2 } else { 1 };
-            if row_y + per > list_area.bottom().saturating_sub(2) { // leave room for footer
-                break;
-            }
-
-            let row_area = Rect { x: x + 1, y: row_y, width: w - 2, height: per };
+            let row_area = Rect { x: inner_x, y: row_y, width: row_w, height: per };
             let selected = row == state.highlight;
-            let (fg, bg) = if selected {
-                (th.cursor_fg, th.cursor_bg)
-            } else {
-                (th.foreground, th.surface)
-            };
-
+            let (fg, bg) = if selected { (th.cursor_fg, th.cursor_bg) } else { (th.foreground, th.surface) };
+            let muted = if selected { fg.blend(bg, 0.3) } else { th.text_muted };
             fill(buf, row_area, bg);
 
-            // Icon + Title with matched chars highlighted
-            let mut title_x = x + 3;
+            let mut title_x = inner_x + 2;
             if let Some(icon_str) = &item.icon {
                 put(buf, title_x, row_y, icon_str, 2, st(fg, bg));
                 title_x += 3;
             }
 
-            let mut spans = Vec::new();
-            for (ci, ch) in item.title.chars().enumerate() {
-                let mut style = st(fg, bg);
-                if positions.contains(&ci) {
-                    style = bold(st(if selected { th.accent.lighten(0.3) } else { th.accent }, bg)).add_modifier(Modifier::UNDERLINED);
-                }
-                spans.push(Span::styled(ch.to_string(), style));
-            }
-            let title_w = w.saturating_sub(title_x - x).saturating_sub(3);
-            buf.set_line(title_x, row_y, &Line::from(spans), title_w);
-
-            // Hint on second line (if present)
-            if let Some(hint) = &item.hint {
-                let hint_fg = if selected { fg.blend(bg, 0.3) } else { th.text_muted };
-                put(buf, x + 3, row_y + 1, hint, w.saturating_sub(6), st(hint_fg, bg));
-            }
-
-            // Shortcut on right
+            // Shortcut on the right; title truncates before it.
+            let right = row_area.right().saturating_sub(2);
+            let mut title_end = right;
             if let Some(sc) = &item.shortcut {
-                put_right(buf, Rect { x: x + 3, y: row_y, width: w.saturating_sub(6), height: 1 }, sc, st(th.text_muted, bg));
+                let sc_w = sc.width() as u16;
+                put(buf, right.saturating_sub(sc_w), row_y, sc, sc_w, st(muted, bg));
+                title_end = right.saturating_sub(sc_w + 1);
+            }
+            let title = truncate(&item.title, title_end.saturating_sub(title_x) as usize);
+            let spans: Vec<Span> = title
+                .chars()
+                .enumerate()
+                .map(|(ci, ch)| {
+                    let style = if positions.contains(&ci) {
+                        bold(st(if selected { th.accent.lighten(0.3) } else { th.accent }, bg)).add_modifier(Modifier::UNDERLINED)
+                    } else {
+                        st(fg, bg)
+                    };
+                    Span::styled(ch.to_string(), style)
+                })
+                .collect();
+            buf.set_line(title_x, row_y, &Line::from(spans), title_end.saturating_sub(title_x));
+
+            if let Some(h) = &item.hint {
+                let hw = right.saturating_sub(title_x);
+                put(buf, title_x, row_y + 1, &truncate(h, hw as usize), hw, st(muted, bg));
             }
 
             let mut hit = HitBox::default();
             hit.set_area(row_area);
             state.row_hits.push(hit);
-
             row_y += per;
         }
 
-        // Footer hint INSIDE the box
-        let footer_y = list_area.bottom().saturating_sub(1);
-        let hint = "↑↓ navigate • enter run • esc close";
-        put(buf, x + (w.saturating_sub(hint.len() as u16)) / 2, footer_y, hint, w, st(th.text_muted, th.surface).add_modifier(Modifier::DIM));
-
-        // Scrollbar
-        if state.results.len() > max_rows {
-            let sb_area = Rect { x: list_area.right().saturating_sub(1), y: list_area.y, width: 1, height: list_area.height };
-            Scrollbar::vertical(state.results.len(), shown).offset(state.scroll).render(sb_area, buf, &mut state.scrollbar_state);
+        if has_sb {
+            let sb_area = Rect { x: panel.right() - 2, y: body_y, width: 1, height: body_h };
+            Scrollbar::vertical(state.results.len(), shown).offset(state.scroll).theme(&th).render(sb_area, buf, &mut state.scrollbar_state);
         }
     }
 }
@@ -487,5 +513,26 @@ mod tests {
         assert_eq!(state.highlight, 2);
         state.move_up();
         assert_eq!(state.highlight, 1);
+    }
+
+    #[test]
+    fn palette_row_click_selects_item() {
+        use ratatui::crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
+        let mut state = CommandPaletteState::new();
+        state.set_items(&[PaletteItem::new("Alpha"), PaletteItem::new("Beta")]);
+        state.open();
+        let mut buf = Buffer::empty(Rect::new(0, 0, 60, 20));
+        CommandPalette::new().render(buf.area, &mut buf, &mut state);
+        let row = state.row_hits[1].area;
+        let press = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: row.x + 2, row: row.y, modifiers: KeyModifiers::NONE };
+        assert_eq!(state.handle_mouse(press), Outcome::Changed);
+        assert_eq!(state.take_selected(), Some(1));
+        // a press on the dimmed backdrop closes without selecting
+        state.open();
+        CommandPalette::new().render(buf.area, &mut buf, &mut state);
+        let outside = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: 0, row: 19, modifiers: KeyModifiers::NONE };
+        state.handle_mouse(outside);
+        assert!(!state.open);
+        assert_eq!(state.take_selected(), None);
     }
 }

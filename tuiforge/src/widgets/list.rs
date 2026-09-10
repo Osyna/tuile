@@ -21,7 +21,7 @@ use ratatui::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::{is_press, mouse_in, mouse_pos, plain_char, wheel_delta, Interactive, Look, Outcome};
-use crate::draw::{Border, fill, put, put_right, st};
+use crate::draw::{Border, fill, hline, put, put_right, st};
 use crate::fuzzy;
 use crate::layout::pad;
 use crate::theme::{self, Theme, Variant};
@@ -489,20 +489,18 @@ impl StatefulWidget for ListView {
                 fill(buf, hl_area, row_bg);
             }
 
-            // separator - draw across full width in bright color for visibility
             if entry.separator {
-                fill(buf, Rect::new(list_area.x, y, list_area.width, 1), bg);
-                for x in list_area.x..list_area.right() {
-                    put(buf, x, y, "─", 1, st(th.border_blurred, bg));
-                }
+                hline(buf, list_area.x, y, list_area.width, "─", st(th.text_muted.blend(bg, 0.5), bg));
                 continue;
             }
 
-            // multi-select checkbox
+            // multi-select checkbox: a painted 3-cell button (same look as `Checkbox`)
             let mut x = list_area.x;
             if self.multi_select {
-                let mark = if is_selected { "▐X▌" } else { "▐ ▌" };
-                put(buf, x, y, mark, 3, st(row_fg, row_bg));
+                let btn = if is_cursor && self.focused { th.cursor_bg } else { th.panel };
+                let mark_fg = if is_selected { th.text_success } else { btn };
+                put(buf, x, y, "   ", 3, st(btn, btn));
+                put(buf, x + 1, y, if is_selected { "X" } else { " " }, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
                 x += 4;
             }
 

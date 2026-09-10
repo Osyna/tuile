@@ -149,7 +149,7 @@ pub struct Scrollbar {
 
 impl Scrollbar {
     pub fn new(axis: ScrollAxis, content: usize, viewport: usize) -> Self {
-        Scrollbar { axis, content, viewport, offset: None, active: false, theme: None, hide_when_fits: false }
+        Scrollbar { axis, content, viewport, offset: None, active: false, theme: None, hide_when_fits: true }
     }
     pub fn vertical(content: usize, viewport: usize) -> Self {
         Self::new(ScrollAxis::Vertical, content, viewport)
@@ -171,6 +171,7 @@ impl Scrollbar {
         self.theme = Some(th.clone());
         self
     }
+    /// Draw nothing when the content fits (default). `false` keeps an empty track visible.
     pub fn hide_when_fits(mut self, v: bool) -> Self {
         self.hide_when_fits = v;
         self

@@ -78,6 +78,12 @@ Rules:
 13. **No new dependencies.** `ratatui`, `unicode-width`, `unicode-segmentation` only.
 14. **Performance.** No per-frame heap churn beyond small `String`s; no `Instant::now()` inside
     render; precompute glyph tables as `const`.
+15. **Solid = background paint, lines = edge blocks.** Paint filled areas with `" "` + `bg`
+    (`fill`, `hbar`), never with `█`/`▐`/`▌` foreground glyphs: fonts leave seams between block
+    glyphs, and terminals with a minimum-contrast setting recolour any glyph whose fg is close to
+    its bg (this turned every pill end and `tall` border into a stray bar). Thin lines use the
+    edge-hugging eighths `▏ ▕ ▔ ▁` or box drawing. Half-blocks only for partial cells in
+    animated bars. Wide/ambiguous glyphs (`★`, emoji) get two cells.
 
 ## Showcase page contract (`showcase/src/pages/<name>.rs`)
 

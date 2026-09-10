@@ -169,25 +169,19 @@ impl StatefulWidget for Slider {
             rest = rest.blend(bg, 0.5);
         }
 
+        // ticks: 11 evenly spaced marks on the track itself, so no extra row and no collision
+        // with the label row
+        let tick_at = |x: u16| self.ticks && (0..=10u32).any(|k| x == state.track.x + ((k * (state.track.width as u32 - 1) + 5) / 10) as u16);
         for x in state.track.left()..state.track.right() {
             let (sym, color) = if x < thumb_x {
-                ("━", filled)
+                (if tick_at(x) { "┿" } else { "━" }, filled)
             } else if x > thumb_x {
-                ("─", rest)
+                (if tick_at(x) { "┼" } else { "─" }, rest)
             } else {
                 ("●", if look.focused || look.hover { th.accent } else { filled })
             };
             if let Some(c) = buf.cell_mut((x, state.track.y)) {
                 c.set_symbol(sym).set_fg(color.color()).set_bg(bg.color());
-            }
-        }
-
-        if self.ticks {
-            let tick_y = area.y + 2;
-            for x in state.track.left()..state.track.right() {
-                if let Some(c) = buf.cell_mut((x, tick_y)) {
-                    c.set_symbol("·").set_fg(th.text_muted.color()).set_bg(bg.color());
-                }
             }
         }
 
@@ -851,7 +845,8 @@ impl StatefulWidget for Rating {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         state.hits.clear();
-        if area.width < self.max as u16 || area.height == 0 {
+        // ★ is an ambiguous-width glyph that overdraws its neighbour in most fonts: 2 cells each
+        if area.width < self.max as u16 * 2 - 1 || area.height == 0 {
             return;
         }
 
@@ -862,8 +857,8 @@ impl StatefulWidget for Rating {
         let display = state.hover_value.unwrap_or(state.value);
 
         for i in 0..self.max {
-            let x = area.x + i as u16;
-            let r = Rect { x, y: area.y, width: 1, height: 1 };
+            let x = area.x + i as u16 * 2;
+            let r = Rect { x, y: area.y, width: 2, height: 1 };
             state.hits.push(r);
 
             let filled = i < display;
@@ -874,9 +869,10 @@ impl StatefulWidget for Rating {
             }
             let mut style = st(fg, bg);
             if look.focused && state.hover_value.is_none() && i == state.value.saturating_sub(1) {
-                style = st(bg, fg);
+                style = st(th.accent, bg).add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
             }
             put(buf, x, area.y, sym, 1, style);
+            put(buf, x + 1, area.y, " ", 1, st(bg, bg));
         }
     }
 }

@@ -148,7 +148,11 @@ impl StatefulWidget for Swatches {
             if y >= area.y + area.height {
                 break;
             }
-            let x = area.x + (col as u16 * self.cell_width);
+            // one leading cell so the `[` cursor bracket fits before the first swatch
+            let x = area.x + 1 + (col as u16 * self.cell_width);
+            if x + 1 >= area.right() {
+                break;
+            }
             let cell_rect = Rect { x, y, width: self.cell_width, height: 1 };
             state.hits[i].set_area(cell_rect);
 
@@ -156,7 +160,7 @@ impl StatefulWidget for Swatches {
             let swatch_w = self.cell_width.min(2);
             let c = if self.enabled { *color } else { color.blend(bg, 0.6) };
             for sx in 0..swatch_w {
-                put(buf, x + sx, y, "█", 1, st(c, bg));
+                put(buf, x + sx, y, " ", 1, st(c, c));
             }
 
             // bracket cursor: cursor colour when focused, text colour otherwise, hover hint
@@ -168,9 +172,7 @@ impl StatefulWidget for Swatches {
                 None
             };
             if let Some(bc) = bracket {
-                if x > area.x {
-                    put(buf, x.saturating_sub(1), y, "[", 1, st(bc, bg).add_modifier(Modifier::BOLD));
-                }
+                put(buf, x - 1, y, "[", 1, st(bc, bg).add_modifier(Modifier::BOLD));
                 if x + swatch_w < area.x + area.width {
                     put(buf, x + swatch_w, y, "]", 1, st(bc, bg).add_modifier(Modifier::BOLD));
                 }
@@ -365,7 +367,7 @@ impl StatefulWidget for ColorPicker {
             let frac = x as f32 / hue_rect.width as f32;
             let hue = frac * 360.0;
             let color = hsl_to_rgb(hue, 1.0, 0.5);
-            put(buf, hue_rect.x + x, hue_rect.y, "█", 1, st(color, th.surface));
+            put(buf, hue_rect.x + x, hue_rect.y, " ", 1, st(color, color));
         }
 
         // Hue cursor
@@ -397,7 +399,7 @@ impl StatefulWidget for ColorPicker {
         let preview_w = 6;
         for py in 0..preview_h {
             for px in 0..preview_w {
-                put(buf, preview_rect.x + px, preview_rect.y + py, "█", 1, st(rgb, th.surface));
+                put(buf, preview_rect.x + px, preview_rect.y + py, " ", 1, st(rgb, rgb));
             }
         }
 
@@ -505,7 +507,7 @@ impl Widget for GradientBar {
         for x in 0..area.width {
             let frac = x as f32 / area.width.max(1) as f32;
             let color = gradient(&self.stops, frac);
-            put(buf, area.x + x, bar_y, "█", 1, st(color, th.surface));
+            put(buf, area.x + x, bar_y, " ", 1, st(color, color));
         }
 
         // marker
@@ -595,7 +597,7 @@ impl Widget for ThemePalette {
             for py in 0..2 {
                 for px in 0..2 {
                     if x + px < area.x + area.width && y + py < area.y + area.height {
-                        put(buf, x + px, y + py, "█", 1, st(*color, th.surface));
+                        put(buf, x + px, y + py, " ", 1, st(*color, *color));
                     }
                 }
             }

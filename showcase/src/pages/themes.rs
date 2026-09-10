@@ -113,8 +113,8 @@ impl Page for ThemesPage {
             };
             fill(buf, row, bg);
             let preview = Theme::resolve(spec, None);
-            put(buf, row.x + 1, y, "██", 2, st(preview.primary, bg));
-            put(buf, row.x + 3, y, "█", 1, st(preview.accent, bg));
+            put(buf, row.x + 1, y, "  ", 2, st(preview.primary, preview.primary));
+            put(buf, row.x + 3, y, " ", 1, st(preview.accent, preview.accent));
             put(buf, row.x + 5, y, spec.name, row.width.saturating_sub(6), st(fg, bg).add_modifier(if active { Modifier::BOLD } else { Modifier::empty() }));
             if !spec.dark {
                 put_right(buf, Rect { width: row.width - 1, ..row }, "☼", st(if active { fg } else { th.text_muted }, bg));

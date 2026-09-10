@@ -66,7 +66,12 @@ impl Page for WelcomePage {
                     }
                     let phase = (i as f32 / banner_w as f32 + t * 0.08 + row as f32 * 0.02).fract();
                     let c = gradient(&stops, phase);
-                    put(buf, x0 + i as u16, y + row as u16, &ch.to_string(), 1, st(c, th.background));
+                    // `█` as background paint: no seams between cells in any font
+                    if ch == '█' {
+                        put(buf, x0 + i as u16, y + row as u16, " ", 1, st(c, c));
+                    } else {
+                        put(buf, x0 + i as u16, y + row as u16, &ch.to_string(), 1, st(c, th.background));
+                    }
                 }
             }
             y += TITLE.len() as u16 + 1;
@@ -93,16 +98,20 @@ impl Page for WelcomePage {
         let card_w: u16 = 44;
         let cols_n = ((inner.width + 2) / (card_w + 2)).clamp(1, 4) as usize;
         let rows_n = FEATURES.len().div_ceil(cols_n);
-        let card_h = 5;
-        let grid_h = (rows_n as u16 * (card_h + 1)).saturating_sub(1);
+        // title row + tallest wrapped description + border rows
+        let desc_lines = FEATURES.iter().map(|(_, d)| wrap(d, (card_w - 6) as usize).len()).max().unwrap_or(1).min(3) as u16;
+        let card_h = desc_lines + 3;
         let avail = inner.bottom().saturating_sub(y + 3);
+        // gap row between card rows only when it fits
+        let gap = if rows_n as u16 * (card_h + 1) - 1 <= avail { 1 } else { 0 };
+        let grid_h = rows_n as u16 * (card_h + gap);
         let grid_area = Rect { x: inner.x, y, width: inner.width, height: grid_h.min(avail) };
         let total_w = cols_n as u16 * card_w + (cols_n as u16 - 1) * 2;
         let gx = grid_area.x + grid_area.width.saturating_sub(total_w) / 2;
         self.hits.clear();
         for (i, (name, desc)) in FEATURES.iter().enumerate() {
             let (r, c) = (i / cols_n, i % cols_n);
-            let rect = Rect { x: gx + c as u16 * (card_w + 2), y: grid_area.y + r as u16 * (card_h + 1), width: card_w, height: card_h };
+            let rect = Rect { x: gx + c as u16 * (card_w + 2), y: grid_area.y + r as u16 * (card_h + gap), width: card_w, height: card_h };
             if rect.bottom() > grid_area.bottom() {
                 break;
             }
@@ -115,7 +124,7 @@ impl Page for WelcomePage {
             let accent = gradient(&[th.primary, th.accent], i as f32 / (FEATURES.len() - 1) as f32);
             put(buf, rect.x + 2, rect.y + 1, "●", 1, st(accent, bg));
             put(buf, rect.x + 4, rect.y + 1, name, rect.width - 6, st(th.text, bg).add_modifier(Modifier::BOLD));
-            for (k, line) in wrap(desc, (rect.width - 6) as usize).iter().take(3).enumerate() {
+            for (k, line) in wrap(desc, (rect.width - 6) as usize).iter().take(desc_lines as usize).enumerate() {
                 put(buf, rect.x + 4, rect.y + 2 + k as u16, line, rect.width - 6, st(th.text_muted, bg));
             }
         }

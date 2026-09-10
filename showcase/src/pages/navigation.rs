@@ -321,25 +321,20 @@ impl Page for NavigationPage {
                         list_area = Rect::new(list_area.x, list_area.y + 1, list_area.width, list_area.height.saturating_sub(1));
                     }
 
-                    let entries: Vec<ListEntry> = (1..=30)
-                        .map(|i| {
-                            let mut e = ListEntry::new(format!("Item {}", i))
-                                .icon("▫")
-                                .detail(&format!("{}ms", i * 10));
-                            if i % 5 == 0 {
-                                e = e.separator(true);
-                            }
-                            if i == 15 {
-                                e = e.disabled(true);
-                            }
-                            e
-                        })
-                        .collect();
+                    let mut entries: Vec<ListEntry> = Vec::with_capacity(36);
+                    for i in 1..=30 {
+                        if i > 1 && i % 5 == 1 {
+                            entries.push(ListEntry::new("").separator(true));
+                        }
+                        let mut e = ListEntry::new(format!("Item {}", i)).icon("▫").detail(&format!("{}ms", i * 10));
+                        if i == 15 {
+                            e = e.disabled(true);
+                        }
+                        entries.push(e);
+                    }
                     ListView::new(entries)
                         .filter(&self.list_filter)
                         .focused(self.focus.is(Id::List))
-                        .border(Border::Round)
-                        .title("List")
                         .details(ListDetail::Right)
                         .theme(th)
                         .render(list_area, buf, &mut self.list);
@@ -348,8 +343,6 @@ impl Page for NavigationPage {
                     // Tree
                     TreeView::new(self.tree_roots.clone())
                         .focused(self.focus.is(Id::List))
-                        .border(Border::Round)
-                        .title("Tree")
                         .theme(th)
                         .render(content_rect, buf, &mut self.tree);
                 }
@@ -362,8 +355,6 @@ impl Page for NavigationPage {
                     ListView::new(entries)
                         .multi_select(true)
                         .focused(self.focus.is(Id::List))
-                        .border(Border::Round)
-                        .title("Multi-select")
                         .highlight(ListHighlight::Bar)
                         .theme(th)
                         .render(content_rect, buf, &mut self.multi_list);

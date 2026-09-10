@@ -17,6 +17,7 @@ use ratatui::style::Modifier;
 use crate::core::{Hit, HitBox, Outcome};
 use crate::draw::{fill, put, put_right, st};
 use crate::theme::{self, Theme, Variant};
+use unicode_width::UnicodeWidthStr;
 
 /// A footer key binding: key string, description, enabled state, and priority.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -173,9 +174,13 @@ impl KeyFooter {
             return;
         }
 
-        // Right text
+        // Right text: reserve its width so bindings never run underneath it
+        let mut limit = area.right();
         if let Some(ref right_text) = self.right {
-            put_right(buf, area, right_text, st(th.text_muted, th.panel));
+            let w = (right_text.width() as u16).min(area.width / 2);
+            let text = crate::draw::truncate(right_text, w as usize);
+            put_right(buf, area, &text, st(th.text_muted, th.panel));
+            limit = limit.saturating_sub(w + 1);
         }
 
         // Sort bindings by priority (higher first) for overflow handling
@@ -192,7 +197,7 @@ impl KeyFooter {
             let desc_w = if self.compact { 0 } else { binding.description.len() as u16 + 1 };
             let w = key_w + desc_w;
 
-            if x + w > area.right().saturating_sub(4) {
+            if x + w > limit.saturating_sub(2) {
                 overflow = true;
                 break;
             }

@@ -230,7 +230,8 @@ impl Button {
             style = st(bg, fg).add_modifier(Modifier::BOLD);
             fill(buf, area, fg);
         }
-        put_centered(buf, area, label, style);
+        let mid = Rect { y: area.y + area.height / 2, height: 1, ..area };
+        put_centered(buf, mid, label, style);
     }
 
     fn render_outline(&self, area: Rect, buf: &mut Buffer, th: &Theme, label: &str, look: &Look, pressed: bool) {
@@ -259,14 +260,14 @@ impl Button {
             }
             for y in (area.y + 1)..(area.bottom() - 1) {
                 if let Some(c) = buf.cell_mut((area.left(), y)) {
-                    c.set_symbol("▊").set_fg(border_color.color());
+                    c.set_symbol("▏").set_fg(border_color.color());
                 }
                 if let Some(c) = buf.cell_mut((area.right() - 1, y)) {
-                    c.set_symbol("▎").set_fg(border_color.color());
+                    c.set_symbol("▕").set_fg(border_color.color());
                 }
             }
         }
-        let mid = if self.compact { area } else { Rect { y: area.y + 1, height: 1, ..area } };
+        let mid = if self.compact { area } else { Rect { y: area.y + area.height / 2, height: 1, ..area } };
         let mut style = st(fg, bg).add_modifier(Modifier::BOLD);
         if look.focused {
             style = st(bg, fg).add_modifier(Modifier::BOLD);

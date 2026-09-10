@@ -126,9 +126,10 @@ impl StatefulWidget for Checkbox {
             (area.x, area.x + 3)
         };
 
-        put(buf, box_x, area.y, "▐", 1, st(side_fg, side_bg));
+        // a painted 3-cell button: half-block ends get brightened by min-contrast terminals
+        put(buf, box_x, area.y, " ", 1, st(side_bg, side_fg));
         put(buf, box_x + 1, area.y, mark, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
-        put(buf, box_x + 2, area.y, "▌", 1, st(side_fg, side_bg));
+        put(buf, box_x + 2, area.y, " ", 1, st(side_bg, side_fg));
 
         if !self.label.is_empty() {
             let style = if look.focused {
@@ -320,7 +321,7 @@ impl StatefulWidget for Switch {
             if end <= cl || start >= cr {
                 cell.set_symbol(" ").set_bg(track.color());
             } else if start <= cl && end >= cr {
-                cell.set_symbol("█").set_fg(thumb.color()).set_bg(track.color());
+                cell.set_symbol(" ").set_bg(thumb.color());
             } else if start > cl {
                 let idx = ((start - cl) * 8.0).round() as usize;
                 cell.set_symbol(LEFT_BLOCKS[idx.min(8)]).set_fg(track.color()).set_bg(thumb.color());
@@ -478,7 +479,8 @@ impl StatefulWidget for RadioGroup {
         let content = if self.bordered {
             let border_color = if look.focused { th.border } else { th.border_blurred };
             if let Some(title) = &self.title {
-                Border::Tall.draw_titled(buf, area, border_color, bg, title, ratatui::layout::Alignment::Left)
+                let title_style = st(if look.focused { th.text } else { th.text_muted }, bg).add_modifier(Modifier::BOLD);
+                Border::Tall.draw_titled_with(buf, area, border_color, bg, title, ratatui::layout::Alignment::Left, title_style)
             } else {
                 Border::Tall.draw(buf, area, border_color, bg);
                 Rect { x: area.x + 1, y: area.y + 1, width: area.width.saturating_sub(2), height: area.height.saturating_sub(2) }
@@ -531,9 +533,9 @@ impl RadioGroup {
             (btn_bg, bg, btn_bg)
         };
 
-        put(buf, area.x, area.y, "▐", 1, st(side_fg, side_bg));
+        put(buf, area.x, area.y, " ", 1, st(side_bg, side_fg));
         put(buf, area.x + 1, area.y, mark, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
-        put(buf, area.x + 2, area.y, "▌", 1, st(side_fg, side_bg));
+        put(buf, area.x + 2, area.y, " ", 1, st(side_bg, side_fg));
 
         let style = if is_cursor && look.focused {
             st(th.cursor_fg, th.cursor_bg).add_modifier(Modifier::BOLD)
@@ -705,9 +707,9 @@ impl StatefulWidget for CheckList {
                 (btn_bg, bg, btn_bg)
             };
 
-            put(buf, r.x, y, "▐", 1, st(side_fg, side_bg));
+            put(buf, r.x, y, " ", 1, st(side_bg, side_fg));
             put(buf, r.x + 1, y, mark, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
-            put(buf, r.x + 2, y, "▌", 1, st(side_fg, side_bg));
+            put(buf, r.x + 2, y, " ", 1, st(side_bg, side_fg));
 
             let style = if is_cursor && look.focused {
                 st(th.cursor_fg, th.cursor_bg).add_modifier(Modifier::BOLD)
@@ -720,8 +722,10 @@ impl StatefulWidget for CheckList {
             put(buf, r.x + 3, y, &format!(" {}", self.options[idx]), max_w, style);
         }
 
-        let sb_area = Rect { x: area.right() - 1, y: area.y + 1, width: 1, height: area.height.saturating_sub(2) };
-        Scrollbar::vertical(self.options.len(), viewport).offset(state.scroll).render(sb_area, buf, &mut state.sb);
+        if self.options.len() > viewport {
+            let sb_area = Rect { x: area.right() - 1, y: area.y + 1, width: 1, height: area.height.saturating_sub(2) };
+            Scrollbar::vertical(self.options.len(), viewport).offset(state.scroll).render(sb_area, buf, &mut state.sb);
+        }
     }
 }
 
@@ -865,9 +869,12 @@ impl StatefulWidget for Segmented {
         let look = Look { focused: self.focused, hover: false, enabled: self.enabled };
         let bg = th.background;
 
+        // flat painted segments (no half-block ends: fg glyphs near their bg colour get
+        // brightened by terminals with a minimum-contrast setting)
+        let seg_bg = Theme::shade(th.surface, 1);
         let mut x = area.x;
         for (idx, opt) in self.options.iter().enumerate() {
-            let w = opt.width() as u16 + 4;
+            let w = opt.width() as u16 + 2;
             if x + w > area.right() {
                 break;
             }
@@ -875,30 +882,22 @@ impl StatefulWidget for Segmented {
             state.hits.push(r);
 
             let selected = state.selected == idx;
-            let (fg, item_bg) = if selected {
+            let (fg, item_bg) = if selected && look.focused {
+                (th.cursor_fg, th.cursor_bg)
+            } else if selected {
                 (th.primary.text_on(0.9), th.primary)
             } else if !look.enabled {
-                (th.text_disabled, bg)
+                (th.text_disabled, seg_bg)
             } else {
-                (th.text, bg)
+                (th.text, seg_bg)
             };
-
-            let style = st(fg, item_bg).add_modifier(Modifier::BOLD);
-            if selected || (idx > 0 && state.selected == idx - 1) {
-                put(buf, x, area.y, "▐", 1, style);
-            } else {
-                put(buf, x, area.y, "│", 1, st(th.text_muted, bg));
-            }
-            put(buf, x + 1, area.y, &format!(" {} ", opt), w - 2, style);
-            if selected || (idx + 1 < self.options.len() && state.selected == idx + 1) {
-                put(buf, x + w - 1, area.y, "▌", 1, style);
-            } else if idx + 1 < self.options.len() {
-                put(buf, x + w - 1, area.y, "│", 1, st(th.text_muted, bg));
-            } else {
-                put(buf, x + w - 1, area.y, "▌", 1, style);
-            }
+            put(buf, x, area.y, &format!(" {} ", opt), w, st(fg, item_bg).add_modifier(Modifier::BOLD));
 
             x += w;
+            if idx + 1 < self.options.len() {
+                put(buf, x, area.y, " ", 1, st(bg, bg));
+                x += 1;
+            }
         }
     }
 }

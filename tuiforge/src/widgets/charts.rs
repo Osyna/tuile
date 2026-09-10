@@ -834,7 +834,7 @@ impl Widget for Heatmap<'_> {
             for i in 0..bar_w {
                 let frac = i as f32 / bar_w as f32;
                 let color = color_gradient(gradient, frac);
-                put(buf, bar_x + i, ly, "█", 1, st(color, th.background));
+                put(buf, bar_x + i, ly, " ", 1, st(color, color));
             }
             let min_label = format!("{min:.1}");
             let max_label = format!("{max:.1}");

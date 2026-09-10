@@ -24,7 +24,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::anim::Tween;
 use crate::core::{ctrl, is_press, mouse_pos, wheel_delta, Interactive, Look, Outcome};
-use crate::draw::{Border, fill, put, put_centered, st};
+use crate::draw::{Border, fill, hline, put, put_centered, st};
 use crate::layout::pad;
 use crate::theme::{self, Theme};
 
@@ -479,20 +479,24 @@ fn render_boxed(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBa
         put(buf, bx, base_y, "─", 1, st(th.border, bg));
     }
 
+    let line = st(th.border, bg);
     let mut x = area.x;
     for (i, item) in builder.items.iter().enumerate() {
         let is_active = i == state.active;
         let is_hover = state.hover == Some(i);
 
-        let mut w = item.label.width() as u16 + 2;
-        if item.icon.is_some() {
-            w += 2;
+        // `│ [icon ]label [× ]│` — two side columns, one cell of padding each side
+        let mut content = String::from(" ");
+        if let Some(icon) = &item.icon {
+            content.push_str(icon);
+            content.push(' ');
         }
+        content.push_str(&item.label);
+        content.push(' ');
         if item.closable {
-            w += 2;
+            content.push_str("× ");
         }
-        w = w.max(3);
-
+        let w = content.width() as u16 + 2;
         if x + w > area.right() {
             break;
         }
@@ -507,36 +511,25 @@ fn render_boxed(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBa
             st(th.text_muted, bg)
         };
 
-        // top corners (only for active)
-        if is_active {
-            put(buf, x, area.y, "╭", 1, st(th.border, th.panel));
-            for dx in 1..(w - 1) {
-                put(buf, x + dx, area.y, "─", 1, st(th.border, th.panel));
-            }
-            put(buf, x + w - 1, area.y, "╮", 1, st(th.border, th.panel));
-        }
-
-        // label row (always at area.y + 1 for all tabs)
         let label_y = area.y + 1;
-        let mut label = format!(" {}", item.label);
-        if let Some(icon) = &item.icon {
-            label = format!("{} {}", icon, item.label);
+        if is_active {
+            // ╭────╮ / │ … │ / ╯    ╰  — the frame opens into the content below
+            put(buf, x, area.y, "╭", 1, line);
+            hline(buf, x + 1, area.y, w - 2, "─", line);
+            put(buf, x + w - 1, area.y, "╮", 1, line);
+            put(buf, x, label_y, "│", 1, st(th.border, th.panel));
+            put(buf, x + w - 1, label_y, "│", 1, st(th.border, th.panel));
+            put(buf, x, base_y, "╯", 1, line);
+            hline(buf, x + 1, base_y, w - 2, " ", st(bg, bg));
+            put(buf, x + w - 1, base_y, "╰", 1, line);
         }
-        put(buf, x, label_y, &label, w, style);
-
+        put(buf, x + 1, label_y, &content, w - 2, style);
         if item.closable {
-            put(buf, x + w - 2, label_y, "×", 1, st(th.text_muted, if is_active { th.panel } else { bg }));
+            put(buf, x + w - 3, label_y, "×", 1, style.fg(th.text_muted.color()));
         }
 
         state.hits.push(Rect::new(x, label_y, w, 1));
-        state.close_hits.push(if item.closable { Rect::new(x + w - 2, label_y, 1, 1) } else { Rect::ZERO });
-
-        // break baseline for active tab (gap)
-        if is_active {
-            for dx in 0..w {
-                put(buf, x + dx, base_y, " ", 1, st(th.panel, th.panel));
-            }
-        }
+        state.close_hits.push(if item.closable { Rect::new(x + w - 3, label_y, 1, 1) } else { Rect::ZERO });
 
         x += w;
     }

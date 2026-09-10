@@ -136,7 +136,8 @@ pub fn hbar(buf: &mut Buffer, x: u16, y: u16, width: u16, f: f32, fg: Rgb, bg: R
     for i in 0..width {
         let part = (cells - i as f32).clamp(0.0, 1.0);
         let idx = (part * 8.0).round() as usize;
-        put_cell(buf, x + i, y, LEFT_BLOCKS[idx], st(fg, bg));
+        // full cells are painted as background: block glyphs leave seams in many fonts
+        if idx == 8 { put_cell(buf, x + i, y, " ", st(fg, fg)) } else { put_cell(buf, x + i, y, LEFT_BLOCKS[idx], st(fg, bg)) }
     }
 }
 
@@ -146,7 +147,7 @@ pub fn vbar(buf: &mut Buffer, x: u16, y: u16, height: u16, f: f32, fg: Rgb, bg: 
     for i in 0..height {
         let part = (cells - i as f32).clamp(0.0, 1.0);
         let idx = (part * 8.0).round() as usize;
-        put_cell(buf, x, y + height - 1 - i, LOWER_BLOCKS[idx], st(fg, bg));
+        if idx == 8 { put_cell(buf, x, y + height - 1 - i, " ", st(fg, fg)) } else { put_cell(buf, x, y + height - 1 - i, LOWER_BLOCKS[idx], st(fg, bg)) }
     }
 }
 
@@ -233,9 +234,9 @@ impl Border {
             Border::Thick => ["█", "▀", "█", "█", "█", "█", "▄", "█"],
             Border::Hkey => ["▔", "▔", "▔", " ", " ", "▁", "▁", "▁"],
             Border::Vkey => ["▏", " ", "▕", "▏", "▕", "▏", " ", "▕"],
-            Border::Tall => ["▊", "▔", "▎", "▊", "▎", "▊", "▁", "▎"],
-            Border::Panel => ["▊", "█", "▎", "▊", "▎", "▊", "▁", "▎"],
-            Border::Wide => ["▁", "▁", "▁", "▎", "▊", "▔", "▔", "▔"],
+            Border::Tall => ["▏", "▔", "▕", "▏", "▕", "▏", "▁", "▕"],
+            Border::Panel => ["█", "█", "█", "▏", "▕", "▏", "▁", "▕"],
+            Border::Wide => ["▁", "▁", "▁", "▏", "▕", "▔", "▔", "▔"],
         }
     }
 
@@ -289,8 +290,8 @@ impl Border {
                 } else {
                     continue;
                 };
-                // Panel: the top row is a solid bar drawn in the border colour
-                let (fg, bg) = if self == Border::Panel && y == area.top() && i == 1 { (fg, fg) } else { (fg, bg) };
+                // Panel's top row is a solid bar in the line colour
+                let (fg, bg) = if self == Border::Panel && y == area.top() { (fg, fg) } else { (fg, bg) };
                 buf[(x, y)].set_symbol(g[i]).set_fg(fg.color()).set_bg(bg.color());
             }
         }
@@ -484,7 +485,8 @@ mod tests {
         assert_eq!(buf[(0, 0)].symbol(), "╭");
         assert_eq!(buf[(9, 3)].symbol(), "╯");
         hbar(&mut buf, 1, 1, 4, 0.5, Rgb(9, 9, 9), Rgb(0, 0, 0));
-        assert_eq!(buf[(2, 1)].symbol(), "█");
+        assert_eq!(buf[(2, 1)].bg, Rgb(9, 9, 9).color());
         assert_eq!(buf[(3, 1)].symbol(), " ");
+        assert_eq!(buf[(3, 1)].bg, Rgb(0, 0, 0).color());
     }
 }

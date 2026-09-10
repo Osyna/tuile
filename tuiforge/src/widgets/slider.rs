@@ -334,6 +334,8 @@ impl Interactive for SliderState {
                 self.set(v, Instant::now(), Duration::ZERO);
                 Outcome::Changed
             }
+            // press on the label/value row: focus the widget without moving the thumb
+            Hit::Press => Outcome::Consumed,
             Hit::Click | Hit::Cancel => {
                 self.dragging = false;
                 Outcome::Consumed
@@ -639,6 +641,7 @@ impl Interactive for RangeState {
                     Outcome::Ignored
                 }
             }
+            Hit::Press => Outcome::Consumed,
             Hit::Click | Hit::Cancel => {
                 self.dragging = None;
                 Outcome::Consumed

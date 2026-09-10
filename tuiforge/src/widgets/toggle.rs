@@ -537,7 +537,7 @@ impl StatefulWidget for Switch {
                     fg = fg.blend(bg, 0.5);
                 }
 
-                let thumb_pos = (t * 3.0).round() as u16 + 1;
+                let thumb_pos = (t * 2.0).round() as u16 + 1;
                 put(buf, track_x, track_y, "(", 1, st(fg, bg));
                 for i in 1..4u16 {
                     let sym = if i == thumb_pos { "●" } else { " " };

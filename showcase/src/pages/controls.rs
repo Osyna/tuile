@@ -277,8 +277,9 @@ impl Page for ControlsPage {
         // ── Sliders & steppers ──
         let s = pad(card(buf, sliders_a, &th, "Sliders, steppers & rating"), 1, 0);
         let [s1, s2] = Layout::horizontal([Constraint::Percentage(50), Constraint::Fill(1)]).areas(s);
-        let row = |a: Rect, i: u16, h: u16| Rect { y: a.y + i, height: h, width: a.width.saturating_sub(2), ..a };
-        Slider::new().label("Volume").show_value(true).format(|v| format!("{v:.0}")).ticks(true).focused(f(Id::Volume, &self.focus)).duration(ctx.dur(150)).now(now).theme(&th).render(row(s1, 0, 3), buf, &mut self.volume);
+        // 2 rows per slider (track + label); rows never spill onto the card's bottom border
+        let row = |a: Rect, i: u16, h: u16| Rect { y: a.y + i, height: h.min(a.height.saturating_sub(i)), width: a.width.saturating_sub(2), ..a };
+        Slider::new().label("Volume").show_value(true).format(|v| format!("{v:.0}")).ticks(true).focused(f(Id::Volume, &self.focus)).duration(ctx.dur(150)).now(now).theme(&th).render(row(s1, 0, 2), buf, &mut self.volume);
         Slider::new()
             .label("Brightness")
             .show_value(true)
@@ -288,16 +289,16 @@ impl Page for ControlsPage {
             .duration(ctx.dur(150))
             .now(now)
             .theme(&th)
-            .render(row(s1, 4, 3), buf, &mut self.brightness);
-        RangeSlider::new().label("Price range").variant(Variant::Success).focused(f(Id::Range, &self.focus)).now(now).theme(&th).render(row(s2, 0, 3), buf, &mut self.range);
-        let sr = row(s2, 4, 1);
+            .render(row(s1, 3, 2), buf, &mut self.brightness);
+        RangeSlider::new().label("Price range").variant(Variant::Success).focused(f(Id::Range, &self.focus)).now(now).theme(&th).render(row(s2, 0, 2), buf, &mut self.range);
+        let sr = row(s2, 3, 1);
         if sr.bottom() <= s.bottom() {
             put(buf, sr.x, sr.y, "Tab size", 10, st(th.text_muted, th.background));
             Stepper::new().focused(f(Id::Stepper, &self.focus)).theme(&th).render(Rect { x: sr.x + 11, width: 20, ..sr }, buf, &mut self.stepper);
             put(buf, sr.x + 34, sr.y, "Rating", 8, st(th.text_muted, th.background));
             Rating::new().max(5).focused(f(Id::Rating, &self.focus)).theme(&th).render(Rect { x: sr.x + 42, width: 12, ..sr }, buf, &mut self.rating);
         }
-        let sv = row(s2, 6, 1);
+        let sv = row(s2, 5, 1);
         if sv.bottom() <= s.bottom() {
             let line = format!(
                 "volume {:.0} · brightness {:.0}% · range {:.0}–{:.0} · tab {} · rating {}/5",
@@ -418,6 +419,11 @@ impl Page for ControlsPage {
                 route!(self.segmented, Id::Segmented);
                 route!(self.segmented_outline, Id::SegmentedOutline);
                 route!(self.segmented_underline, Id::SegmentedUnderline);
+                route!(self.volume, Id::Volume);
+                route!(self.brightness, Id::Brightness);
+                route!(self.range, Id::Range);
+                route!(self.stepper, Id::Stepper);
+                route!(self.rating, Id::Rating);
                 out
             }
             _ => Outcome::Ignored,

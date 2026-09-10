@@ -1,0 +1,18 @@
+[workspace]
+resolver = "3"
+members = ["tuiforge", "showcase"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/irvin/tuiforge"
+
+[workspace.dependencies]
+ratatui = "0.30"
+unicode-width = "0.2.2"
+unicode-segmentation = "1"
+
+[profile.release]
+opt-level = 3
+debug = false

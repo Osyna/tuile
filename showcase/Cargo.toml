@@ -1,0 +1,16 @@
+[package]
+name = "showcase"
+description = "Interactive gallery of every tuiforge component"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "showcase"
+path = "src/main.rs"
+
+[dependencies]
+tuiforge = { path = "../tuiforge" }
+ratatui = { workspace = true }
+unicode-width = { workspace = true }

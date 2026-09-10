@@ -133,17 +133,18 @@ impl StatefulWidget for Slider {
         let border = if look.focused { th.border } else { th.border_blurred };
         Border::Tall.draw(buf, area, border, bg);
 
-        let value_text = if self.show_value {
-            if let Some(fmt) = self.format {
-                fmt(state.value)
-            } else {
-                format!("{:.0}", state.value)
-            }
-        } else {
-            String::new()
+        let fmt_value = |v: f32| match self.format {
+            Some(fmt) => fmt(v),
+            None => format!("{v:.0}"),
         };
+        let value_text = if self.show_value { fmt_value(state.value) } else { String::new() };
         let label_text = self.label.as_deref().unwrap_or("");
-        let right_w = value_text.width() as u16;
+        // slot sized for the widest value the range can produce, so the track keeps its width
+        let right_w = if self.show_value {
+            (fmt_value(state.min).width().max(fmt_value(state.max).width()).max(value_text.width())) as u16
+        } else {
+            0
+        };
 
         state.track = Rect {
             x: area.x + 3,
@@ -187,7 +188,8 @@ impl StatefulWidget for Slider {
 
         if !value_text.is_empty() {
             let fg = if look.enabled { th.foreground } else { th.text_disabled };
-            put(buf, state.track.right() + 1, state.track.y, &value_text, right_w, st(fg, bg).add_modifier(Modifier::BOLD));
+            let vx = state.track.right() + 1 + right_w.saturating_sub(value_text.width() as u16);
+            put(buf, vx, state.track.y, &value_text, right_w, st(fg, bg).add_modifier(Modifier::BOLD));
         }
 
         if !label_text.is_empty() {
@@ -407,7 +409,8 @@ impl StatefulWidget for RangeSlider {
         Border::Tall.draw(buf, area, border, bg);
 
         let label_text = format!("{:.0} – {:.0}", state.lo, state.hi);
-        let right_w = label_text.width() as u16;
+        let bound_w = format!("{:.0}", state.min).width().max(format!("{:.0}", state.max).width());
+        let right_w = (bound_w * 2 + 3).max(label_text.width()) as u16;
 
         state.track = Rect {
             x: area.x + 3,
@@ -450,7 +453,8 @@ impl StatefulWidget for RangeSlider {
         }
 
         let fg = if look.enabled { th.foreground } else { th.text_disabled };
-        put(buf, state.track.right() + 1, state.track.y, &label_text, right_w, st(fg, bg).add_modifier(Modifier::BOLD));
+        let lx = state.track.right() + 1 + right_w.saturating_sub(label_text.width() as u16);
+        put(buf, lx, state.track.y, &label_text, right_w, st(fg, bg).add_modifier(Modifier::BOLD));
 
         if let Some(label) = &self.label {
             let fg = if look.enabled { th.text } else { th.text_disabled };

@@ -15,6 +15,7 @@ use ratatui::widgets::StatefulWidget;
 use crate::core::{Hit, HitBox, Interactive, Outcome};
 use crate::draw::{fill, put, put_centered, st};
 use crate::theme::{self, Rgb, Theme, Variant};
+use unicode_width::UnicodeWidthStr;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Steps
@@ -167,42 +168,39 @@ impl Steps {
         if step_w < 3 {
             return;
         }
+        let span = |i: usize| -> (u16, u16) {
+            let x = area.x + i as u16 * step_w;
+            let w = if i == n - 1 { area.width - i as u16 * step_w } else { step_w };
+            (x, w)
+        };
 
         for (i, (label, status)) in self.labels.iter().zip(&self.statuses).enumerate() {
-            let x = area.x + (i as u16 * step_w);
-            let w = if i == n - 1 { area.width - (i as u16 * step_w) } else { step_w };
-            let step_area = Rect { x, y: area.y, width: w, height: area.height };
-
-            state.hits[i].set_area(step_area);
+            let (x, w) = span(i);
+            state.hits[i].set_area(Rect { x, y: area.y, width: w, height: area.height });
 
             let (glyph, color) = self.step_glyph_color(*status, th);
             let connector_color = if *status == StepStatus::Done { th.success } else { th.border_blurred };
 
-            // Draw glyph
-            let glyph_str = if self.numbered {
-                format!("({})", i + 1)
-            } else {
-                glyph.to_string()
-            };
+            // Marker centred on the step column
+            let glyph_str = if self.numbered { format!("({})", i + 1) } else { glyph.to_string() };
+            let gw = glyph_str.width() as u16;
+            let gx = (x + w / 2).saturating_sub(gw / 2);
+            put(buf, gx, area.y, &glyph_str, gw, st(color, th.surface));
 
-            let glyph_w = glyph_str.len() as u16;
-            let glyph_x = x + (w / 2).saturating_sub(glyph_w / 2);
-            put(buf, glyph_x, area.y, &glyph_str, glyph_w, st(color, th.surface));
-
-            // Draw connector to the right (except for last)
+            // Connector from this marker to the next one
             if i < n - 1 {
-                let conn_start = glyph_x + glyph_w;
-                let conn_end = x + w;
-                for cx in conn_start..conn_end {
+                let (nx, nw) = span(i + 1);
+                let start = gx + gw + 1;
+                let end = (nx + nw / 2).saturating_sub(gw / 2 + 1);
+                for cx in start..end {
                     put(buf, cx, area.y, "━", 1, st(connector_color, th.surface));
                 }
             }
 
-            // Draw label below if space
+            // Label below if space
             if area.height > 1 && !self.compact {
-                let label_y = area.y + 1;
                 let label_display = crate::draw::truncate(label, w as usize);
-                put_centered(buf, Rect { x, y: label_y, width: w, height: 1 }, &label_display, st(th.text_muted, th.surface));
+                put_centered(buf, Rect { x, y: area.y + 1, width: w, height: 1 }, &label_display, st(th.text_muted, th.surface));
             }
         }
     }
@@ -255,7 +253,7 @@ impl Steps {
         match status {
             StepStatus::Done => ("✓", th.success),
             StepStatus::Active => ("●", th.primary),
-            StepStatus::Pending => ("○", th.border_blurred),
+            StepStatus::Pending => ("○", th.text_muted),
             StepStatus::Error => ("✖", th.error),
             StepStatus::Skipped => ("◌", th.text_muted),
         }

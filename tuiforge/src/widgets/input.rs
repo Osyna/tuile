@@ -695,8 +695,8 @@ impl StatefulWidget for Input {
                     put(buf, area.x + 3, area.bottom().saturating_sub(1), err, area.width.saturating_sub(6), st(th.error, th.background));
                 }
 
-        // Ghost suggestion
-        if look.focused && state.selection.is_none() && state.cursor == state.value.graphemes(true).count()
+        // Ghost suggestion (never over the placeholder)
+        if look.focused && !state.value.is_empty() && state.selection.is_none() && state.cursor == state.value.graphemes(true).count()
             && let Some(sg) = state.suggester
                 && let Some(suggestion) = sg(&state.value) {
                     let graphemes = state.value.graphemes(true);

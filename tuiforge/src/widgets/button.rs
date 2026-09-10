@@ -14,7 +14,7 @@ use std::time::Instant;
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::layout::Rect;
-use ratatui::style::Modifier;
+use ratatui::style::{Modifier, Style};
 use ratatui::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
@@ -183,11 +183,13 @@ impl Button {
             (top, bottom) = (Theme::shade(bottom, 1), top);
             bg = base;
         }
+        if look.focused && look.enabled {
+            bg = Theme::shade(bg, 1);
+        }
         let mut fg = if self.variant == Variant::Default { th.foreground } else { base.text_on(0.9) };
         if !look.enabled {
             fg = bg.blend(fg, 0.5);
         }
-
         fill(buf, area, bg);
         if !self.compact {
             for x in area.left()..area.right() {
@@ -205,12 +207,14 @@ impl Button {
         } else {
             Rect { y: area.y + 1, height: 1, ..area }
         };
-        let mut style = st(fg, bg).add_modifier(Modifier::BOLD);
-        if look.focused {
-            fill(buf, mid, fg);
-            style = st(bg, fg).add_modifier(Modifier::BOLD);
-        }
-        put_centered(buf, mid, label, style);
+        put_centered(buf, mid, label, Self::focus_style(st(fg, bg), look));
+    }
+
+    /// Focus cue: bold + underline on a lightened background — visible without looking like a
+    /// text selection (Textual's `bold reverse` inverted the whole row).
+    fn focus_style(base: Style, look: &Look) -> Style {
+        let style = base.add_modifier(Modifier::BOLD);
+        if look.focused { style.add_modifier(Modifier::UNDERLINED) } else { style }
     }
 
     fn render_flat(&self, area: Rect, buf: &mut Buffer, th: &Theme, label: &str, look: &Look, pressed: bool) {
@@ -219,19 +223,17 @@ impl Button {
         if look.hover && look.enabled {
             bg = Theme::shade(bg, if pressed { -2 } else { -1 });
         }
+        if look.focused && look.enabled {
+            bg = Theme::shade(bg, 1);
+        }
         let mut fg = if self.variant == Variant::Default { th.foreground } else { base.text_on(0.9) };
         if !look.enabled {
             fg = bg.blend(fg, 0.5);
         }
 
         fill(buf, area, bg);
-        let mut style = st(fg, bg).add_modifier(Modifier::BOLD);
-        if look.focused {
-            style = st(bg, fg).add_modifier(Modifier::BOLD);
-            fill(buf, area, fg);
-        }
         let mid = Rect { y: area.y + area.height / 2, height: 1, ..area };
-        put_centered(buf, mid, label, style);
+        put_centered(buf, mid, label, Self::focus_style(st(fg, bg), look));
     }
 
     fn render_outline(&self, area: Rect, buf: &mut Buffer, th: &Theme, label: &str, look: &Look, pressed: bool) {
@@ -245,6 +247,9 @@ impl Button {
         if pressed {
             bg = Theme::shade(bg, -1);
         }
+        if look.focused && look.enabled {
+            bg = Theme::shade(bg, 1);
+        }
         let label_base = if self.variant == Variant::Default { th.text } else { base };
         let fg = if look.enabled { label_base } else { label_base.blend(th.background, 0.5) };
 
@@ -256,12 +261,7 @@ impl Button {
         } else {
             area
         };
-        let mut style = st(fg, bg).add_modifier(Modifier::BOLD);
-        if look.focused {
-            style = st(bg, fg).add_modifier(Modifier::BOLD);
-            fill(buf, mid, fg);
-        }
-        put_centered(buf, mid, label, style);
+        put_centered(buf, mid, label, Self::focus_style(st(fg, bg), look));
     }
 
     fn render_ghost(&self, area: Rect, buf: &mut Buffer, th: &Theme, label: &str, look: &Look) {

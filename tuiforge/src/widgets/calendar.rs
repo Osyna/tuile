@@ -13,7 +13,7 @@ use ratatui::layout::Rect;
 use ratatui::style::Modifier;
 use ratatui::widgets::StatefulWidget;
 
-use crate::core::{HitBox, Interactive, Outcome, ctrl, is_activate, is_press, mouse_in, mouse_pos};
+use crate::core::{Hit, HitBox, Interactive, Outcome, ctrl, is_activate, is_press, mouse_in};
 use crate::draw::{fill, put, put_centered, st};
 use crate::layout::popup_below;
 use crate::runtime::{civil_from_days, days_from_civil, local_ymd};
@@ -181,32 +181,22 @@ impl Interactive for CalendarState {
     }
 
     fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
-        let _pos = mouse_pos(&m);
+        let down = matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(_));
 
         // check arrows
-        if mouse_in(self.prev_arrow, &m)
-            && matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(_)) {
-                self.prev_month();
-                return Outcome::Consumed;
-            }
-        if mouse_in(self.next_arrow, &m)
-            && matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(_)) {
-                self.next_month();
-                return Outcome::Consumed;
-            }
+        if down && mouse_in(self.prev_arrow, &m) {
+            self.prev_month();
+            return Outcome::Consumed;
+        }
+        if down && mouse_in(self.next_arrow, &m) {
+            self.next_month();
+            return Outcome::Consumed;
+        }
 
-        // check day cells
-        for rect in self.day_rects.iter() {
-            if mouse_in(*rect, &m)
-                && matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(_)) {
-                    // day cells are row-major; find day number
-                    // this is set correctly during render
-                    if let Some(_day) = self.day_rects.iter().position(|r| r == rect) {
-                        // map cell index to day (first cell may be offset)
-                        // we stored these during render; for now just consume
-                        return Outcome::Consumed;
-                    }
-                }
+        // day cells are pushed in day order during render: index + 1 == day of month
+        if down && let Some(idx) = self.day_rects.iter().position(|r| mouse_in(*r, &m)) {
+            self.cursor_day = idx as u32 + 1;
+            return self.select_cursor();
         }
 
         // wheel changes month
@@ -467,6 +457,8 @@ pub struct DatePickerState {
     pub open: bool,
     pub cal: CalendarState,
     pub hit: HitBox,
+    /// Popup rect from the last `render_overlay`; clicks outside it close the picker.
+    pub popup: Rect,
 }
 
 impl DatePickerState {
@@ -474,6 +466,7 @@ impl DatePickerState {
         Self::default()
     }
 
+    /// Currently selected date, if any.
     pub fn selected(&self) -> Option<(i32, u32, u32)> {
         self.cal.selected
     }
@@ -509,10 +502,19 @@ impl Interactive for DatePickerState {
             let out = self.cal.handle_mouse(m);
             if out.is_changed() {
                 self.open = false;
+                return out;
+            }
+            // click outside the popup and the field closes it
+            let down = matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(_));
+            if out == Outcome::Ignored && down && !mouse_in(self.popup, &m) && !mouse_in(self.hit.area, &m) {
+                self.open = false;
+                return Outcome::Consumed;
             }
             out
+        } else if self.hit.mouse(&m) == Hit::Click {
+            self.open = true;
+            Outcome::Consumed
         } else {
-            let _ = self.hit.mouse(&m);
             Outcome::Ignored
         }
     }
@@ -547,6 +549,7 @@ impl DatePicker {
         let cal_w = 25;
         let cal_h = 10;
         let popup_area = popup_below(state.hit.area, cal_w, cal_h, bounds);
+        state.popup = popup_area;
 
         // dim background
         crate::draw::blend_area(buf, popup_area, th.panel, 0.9);
@@ -569,25 +572,26 @@ impl StatefulWidget for DatePicker {
         }
         state.hit.set_area(area);
         let th = self.theme.unwrap_or_else(theme::current);
+        let bg = th.surface;
+        let border = if self.focused || state.open { th.border } else { th.border_blurred };
 
-        // tall border input look
-        crate::draw::Border::Tall.draw(buf, area, th.border, th.surface);
-
-        let inner = Rect {
-            x: area.x + 1,
-            y: area.y,
-            width: area.width.saturating_sub(2),
-            height: area.height,
+        fill(buf, area, bg);
+        let text_y = if area.height >= 3 {
+            crate::draw::Border::Tall.draw(buf, area, border, bg);
+            area.y + area.height / 2
+        } else {
+            area.y
         };
 
         let text = if let Some((y, m, d)) = state.cal.selected {
-            format!("{:04}-{:02}-{:02} ▾", y, m, d)
+            format!("{:04}-{:02}-{:02}", y, m, d)
         } else {
-            "Select date ▾".to_string()
+            "Select date".to_string()
         };
-
-        let display = crate::draw::truncate(&text, inner.width as usize);
-        crate::draw::put(buf, inner.x + 1, inner.y, &display, inner.width.saturating_sub(1), st(th.text, th.surface));
+        let fg = if state.cal.selected.is_some() { th.text } else { th.text_muted };
+        let display = crate::draw::truncate(&text, area.width.saturating_sub(5) as usize);
+        put(buf, area.x + 2, text_y, &display, area.width.saturating_sub(5), st(fg, bg));
+        put(buf, area.right().saturating_sub(3), text_y, "▾", 1, st(th.text_muted, bg));
     }
 }
 
@@ -627,5 +631,17 @@ mod tests {
         state.prev_month();
         assert_eq!(state.year, 2023);
         assert_eq!(state.month, 12);
+    }
+
+    #[test]
+    fn calendar_day_click_selects_that_day() {
+        use ratatui::crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
+        let mut state = CalendarState { year: 2024, month: 3, cursor_day: 1, ..Default::default() };
+        let mut buf = Buffer::empty(Rect::new(0, 0, 30, 10));
+        Calendar::new().render(buf.area, &mut buf, &mut state);
+        let cell = state.day_rects[9]; // 10 March
+        let press = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: cell.x, row: cell.y, modifiers: KeyModifiers::NONE };
+        assert_eq!(state.handle_mouse(press), Outcome::Changed);
+        assert_eq!(state.selected, Some((2024, 3, 10)));
     }
 }

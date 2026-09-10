@@ -407,10 +407,11 @@ impl StatefulWidget for Select {
         let th = self.theme.unwrap_or_else(theme::current);
         let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
 
+        let label = state.selected_label().map(str::to_string);
         if self.compact {
-            render_select_compact(area, buf, state, &th, look, &self.placeholder, state.open);
+            render_select_compact(area, buf, &mut state.hit, &th, look, label.as_deref(), &self.placeholder, state.open);
         } else {
-            render_select_full(area, buf, state, &th, look, &self.placeholder, state.open);
+            render_field(area, buf, &mut state.hit, &th, look, label.as_deref(), &self.placeholder, state.open);
         }
     }
 }
@@ -435,8 +436,8 @@ impl SelectState {
     }
 }
 
-fn render_select_compact(area: Rect, buf: &mut Buffer, state: &mut SelectState, th: &Theme, look: Look, placeholder: &str, open: bool) {
-    state.hit.set_area(area);
+fn render_select_compact(area: Rect, buf: &mut Buffer, hit: &mut HitBox, th: &Theme, look: Look, label: Option<&str>, placeholder: &str, open: bool) {
+    hit.set_area(area);
     if area.width < 4 || area.height == 0 {
         return;
     }
@@ -445,20 +446,20 @@ fn render_select_compact(area: Rect, buf: &mut Buffer, state: &mut SelectState, 
     fill(buf, area, bg);
 
     let fg = if look.enabled { th.text } else { th.text_disabled };
-    let label = state.selected_label().unwrap_or(placeholder);
     let arrow = if open { "▲" } else { "▼" };
 
-    put(buf, area.x, area.y, label, area.width.saturating_sub(2), st(fg, bg));
+    put(buf, area.x, area.y, label.unwrap_or(placeholder), area.width.saturating_sub(2), st(fg, bg));
     put(buf, area.right().saturating_sub(2), area.y, arrow, 1, st(th.text_muted, bg));
 }
 
-fn render_select_full(area: Rect, buf: &mut Buffer, state: &mut SelectState, th: &Theme, look: Look, placeholder: &str, open: bool) {
+/// The 3-row `Tall` field shared by Select and MultiSelect: label or placeholder, arrow.
+fn render_field(area: Rect, buf: &mut Buffer, hit: &mut HitBox, th: &Theme, look: Look, label: Option<&str>, placeholder: &str, open: bool) {
     if area.height < 3 || area.width < 8 {
-        state.hit.set_area(Rect::default());
+        hit.set_area(Rect::default());
         return;
     }
 
-    state.hit.set_area(area);
+    hit.set_area(area);
     let bg = if look.focused { th.focus_bg() } else { th.surface };
     fill(buf, area, bg);
 
@@ -467,11 +468,10 @@ fn render_select_full(area: Rect, buf: &mut Buffer, state: &mut SelectState, th:
 
     let inner = pad(area, 3, 1);
     let fg = if look.enabled { th.text } else { th.text_disabled };
-    let label = state.selected_label().unwrap_or(placeholder);
-    let label_fg = if state.selected.is_some() { fg } else { th.text_muted };
+    let label_fg = if label.is_some() { fg } else { th.text_muted };
     let arrow = if open { "▲" } else { "▼" };
 
-    put(buf, inner.x, inner.y, label, inner.width.saturating_sub(2), st(label_fg, bg));
+    put(buf, inner.x, inner.y, label.unwrap_or(placeholder), inner.width.saturating_sub(2), st(label_fg, bg));
     put(buf, inner.right().saturating_sub(2), inner.y, arrow, 1, st(th.text_muted, bg));
 }
 
@@ -1102,19 +1102,13 @@ impl StatefulWidget for MultiSelect {
         let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
 
         let summary = state.summary();
+        let label = if state.selected.iter().any(|&b| b) { Some(summary.as_str()) } else { None };
         if self.compact {
-            render_select_compact(area, buf, &mut fake_select_state(state, &summary), &th, look, &self.placeholder, state.open);
+            render_select_compact(area, buf, &mut state.hit, &th, look, label, &self.placeholder, state.open);
         } else {
-            render_select_full(area, buf, &mut fake_select_state(state, &summary), &th, look, &self.placeholder, state.open);
+            render_field(area, buf, &mut state.hit, &th, look, label, &self.placeholder, state.open);
         }
     }
-}
-
-fn fake_select_state(ms: &MultiSelectState, label: &str) -> SelectState {
-    let mut fake = SelectState::new(&[label]);
-    fake.selected = Some(0);
-    fake.hit = ms.hit;
-    fake
 }
 
 #[cfg(test)]
@@ -1145,5 +1139,16 @@ mod tests {
         s.highlight = 1;
         s.handle_key(KeyEvent::from(KeyCode::Enter));
         assert!(s.selected[1]);
+    }
+
+    #[test]
+    fn multiselect_rendered_field_opens_on_click() {
+        use ratatui::crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
+        let mut s = MultiSelectState::new(&["X", "Y"]);
+        let mut buf = Buffer::empty(Rect::new(0, 0, 40, 5));
+        MultiSelect::new().render(Rect::new(0, 0, 30, 3), &mut buf, &mut s);
+        let press = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: 5, row: 1, modifiers: KeyModifiers::NONE };
+        assert_eq!(s.handle_mouse(press), Outcome::Consumed);
+        assert!(s.open, "click inside the rendered field must open the dropdown");
     }
 }

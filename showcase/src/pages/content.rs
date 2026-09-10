@@ -157,8 +157,6 @@ impl Page for ContentPage {
                         && let Some((y, m, d)) = self.datepicker.selected() {
                             ctx.notify(format!("DatePicker: {}-{:02}-{:02}", y, m, d), Variant::Primary);
                         }
-                } else if let Event::Mouse(m) = ev {
-                    out = self.datepicker.handle_mouse(*m);
                 }
             }
             Some(Id::ColorPicker) => {
@@ -201,7 +199,18 @@ impl Page for ContentPage {
             self.markdown.handle_mouse(*m);
             self.log.handle_mouse(*m);
             self.calendar.handle_mouse(*m);
-            self.datepicker.handle_mouse(*m);
+            // the picker opens on click from anywhere, so it takes focus and reports here
+            let dp = self.datepicker.handle_mouse(*m);
+            if dp != Outcome::Ignored {
+                if mouse_in(self.datepicker.hit.area, m) {
+                    self.focus.set(Id::DatePicker);
+                }
+                if dp.is_changed()
+                    && let Some((y, m, d)) = self.datepicker.selected() {
+                        ctx.notify(format!("DatePicker: {}-{:02}-{:02}", y, m, d), Variant::Primary);
+                    }
+                out |= dp;
+            }
             self.colorpicker.handle_mouse(*m);
             self.swatches.handle_mouse(*m);
             self.steps.handle_mouse(*m);

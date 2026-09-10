@@ -16,7 +16,7 @@ enum Id {
     Options,
 }
 
-const SHAPES: &[&str] = &["bars", "bar", "tall", "tall-thin", "rule", "round", "prompt", "none"];
+const SHAPES: &[&str] = &["bars", "band", "bar", "tall", "tall-thin", "rule", "round", "prompt", "none"];
 const SEPS: &[&str] = &["chevron", "dot", "pipe", "arrow", "space"];
 
 pub struct OptionsPage {
@@ -92,6 +92,7 @@ impl OptionsPage {
         };
         match self.options.choice("shape").unwrap_or("bars") {
             "bar" => FieldShape::Bar(edge),
+            "band" => FieldShape::Band,
             "tall" => FieldShape::Tall(Edge::Full),
             "tall-thin" => FieldShape::Tall(edge),
             "rule" => FieldShape::Rule,

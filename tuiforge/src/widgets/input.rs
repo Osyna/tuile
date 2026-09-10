@@ -668,7 +668,8 @@ impl StatefulWidget for Input {
 
         let border = if state.error.is_some() { th.error } else if look.focused { th.border } else { th.border_blurred };
         let frame = Rect { height: 1 + chrome, ..area };
-        let inner = pad(self.shape.draw(buf, frame, border, bg), 2, 0);
+        let extra = u16::from(matches!(self.shape, FieldShape::Tall(_) | FieldShape::Round));
+        let inner = pad(self.shape.draw(buf, frame, border, bg), self.shape.padding() + extra, 0);
         if inner.width == 0 {
             return;
         }

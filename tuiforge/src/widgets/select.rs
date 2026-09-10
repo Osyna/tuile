@@ -475,7 +475,8 @@ fn render_field(area: Rect, buf: &mut Buffer, hit: &mut HitBox, th: &Theme, look
     fill(buf, area, bg);
 
     let border = if look.focused { th.border } else { th.border_blurred };
-    let inner = pad(shape.draw(buf, Rect { height: 1 + chrome, ..area }, border, bg), 2, 0);
+    let extra = u16::from(matches!(shape, FieldShape::Tall(_) | FieldShape::Round));
+    let inner = pad(shape.draw(buf, Rect { height: 1 + chrome, ..area }, border, bg), shape.padding() + extra, 0);
     let fg = if look.enabled { th.text } else { th.text_disabled };
     let label_fg = if label.is_some() { fg } else { th.text_muted };
     let arrow = if open { "▲" } else { "▼" };

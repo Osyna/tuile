@@ -103,6 +103,7 @@ Button::new("Delete").variant(Variant::Error).style(ButtonStyle::Outline).focuse
 
 // chrome thickness: every text field takes a shape; accent bars take an Edge
 Input::new().shape(FieldShape::Bars(Edge::Hair));          // omp-style thin side bars
+PromptComposer::new().shape(FieldShape::Band);              // Claude Code's padded › band
 TextArea::new().shape(FieldShape::Rule);                    // a line above and below
 ChatView::new().bar(Edge::Thin);                            // role bar: Hair / Thin / Half / Full
 
@@ -136,7 +137,7 @@ take an explicit `.theme(&Theme)`.
 | Family | Widgets |
 |---|---|
 | Controls | `Button` (3D / flat / outline / ghost, compact, icon), `Checkbox` (tri-state), `Switch` (animated), `RadioGroup`, `CheckList`, `Segmented`, `Slider`, `RangeSlider`, `Stepper`, `Rating` |
-| Text entry | `Input` (selection, validation, restrict, suggester, password, prefix/suffix), `TextArea` (line numbers, undo/redo, highlighter hook), `Select`, `Combobox` (fuzzy), `MultiSelect` - all with `.shape(FieldShape)`: Textual `Tall`, thin side `Bars`/`Bar` of any `Edge` thickness, `Rule`, `Round`, `Prompt`, `None` (omp's composer shapes) |
+| Text entry | `Input` (selection, validation, restrict, suggester, password, prefix/suffix), `TextArea` (line numbers, undo/redo, highlighter hook), `Select`, `Combobox` (fuzzy), `MultiSelect` - all with `.shape(FieldShape)`: Textual `Tall`, thin side `Bars`/`Bar` of any `Edge` thickness, `Rule`, `Round`, `Prompt`, `Band` (Claude Code's padded `›` band), `None` |
 | Navigation | `TabBar` (underline / boxed / pills / segmented / minimal, closable, animated), `TabbedContent`, `ListView` (filter, multi-select, details), `TreeView` (guides, expand/collapse), `MenuBar` + `ContextMenu` (submenus, shortcuts), `Breadcrumbs`, `Paginator` |
 | Data | `DataTable` (sortable, zebra, row/cell cursor, multi-select, column resize, filter), `KeyValueList`, `Digits` (Textual big numerals) |
 | Charts | `SparkChart` (bars, braille line/area, btop dot `Field`, `mirrored`), `BarGraph` (grouped, horizontal), `LineGraph` (braille, area, grid, legend), `ScatterPlot`, `Heatmap`, `ActivityGraph`, `Meter` (line / block / segments / LED `Blocks` / `Dots`, gradient, suffix), `RadialGauge`, `BrailleCanvas` |

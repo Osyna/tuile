@@ -388,6 +388,9 @@ pub enum FieldShape {
     Round,
     /// A `❯` prompt glyph before the first line, no frame.
     Prompt,
+    /// Claude Code's composer: a full-width band in the field colour with one padding row
+    /// above and below and a muted `›` prompt.
+    Band,
     /// Nothing.
     None,
 }
@@ -402,8 +405,16 @@ impl FieldShape {
     /// Rows the shape adds around the content.
     pub fn vertical_chrome(self) -> u16 {
         match self {
-            FieldShape::Tall(_) | FieldShape::Rule | FieldShape::Round => 2,
+            FieldShape::Tall(_) | FieldShape::Rule | FieldShape::Round | FieldShape::Band => 2,
             _ => 0,
+        }
+    }
+
+    /// Horizontal padding between the shape and the text (prompt shapes carry their own gap).
+    pub fn padding(self) -> u16 {
+        match self {
+            FieldShape::Prompt | FieldShape::Band => 0,
+            _ => 1,
         }
     }
 
@@ -454,6 +465,14 @@ impl FieldShape {
             FieldShape::Prompt => {
                 put(buf, area.x, area.y, "❯", 1, st(color, bg).add_modifier(Modifier::BOLD));
                 Rect { x: area.x + 2, width: area.width.saturating_sub(2), ..area }
+            }
+            FieldShape::Band => {
+                if area.height < 3 || area.width < 4 {
+                    return area;
+                }
+                // the caller already filled `bg` across the area; the band is that fill plus padding
+                put(buf, area.x + 1, area.y + 1, "›", 1, st(color, bg));
+                Rect { x: area.x + 3, y: area.y + 1, width: area.width - 3, height: area.height - 2 }
             }
             FieldShape::None => area,
         }
@@ -601,6 +620,10 @@ mod tests {
         let mut buf = Buffer::empty(area);
         assert_eq!(FieldShape::Prompt.draw(&mut buf, area, c, bg), Rect::new(2, 0, 8, 3));
         assert_eq!(buf[(0, 0)].symbol(), "❯");
+        let mut buf = Buffer::empty(area);
+        assert_eq!(FieldShape::Band.draw(&mut buf, area, c, bg), Rect::new(3, 1, 7, 1));
+        assert_eq!(buf[(1, 1)].symbol(), "›");
+        assert_eq!(FieldShape::Band.padding(), 0);
         assert_eq!(FieldShape::Tall(Edge::Thin).vertical_chrome(), 2);
         assert_eq!(FieldShape::Bars(Edge::Thin).vertical_chrome(), 0);
     }

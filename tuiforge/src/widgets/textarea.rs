@@ -650,7 +650,7 @@ impl StatefulWidget for TextArea {
         fill(buf, area, bg);
 
         let border = if look.focused { th.border } else { th.border_blurred };
-        let inner = self.shape.draw(buf, area, border, bg);
+        let inner = crate::layout::pad(self.shape.draw(buf, area, border, bg), self.shape.padding(), 0);
         if inner.width < 2 || inner.height == 0 {
             state.hit.set_area(area);
             return;

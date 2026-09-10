@@ -157,15 +157,7 @@ impl Digits {
 
     /// Display width in cells (3 per digit, 1 for colon).
     pub fn width(text: &str) -> u16 {
-        text.chars()
-            .map(|c| {
-                if c == ':' {
-                    1
-                } else {
-                    3
-                }
-            })
-            .sum()
+        text.chars().map(|c| if c == ':' { 1 } else { 3 }).sum()
     }
 
     pub fn color(mut self, c: Rgb) -> Self {
@@ -248,7 +240,12 @@ impl Widget for Digits {
                 }
             } else {
                 // Fallback: center the char in a 3x3 box
-                let char_rect = Rect { x, y: area.y + 1, width: 3, height: 1 };
+                let char_rect = Rect {
+                    x,
+                    y: area.y + 1,
+                    width: 3,
+                    height: 1,
+                };
                 put_centered(buf, char_rect, &c.to_string(), style);
             }
             x += char_w;

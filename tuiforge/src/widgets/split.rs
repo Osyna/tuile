@@ -29,7 +29,9 @@ pub enum SplitSize {
 }
 
 impl Default for SplitSize {
-    fn default() -> Self { SplitSize::Ratio(0.5) }
+    fn default() -> Self {
+        SplitSize::Ratio(0.5)
+    }
 }
 
 /// Divider style.
@@ -71,7 +73,13 @@ pub struct SplitState {
 
 impl SplitState {
     pub fn new(initial: SplitSize, min_first: u16, min_second: u16) -> Self {
-        Self { initial, pos: 0, min_first, min_second, ..Default::default() }
+        Self {
+            initial,
+            pos: 0,
+            min_first,
+            min_second,
+            ..Default::default()
+        }
     }
 
     /// Adjust position by `delta` cells, clamped to the minimum sizes.
@@ -85,7 +93,9 @@ impl SplitState {
             (first.height + div.height + second.height, div.height)
         };
         let max_pos = total.saturating_sub(self.min_second + divider_w);
-        self.pos = (self.pos as i32 + delta).clamp(self.min_first as i32, max_pos.max(self.min_first) as i32) as u16;
+        self.pos = (self.pos as i32 + delta)
+            .clamp(self.min_first as i32, max_pos.max(self.min_first) as i32)
+            as u16;
     }
 
     /// Collapse the first pane (hide it, second pane takes full area).
@@ -112,7 +122,9 @@ impl SplitState {
     fn reset(&mut self, total: u16, divider_w: u16) {
         self.pos = match self.initial {
             SplitSize::Cells(c) => c,
-            SplitSize::Ratio(r) => (total.saturating_sub(divider_w) as f32 * r.clamp(0.0, 1.0)) as u16,
+            SplitSize::Ratio(r) => {
+                (total.saturating_sub(divider_w) as f32 * r.clamp(0.0, 1.0)) as u16
+            }
         };
     }
 }
@@ -130,13 +142,18 @@ impl crate::core::Interactive for SplitState {
             self.dragging = true;
             let now = Instant::now();
             if let Some(last) = self.last_click
-                && now.duration_since(last).as_millis() < 400 {
-                    // Double-click: reset
-                    let total = self.cached.0.width.max(self.cached.0.height);
-                    let divider_w = if self.cached.1.width > 0 || self.cached.1.height > 0 { 1 } else { 0 };
-                    self.reset(total, divider_w);
-                    out = Outcome::Changed;
-                }
+                && now.duration_since(last).as_millis() < 400
+            {
+                // Double-click: reset
+                let total = self.cached.0.width.max(self.cached.0.height);
+                let divider_w = if self.cached.1.width > 0 || self.cached.1.height > 0 {
+                    1
+                } else {
+                    0
+                };
+                self.reset(total, divider_w);
+                out = Outcome::Changed;
+            }
             self.last_click = Some(now);
         } else if is_left_up(&m) && self.dragging {
             self.dragging = false;
@@ -147,9 +164,17 @@ impl crate::core::Interactive for SplitState {
             let (first, divider, second) = self.cached;
             let horizontal = first.y == second.y && first.height == second.height;
             let (total, divider_w, raw) = if horizontal {
-                (first.width + divider.width + second.width, divider.width, pos.x.saturating_sub(first.x))
+                (
+                    first.width + divider.width + second.width,
+                    divider.width,
+                    pos.x.saturating_sub(first.x),
+                )
             } else {
-                (first.height + divider.height + second.height, divider.height, pos.y.saturating_sub(first.y))
+                (
+                    first.height + divider.height + second.height,
+                    divider.height,
+                    pos.y.saturating_sub(first.y),
+                )
             };
             let max_pos = total.saturating_sub(self.min_second + divider_w);
             self.pos = raw.clamp(self.min_first.min(max_pos), max_pos);
@@ -177,7 +202,15 @@ pub struct SplitPane {
 
 impl SplitPane {
     pub fn new() -> Self {
-        Self { direction: Direction::Horizontal, initial: None, min_first: None, min_second: None, divider: SplitDivider::default(), focused: false, theme: None }
+        Self {
+            direction: Direction::Horizontal,
+            initial: None,
+            min_first: None,
+            min_second: None,
+            divider: SplitDivider::default(),
+            focused: false,
+            theme: None,
+        }
     }
 
     pub fn direction(mut self, d: Direction) -> Self {
@@ -202,19 +235,27 @@ impl SplitPane {
     }
 
     pub fn divider(mut self, d: SplitDivider) -> Self {
-        self.divider = d; self
+        self.divider = d;
+        self
     }
 
     pub fn focused(mut self, f: bool) -> Self {
-        self.focused = f; self
+        self.focused = f;
+        self
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(*t); self
+        self.theme = Some(*t);
+        self
     }
 
     /// Render the split and return (first_rect, second_rect).
-    pub fn render_split(self, area: Rect, buf: &mut Buffer, state: &mut SplitState) -> (Rect, Rect) {
+    pub fn render_split(
+        self,
+        area: Rect,
+        buf: &mut Buffer,
+        state: &mut SplitState,
+    ) -> (Rect, Rect) {
         let th = self.theme.unwrap_or_else(theme::current);
 
         // Builder overrides win; the state keeps its own config otherwise. A changed initial
@@ -230,17 +271,32 @@ impl SplitPane {
             if let Some(i) = self.initial {
                 state.initial = i;
             }
-            let divider_w = if self.divider == SplitDivider::Hidden { 0 } else { 1 };
-            let total = if self.direction == Direction::Horizontal { area.width } else { area.height };
+            let divider_w = if self.divider == SplitDivider::Hidden {
+                0
+            } else {
+                1
+            };
+            let total = if self.direction == Direction::Horizontal {
+                area.width
+            } else {
+                area.height
+            };
             state.reset(total, divider_w);
         }
 
-        let divider_w = if self.divider == SplitDivider::Hidden { 0 } else { 1 };
+        let divider_w = if self.divider == SplitDivider::Hidden {
+            0
+        } else {
+            1
+        };
         let is_horz = self.direction == Direction::Horizontal;
         let total = if is_horz { area.width } else { area.height };
         let max_pos = total.saturating_sub(state.min_second + divider_w);
         // when the area is smaller than both minimums, the first pane just takes what it can
-        let pos = state.pos.clamp(state.min_first.min(max_pos), max_pos).min(total);
+        let pos = state
+            .pos
+            .clamp(state.min_first.min(max_pos), max_pos)
+            .min(total);
         state.pos = pos;
 
         // Handle collapsed state
@@ -258,13 +314,32 @@ impl SplitPane {
 
         let (first, divider, second) = if is_horz {
             let f = Rect { width: pos, ..area };
-            let d = Rect { x: area.x + pos, width: divider_w, ..area };
-            let s = Rect { x: area.x + pos + divider_w, width: total.saturating_sub(pos + divider_w), ..area };
+            let d = Rect {
+                x: area.x + pos,
+                width: divider_w,
+                ..area
+            };
+            let s = Rect {
+                x: area.x + pos + divider_w,
+                width: total.saturating_sub(pos + divider_w),
+                ..area
+            };
             (f, d, s)
         } else {
-            let f = Rect { height: pos, ..area };
-            let d = Rect { y: area.y + pos, height: divider_w, ..area };
-            let s = Rect { y: area.y + pos + divider_w, height: total.saturating_sub(pos + divider_w), ..area };
+            let f = Rect {
+                height: pos,
+                ..area
+            };
+            let d = Rect {
+                y: area.y + pos,
+                height: divider_w,
+                ..area
+            };
+            let s = Rect {
+                y: area.y + pos + divider_w,
+                height: total.saturating_sub(pos + divider_w),
+                ..area
+            };
             (f, d, s)
         };
 
@@ -274,26 +349,60 @@ impl SplitPane {
         // Draw divider
         if divider_w > 0 {
             let (sym, grip) = match self.divider {
-                SplitDivider::Line => if is_horz { ("│", "┃") } else { ("─", "━") },
-                SplitDivider::Thick => if is_horz { ("┃", "┃") } else { ("━", "━") },
-                SplitDivider::Dotted => if is_horz { ("┊", "┃") } else { ("┄", "━") },
+                SplitDivider::Line => {
+                    if is_horz {
+                        ("│", "┃")
+                    } else {
+                        ("─", "━")
+                    }
+                }
+                SplitDivider::Thick => {
+                    if is_horz {
+                        ("┃", "┃")
+                    } else {
+                        ("━", "━")
+                    }
+                }
+                SplitDivider::Dotted => {
+                    if is_horz {
+                        ("┊", "┃")
+                    } else {
+                        ("┄", "━")
+                    }
+                }
                 SplitDivider::Hidden => ("", ""),
             };
 
-            let color = if state.hit.hover || state.dragging { th.primary } else { th.text_disabled };
+            let color = if state.hit.hover || state.dragging {
+                th.primary
+            } else {
+                th.text_disabled
+            };
             fill(buf, divider, th.background);
 
             if is_horz {
                 for y in divider.y..divider.bottom() {
                     let mid = divider.y + divider.height / 2;
                     let use_grip = (y as i16 - mid as i16).abs() <= 1;
-                    put_cell(buf, divider.x, y, if use_grip { grip } else { sym }, st(color, th.background));
+                    put_cell(
+                        buf,
+                        divider.x,
+                        y,
+                        if use_grip { grip } else { sym },
+                        st(color, th.background),
+                    );
                 }
             } else {
                 for x in divider.x..divider.right() {
                     let mid = divider.x + divider.width / 2;
                     let use_grip = (x as i16 - mid as i16).abs() <= 1;
-                    put_cell(buf, x, divider.y, if use_grip { grip } else { sym }, st(color, th.background));
+                    put_cell(
+                        buf,
+                        x,
+                        divider.y,
+                        if use_grip { grip } else { sym },
+                        st(color, th.background),
+                    );
                 }
             }
         }
@@ -303,7 +412,9 @@ impl SplitPane {
 }
 
 impl Default for SplitPane {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
@@ -317,7 +428,9 @@ mod tests {
         let mut state = SplitState::new(SplitSize::Ratio(0.3), 5, 5);
         let mut buf = Buffer::empty(Rect::new(0, 0, 100, 20));
         let area = buf.area;
-        let (l, r) = SplitPane::new().direction(Direction::Horizontal).render_split(area, &mut buf, &mut state);
+        let (l, r) = SplitPane::new()
+            .direction(Direction::Horizontal)
+            .render_split(area, &mut buf, &mut state);
         // 100 cells total, divider 1, so 99 available. 0.3 * 99 = 29.7 ~= 29
         assert_eq!(l.width, 29);
         assert_eq!(r.width, 100 - 29 - 1);
@@ -328,7 +441,9 @@ mod tests {
         let mut state = SplitState::new(SplitSize::Cells(10), 2, 2);
         let mut buf = Buffer::empty(Rect::new(0, 0, 40, 30));
         let area = buf.area;
-        let (t, b) = SplitPane::new().direction(Direction::Vertical).render_split(area, &mut buf, &mut state);
+        let (t, b) = SplitPane::new()
+            .direction(Direction::Vertical)
+            .render_split(area, &mut buf, &mut state);
         assert_eq!(t.height, 10);
         assert_eq!(b.height, 30 - 10 - 1);
     }
@@ -338,7 +453,11 @@ mod tests {
         let mut state = SplitState::new(SplitSize::Cells(3), 10, 10);
         let mut buf = Buffer::empty(Rect::new(0, 0, 50, 20));
         let area = buf.area;
-        let (l, _r) = SplitPane::new().direction(Direction::Horizontal).min_first(10).min_second(10).render_split(area, &mut buf, &mut state);
+        let (l, _r) = SplitPane::new()
+            .direction(Direction::Horizontal)
+            .min_first(10)
+            .min_second(10)
+            .render_split(area, &mut buf, &mut state);
         // pos=3 is below min_first=10, so clamped to 10
         assert_eq!(l.width, 10);
     }

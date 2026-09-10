@@ -35,13 +35,35 @@ pub struct ChartsPage {
 impl Default for ChartsPage {
     fn default() -> Self {
         Self {
-            focus: Focus::new([Id::Spark1, Id::Spark2, Id::Spark3, Id::BarChart, Id::LineChart, Id::Heatmap, Id::Meter1, Id::Meter2, Id::Meter3]),
+            focus: Focus::new([
+                Id::Spark1,
+                Id::Spark2,
+                Id::Spark3,
+                Id::BarChart,
+                Id::LineChart,
+                Id::Heatmap,
+                Id::Meter1,
+                Id::Meter2,
+                Id::Meter3,
+            ]),
             spark_data: vec![20.0, 35.0, 50.0, 45.0, 60.0, 55.0, 70.0, 65.0],
             bar_data: vec![
-                BarGroup { label: "Q1".into(), values: vec![120.0, 80.0, 95.0] },
-                BarGroup { label: "Q2".into(), values: vec![150.0, 110.0, 130.0] },
-                BarGroup { label: "Q3".into(), values: vec![180.0, 140.0, 160.0] },
-                BarGroup { label: "Q4".into(), values: vec![200.0, 170.0, 190.0] },
+                BarGroup {
+                    label: "Q1".into(),
+                    values: vec![120.0, 80.0, 95.0],
+                },
+                BarGroup {
+                    label: "Q2".into(),
+                    values: vec![150.0, 110.0, 130.0],
+                },
+                BarGroup {
+                    label: "Q3".into(),
+                    values: vec![180.0, 140.0, 160.0],
+                },
+                BarGroup {
+                    label: "Q4".into(),
+                    values: vec![200.0, 170.0, 190.0],
+                },
             ],
             line_marker: 0.0,
             paused: false,
@@ -59,9 +81,10 @@ impl ChartsPage {
         }
         // Throttle updates to ~10 fps
         if let Some(last) = self.last_update
-            && now.duration_since(last).as_millis() < 100 {
-                return;
-            }
+            && now.duration_since(last).as_millis() < 100
+        {
+            return;
+        }
         self.last_update = Some(now);
 
         // Deterministic pseudo-random walk seeded by elapsed time
@@ -97,7 +120,12 @@ impl Page for ChartsPage {
         let th = &ctx.theme;
 
         if area.height < 20 {
-            put_centered(buf, area, "Too small (need ≥20 rows)", st(th.text_muted, th.background));
+            put_centered(
+                buf,
+                area,
+                "Too small (need ≥20 rows)",
+                st(th.text_muted, th.background),
+            );
             return;
         }
 
@@ -106,14 +134,30 @@ impl Page for ChartsPage {
 
         // ─── Row 1: Live sparklines ───
         if let Some(&r1) = rows.first() {
-            let inner = Border::Round.draw_titled_with(buf, r1, th.border_blurred, th.background, "Live Sparklines", Alignment::Left, bold(st(th.text, th.background)));
+            let inner = Border::Round.draw_titled_with(
+                buf,
+                r1,
+                th.border_blurred,
+                th.background,
+                "Live Sparklines",
+                Alignment::Left,
+                bold(st(th.text, th.background)),
+            );
             if inner.width > 10 && inner.height >= 4 {
                 let cols = columns(inner, 3, 2);
                 let gradient = [th.primary, th.accent];
 
                 // Spark 1: Bars with gradient
                 if let Some(&c) = cols.first() {
-                    let spark_inner = Border::Panel.draw_titled_with(buf, c, th.border_blurred, th.background, "Bars", Alignment::Left, bold(st(th.text, th.background)));
+                    let spark_inner = Border::Panel.draw_titled_with(
+                        buf,
+                        c,
+                        th.border_blurred,
+                        th.background,
+                        "Bars",
+                        Alignment::Left,
+                        bold(st(th.text, th.background)),
+                    );
                     SparkChart::new(&self.spark_data)
                         .style(SparkStyle::Bars)
                         .gradient(&gradient)
@@ -124,7 +168,15 @@ impl Page for ChartsPage {
 
                 // Spark 2: Line
                 if let Some(&c) = cols.get(1) {
-                    let spark_inner = Border::Panel.draw_titled_with(buf, c, th.border_blurred, th.background, "Line", Alignment::Left, bold(st(th.text, th.background)));
+                    let spark_inner = Border::Panel.draw_titled_with(
+                        buf,
+                        c,
+                        th.border_blurred,
+                        th.background,
+                        "Line",
+                        Alignment::Left,
+                        bold(st(th.text, th.background)),
+                    );
                     SparkChart::new(&self.spark_data)
                         .style(SparkStyle::Line)
                         .color(th.secondary)
@@ -135,7 +187,15 @@ impl Page for ChartsPage {
 
                 // Spark 3: Area
                 if let Some(&c) = cols.get(2) {
-                    let spark_inner = Border::Panel.draw_titled_with(buf, c, th.border_blurred, th.background, "Area", Alignment::Left, bold(st(th.text, th.background)));
+                    let spark_inner = Border::Panel.draw_titled_with(
+                        buf,
+                        c,
+                        th.border_blurred,
+                        th.background,
+                        "Area",
+                        Alignment::Left,
+                        bold(st(th.text, th.background)),
+                    );
                     SparkChart::new(&self.spark_data)
                         .style(SparkStyle::Area)
                         .gradient(&gradient)
@@ -147,11 +207,20 @@ impl Page for ChartsPage {
 
         // ─── Row 2: Bar graph + Line graph ───
         if let Some(&r2) = rows.get(1) {
-            let [left, right] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(r2);
+            let [left, right] =
+                Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(r2);
 
             // Bar graph
             if left.width > 20 {
-                let bar_inner = Border::Round.draw_titled_with(buf, left, th.border_blurred, th.background, "Revenue by Region", Alignment::Left, bold(st(th.text, th.background)));
+                let bar_inner = Border::Round.draw_titled_with(
+                    buf,
+                    left,
+                    th.border_blurred,
+                    th.background,
+                    "Revenue by Region",
+                    Alignment::Left,
+                    bold(st(th.text, th.background)),
+                );
                 BarGraph::new(&self.bar_data)
                     .series_names(&["APAC", "EMEA", "AMER"])
                     .horizontal(self.bar_horizontal)
@@ -164,14 +233,30 @@ impl Page for ChartsPage {
 
             // Line graph with animated marker
             if right.width > 20 {
-                let line_inner = Border::Round.draw_titled_with(buf, right, th.border_blurred, th.background, "Multi-Series", Alignment::Left, bold(st(th.text, th.background)));
+                let line_inner = Border::Round.draw_titled_with(
+                    buf,
+                    right,
+                    th.border_blurred,
+                    th.background,
+                    "Multi-Series",
+                    Alignment::Left,
+                    bold(st(th.text, th.background)),
+                );
                 let series = vec![
                     LineSeries {
                         name: "CPU".into(),
                         points: vec![
-                            (0.0, 20.0), (1.0, 35.0), (2.0, 30.0), (3.0, 50.0),
-                            (4.0, 45.0), (5.0, 65.0), (6.0, 60.0), (7.0, 80.0),
-                            (8.0, 75.0), (9.0, 85.0), (10.0, 90.0),
+                            (0.0, 20.0),
+                            (1.0, 35.0),
+                            (2.0, 30.0),
+                            (3.0, 50.0),
+                            (4.0, 45.0),
+                            (5.0, 65.0),
+                            (6.0, 60.0),
+                            (7.0, 80.0),
+                            (8.0, 75.0),
+                            (9.0, 85.0),
+                            (10.0, 90.0),
                         ],
                         color: Some(th.primary),
                         style: LineStyle::Line,
@@ -179,9 +264,17 @@ impl Page for ChartsPage {
                     LineSeries {
                         name: "Memory".into(),
                         points: vec![
-                            (0.0, 10.0), (1.0, 15.0), (2.0, 25.0), (3.0, 30.0),
-                            (4.0, 35.0), (5.0, 40.0), (6.0, 50.0), (7.0, 55.0),
-                            (8.0, 60.0), (9.0, 70.0), (10.0, 75.0),
+                            (0.0, 10.0),
+                            (1.0, 15.0),
+                            (2.0, 25.0),
+                            (3.0, 30.0),
+                            (4.0, 35.0),
+                            (5.0, 40.0),
+                            (6.0, 50.0),
+                            (7.0, 55.0),
+                            (8.0, 60.0),
+                            (9.0, 70.0),
+                            (10.0, 75.0),
                         ],
                         color: Some(th.secondary),
                         style: LineStyle::Area,
@@ -207,15 +300,27 @@ impl Page for ChartsPage {
 
             // Heatmap: weekday × hour
             if let Some(&c) = cols.first() {
-                let hm_inner = Border::Round.draw_titled_with(buf, c, th.border_blurred, th.background, "Usage Heat", Alignment::Left, bold(st(th.text, th.background)));
-                let data: Vec<Vec<f64>> = (0..7).map(|day| {
-                    (0..24).map(|hour| {
-                        // Simulate weekday/weekend + peak hours pattern
-                        let base = if day < 5 { 30.0 } else { 15.0 };
-                        let peak = if (9..18).contains(&hour) { 40.0 } else { 0.0 };
-                        base + peak + ((day * hour) % 20) as f64
-                    }).collect()
-                }).collect();
+                let hm_inner = Border::Round.draw_titled_with(
+                    buf,
+                    c,
+                    th.border_blurred,
+                    th.background,
+                    "Usage Heat",
+                    Alignment::Left,
+                    bold(st(th.text, th.background)),
+                );
+                let data: Vec<Vec<f64>> = (0..7)
+                    .map(|day| {
+                        (0..24)
+                            .map(|hour| {
+                                // Simulate weekday/weekend + peak hours pattern
+                                let base = if day < 5 { 30.0 } else { 15.0 };
+                                let peak = if (9..18).contains(&hour) { 40.0 } else { 0.0 };
+                                base + peak + ((day * hour) % 20) as f64
+                            })
+                            .collect()
+                    })
+                    .collect();
                 Heatmap::new(&data)
                     .row_labels(&["M", "T", "W", "T", "F", "S", "S"])
                     .legend(false)
@@ -225,20 +330,34 @@ impl Page for ChartsPage {
 
             // Activity graph
             if let Some(&c) = cols.get(1) {
-                let ag_inner = Border::Round.draw_titled_with(buf, c, th.border_blurred, th.background, "52-Week Activity", Alignment::Left, bold(st(th.text, th.background)));
+                let ag_inner = Border::Round.draw_titled_with(
+                    buf,
+                    c,
+                    th.border_blurred,
+                    th.background,
+                    "52-Week Activity",
+                    Alignment::Left,
+                    bold(st(th.text, th.background)),
+                );
                 let mut vals = vec![0u8; 364];
                 // Deterministic pattern with varied levels
                 for (i, v) in vals.iter_mut().enumerate() {
-                    *v = (((i * 17 + i / 7) % 37) / 9) as u8;  // 0-4 range
+                    *v = (((i * 17 + i / 7) % 37) / 9) as u8; // 0-4 range
                 }
-                ActivityGraph::new(&vals)
-                    .theme(th)
-                    .render(ag_inner, buf);
+                ActivityGraph::new(&vals).theme(th).render(ag_inner, buf);
             }
 
             // Scatter plot
             if let Some(&c) = cols.get(2) {
-                let sc_inner = Border::Round.draw_titled_with(buf, c, th.border_blurred, th.background, "Scatter", Alignment::Left, bold(st(th.text, th.background)));
+                let sc_inner = Border::Round.draw_titled_with(
+                    buf,
+                    c,
+                    th.border_blurred,
+                    th.background,
+                    "Scatter",
+                    Alignment::Left,
+                    bold(st(th.text, th.background)),
+                );
                 let mut points1 = Vec::new();
                 let mut points2 = Vec::new();
                 for i in 0..20 {
@@ -249,28 +368,73 @@ impl Page for ChartsPage {
                     points2.push((x, y2));
                 }
                 let series = vec![
-                    LineSeries { name: "A".into(), points: points1, color: Some(th.primary), style: LineStyle::Points },
-                    LineSeries { name: "B".into(), points: points2, color: Some(th.accent), style: LineStyle::Points },
+                    LineSeries {
+                        name: "A".into(),
+                        points: points1,
+                        color: Some(th.primary),
+                        style: LineStyle::Points,
+                    },
+                    LineSeries {
+                        name: "B".into(),
+                        points: points2,
+                        color: Some(th.accent),
+                        style: LineStyle::Points,
+                    },
                 ];
-                ScatterPlot::new(&series)
-                    .theme(th)
-                    .render(sc_inner, buf);
+                ScatterPlot::new(&series).theme(th).render(sc_inner, buf);
             }
         }
 
         // ─── Row 4: Meters ───
         if let Some(&r4) = rows.get(3) {
-            let inner = Border::Round.draw_titled_with(buf, r4, th.border_blurred, th.background, "Gauges", Alignment::Left, bold(st(th.text, th.background)));
+            let inner = Border::Round.draw_titled_with(
+                buf,
+                r4,
+                th.border_blurred,
+                th.background,
+                "Gauges",
+                Alignment::Left,
+                bold(st(th.text, th.background)),
+            );
             if inner.height >= 3 {
                 let rows = stack(inner, &[1, 1, 1, 1, 1], 0);
                 let heat = [th.success, th.warning, th.error];
                 let cool = [th.primary.blend(th.background, 0.5), th.primary];
                 let meters = [
-                    Meter::new().value(0.65).label("CPU Load").show_percent(true).thresholds(&[(0.0, Variant::Success), (0.7, Variant::Warning), (0.9, Variant::Error)]).style(MeterStyle::Line),
-                    Meter::new().value(0.82).label("Memory  ").show_percent(true).thresholds(&[(0.0, Variant::Primary), (0.8, Variant::Warning)]).style(MeterStyle::Block),
-                    Meter::new().value(0.45).label("Disk    ").show_percent(true).style(MeterStyle::Segments(20)),
-                    Meter::new().value(0.73).label("Used    ").show_percent(true).suffix("665 GiB").style(MeterStyle::Blocks).gradient(&heat),
-                    Meter::new().value(0.30).label("Core 3  ").show_percent(true).style(MeterStyle::Dots).gradient(&cool),
+                    Meter::new()
+                        .value(0.65)
+                        .label("CPU Load")
+                        .show_percent(true)
+                        .thresholds(&[
+                            (0.0, Variant::Success),
+                            (0.7, Variant::Warning),
+                            (0.9, Variant::Error),
+                        ])
+                        .style(MeterStyle::Line),
+                    Meter::new()
+                        .value(0.82)
+                        .label("Memory  ")
+                        .show_percent(true)
+                        .thresholds(&[(0.0, Variant::Primary), (0.8, Variant::Warning)])
+                        .style(MeterStyle::Block),
+                    Meter::new()
+                        .value(0.45)
+                        .label("Disk    ")
+                        .show_percent(true)
+                        .style(MeterStyle::Segments(20)),
+                    Meter::new()
+                        .value(0.73)
+                        .label("Used    ")
+                        .show_percent(true)
+                        .suffix("665 GiB")
+                        .style(MeterStyle::Blocks)
+                        .gradient(&heat),
+                    Meter::new()
+                        .value(0.30)
+                        .label("Core 3  ")
+                        .show_percent(true)
+                        .style(MeterStyle::Dots)
+                        .gradient(&cool),
                 ];
                 for (m, r) in meters.into_iter().zip(rows) {
                     m.theme(th).render(r, buf);
@@ -279,13 +443,15 @@ impl Page for ChartsPage {
         }
     }
 
-
     fn event(&mut self, ev: &Event, ctx: &mut Ctx) -> Outcome {
         match ev {
             Event::Key(k) if is_press(k) => match k.code {
                 KeyCode::Char(' ') => {
                     self.paused = !self.paused;
-                    ctx.notify(if self.paused { "Paused" } else { "Playing" }, Variant::Primary);
+                    ctx.notify(
+                        if self.paused { "Paused" } else { "Playing" },
+                        Variant::Primary,
+                    );
                     Outcome::Changed
                 }
                 KeyCode::Char('1') => {
@@ -323,7 +489,14 @@ impl Page for ChartsPage {
                 }
                 KeyCode::Char('h') => {
                     self.bar_horizontal = !self.bar_horizontal;
-                    ctx.notify(if self.bar_horizontal { "Horizontal bars" } else { "Vertical bars" }, Variant::Primary);
+                    ctx.notify(
+                        if self.bar_horizontal {
+                            "Horizontal bars"
+                        } else {
+                            "Vertical bars"
+                        },
+                        Variant::Primary,
+                    );
                     Outcome::Changed
                 }
                 KeyCode::Tab => {

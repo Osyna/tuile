@@ -17,7 +17,7 @@ use std::time::Instant;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
-use crate::draw::{fill, put, wrap, Border, st};
+use crate::draw::{Border, fill, put, st, wrap};
 use crate::layout::popup_below;
 use crate::theme::{self, Theme};
 
@@ -67,7 +67,12 @@ pub struct Tooltip {
 
 impl Tooltip {
     pub fn new(text: &str) -> Self {
-        Self { text: text.to_string(), max_width: 30, delay: 400, theme: None }
+        Self {
+            text: text.to_string(),
+            max_width: 30,
+            delay: 400,
+            theme: None,
+        }
     }
 
     pub fn max_width(mut self, w: u16) -> Self {
@@ -86,7 +91,13 @@ impl Tooltip {
     }
 
     /// Render the tooltip overlay if visible. Call this at the end of the frame.
-    pub fn render_overlay(self, buf: &mut Buffer, bounds: Rect, state: &mut TooltipState, now: Instant) {
+    pub fn render_overlay(
+        self,
+        buf: &mut Buffer,
+        bounds: Rect,
+        state: &mut TooltipState,
+        now: Instant,
+    ) {
         state.update_visibility(now, self.delay);
         if !state.visible || state.anchor.is_empty() {
             return;

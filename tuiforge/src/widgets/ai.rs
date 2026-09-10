@@ -26,8 +26,8 @@ use crate::anim::{blink, since};
 use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
 use crate::draw::{Border, Edge, FieldShape, fill, put, put_centered, put_right, st, wrap};
 use crate::theme::{self, Rgb, Theme};
-use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
 use crate::widgets::charts::{Meter, MeterStyle};
+use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
 use crate::widgets::spinner::{SpinnerDef, spinners};
 use crate::widgets::textarea::{TextArea, TextAreaState};
 
@@ -79,7 +79,13 @@ pub struct ChatMessage {
 impl ChatMessage {
     /// Create a message with role and text.
     pub fn new(role: Role, text: impl Into<String>) -> Self {
-        Self { role, author: None, text: text.into(), time: None, streaming: false }
+        Self {
+            role,
+            author: None,
+            text: text.into(),
+            time: None,
+            streaming: false,
+        }
     }
 
     /// Set author name.
@@ -116,7 +122,10 @@ pub struct ChatState {
 impl ChatState {
     /// Create empty chat state.
     pub fn new() -> Self {
-        Self { follow: true, ..Default::default() }
+        Self {
+            follow: true,
+            ..Default::default()
+        }
     }
 
     /// Add a message.
@@ -227,7 +236,15 @@ pub struct ChatView {
 impl ChatView {
     /// Create a chat view.
     pub fn new() -> Self {
-        Self { bubbles: true, show_time: false, focused: false, bar: Edge::Thin, now: None, theme: None, max_width: None }
+        Self {
+            bubbles: true,
+            show_time: false,
+            focused: false,
+            bar: Edge::Thin,
+            now: None,
+            theme: None,
+            max_width: None,
+        }
     }
 
     /// Enable bubble mode (user messages right-aligned).
@@ -330,22 +347,47 @@ impl ChatView {
         }
         for (mi, msg) in state.messages.iter().enumerate() {
             if mi > 0 {
-                rows.push(Row { x: 0, w: 0, text: String::new(), kind: RowKind::Blank, role: msg.role, right: None, caret: false });
+                rows.push(Row {
+                    x: 0,
+                    w: 0,
+                    text: String::new(),
+                    kind: RowKind::Blank,
+                    role: msg.role,
+                    right: None,
+                    caret: false,
+                });
             }
             // horizontal placement
             let (x, w) = match msg.role {
                 Role::User if self.bubbles => {
                     let max_w = self.max_width.unwrap_or(width * 3 / 4).clamp(8, width);
                     let longest = msg.text.lines().map(|l| l.width()).max().unwrap_or(0) as u16 + 2;
-                    let w = longest.max(msg.author.as_deref().unwrap_or("User").width() as u16 + 2).min(max_w);
+                    let w = longest
+                        .max(msg.author.as_deref().unwrap_or("User").width() as u16 + 2)
+                        .min(max_w);
                     (width - w, w)
                 }
                 Role::Assistant if self.bubbles => (0, width),
                 _ => (0, width),
             };
-            let author = msg.author.clone().unwrap_or_else(|| msg.role.label().to_string());
-            let right = if self.show_time { msg.time.clone() } else { None };
-            rows.push(Row { x, w, text: author, kind: RowKind::Author, role: msg.role, right, caret: false });
+            let author = msg
+                .author
+                .clone()
+                .unwrap_or_else(|| msg.role.label().to_string());
+            let right = if self.show_time {
+                msg.time.clone()
+            } else {
+                None
+            };
+            rows.push(Row {
+                x,
+                w,
+                text: author,
+                kind: RowKind::Author,
+                role: msg.role,
+                right,
+                caret: false,
+            });
 
             // body: prose is word-wrapped, fenced code is hard-wrapped and keeps indentation
             let text_w = w.saturating_sub(2) as usize;
@@ -355,15 +397,39 @@ impl ChatView {
                     in_fence = !in_fence;
                     continue; // the fence itself is not shown; the code background marks it
                 }
-                let (kind, pieces) = if in_fence { (RowKind::Code, hard_wrap(line, text_w)) } else { (RowKind::Text, wrap(line, text_w)) };
+                let (kind, pieces) = if in_fence {
+                    (RowKind::Code, hard_wrap(line, text_w))
+                } else {
+                    (RowKind::Text, wrap(line, text_w))
+                };
                 for piece in pieces {
-                    rows.push(Row { x, w, text: piece, kind, role: msg.role, right: None, caret: false });
+                    rows.push(Row {
+                        x,
+                        w,
+                        text: piece,
+                        kind,
+                        role: msg.role,
+                        right: None,
+                        caret: false,
+                    });
                 }
             }
             if msg.streaming {
                 match rows.last_mut() {
-                    Some(last) if last.kind != RowKind::Author && last.text.width() + 1 < text_w => last.caret = true,
-                    _ => rows.push(Row { x, w, text: String::new(), kind: RowKind::Text, role: msg.role, right: None, caret: true }),
+                    Some(last)
+                        if last.kind != RowKind::Author && last.text.width() + 1 < text_w =>
+                    {
+                        last.caret = true
+                    }
+                    _ => rows.push(Row {
+                        x,
+                        w,
+                        text: String::new(),
+                        kind: RowKind::Text,
+                        role: msg.role,
+                        right: None,
+                        caret: true,
+                    }),
                 }
             }
         }
@@ -397,21 +463,41 @@ impl StatefulWidget for ChatView {
                 (_, RowKind::Blank, _) => continue,
                 (Role::User, _, true) => (th.surface, th.text),
                 (_, RowKind::Code, _) => (th.markdown_code_bg, th.text),
-                (Role::System, _, _) | (Role::Tool, RowKind::Text, _) => (th.background, th.text_muted),
+                (Role::System, _, _) | (Role::Tool, RowKind::Text, _) => {
+                    (th.background, th.text_muted)
+                }
                 _ => (th.background, th.text),
             };
-            let line = Rect { x: area.x + row.x, y, width: row.w, height: 1 };
+            let line = Rect {
+                x: area.x + row.x,
+                y,
+                width: row.w,
+                height: 1,
+            };
             fill(buf, line, bg);
             if row.role == Role::Assistant && self.bubbles {
                 self.bar.draw(buf, line.x, y, 1, false, color, bg);
             }
-            let inner = Rect { x: line.x + 1, width: line.width.saturating_sub(2), ..line };
+            let inner = Rect {
+                x: line.x + 1,
+                width: line.width.saturating_sub(2),
+                ..line
+            };
             match row.kind {
                 RowKind::Author => {
                     let style = st(color, bg).add_modifier(Modifier::BOLD);
-                    let text = if row.role == Role::Tool { format!("⚙ {}", row.text) } else { row.text.clone() };
+                    let text = if row.role == Role::Tool {
+                        format!("⊛ {}", row.text)
+                    } else {
+                        row.text.clone()
+                    };
                     if row.role == Role::System {
-                        put_centered(buf, inner, &text, st(th.text_muted, bg).add_modifier(Modifier::BOLD));
+                        put_centered(
+                            buf,
+                            inner,
+                            &text,
+                            st(th.text_muted, bg).add_modifier(Modifier::BOLD),
+                        );
                     } else {
                         put(buf, inner.x, y, &text, inner.width, style);
                     }
@@ -435,8 +521,15 @@ impl StatefulWidget for ChatView {
         }
 
         if total > viewport {
-            let sb_area = Rect { x: area.right() - 1, width: 1, ..area };
-            Scrollbar::vertical(total, viewport).offset(state.scroll).theme(&th).render(sb_area, buf, &mut state.scrollbar_state);
+            let sb_area = Rect {
+                x: area.right() - 1,
+                width: 1,
+                ..area
+            };
+            Scrollbar::vertical(total, viewport)
+                .offset(state.scroll)
+                .theme(&th)
+                .render(sb_area, buf, &mut state.scrollbar_state);
         }
     }
 }
@@ -456,7 +549,13 @@ pub struct StreamText {
 impl StreamText {
     /// Create with text.
     pub fn new(text: impl Into<String>) -> Self {
-        Self { text: text.into(), elapsed: 0.0, cps: 40.0, caret: true, theme: None }
+        Self {
+            text: text.into(),
+            elapsed: 0.0,
+            cps: 40.0,
+            caret: true,
+            theme: None,
+        }
     }
 
     /// Set elapsed time.
@@ -548,7 +647,16 @@ pub struct Thinking {
 impl Thinking {
     /// Create with label.
     pub fn new(label: impl Into<String>) -> Self {
-        Self { label: label.into(), detail: None, spinner: &spinners::DOTS, started: None, now: None, shimmer: true, color: None, theme: None }
+        Self {
+            label: label.into(),
+            detail: None,
+            spinner: &spinners::DOTS,
+            started: None,
+            now: None,
+            shimmer: true,
+            color: None,
+            theme: None,
+        }
     }
 
     /// Spinner from the catalog (default `spinners::DOTS`).
@@ -606,7 +714,14 @@ impl Widget for Thinking {
         let color = self.color.unwrap_or(th.primary);
 
         let slot = self.spinner.width();
-        put(buf, area.x, area.y, self.spinner.frame(el), slot, st(color, bg));
+        put(
+            buf,
+            area.x,
+            area.y,
+            self.spinner.frame(el),
+            slot,
+            st(color, bg),
+        );
         let mut x = area.x + slot + 1;
 
         // label: a 4-cell bright band sweeps left→right every 1.6 s
@@ -619,7 +734,8 @@ impl Widget for Thinking {
             }
             let fg = if self.shimmer {
                 let d = (i as f32 - sweep).abs();
-                th.text_muted.blend(th.text, (1.0 - d / 4.0).clamp(0.0, 1.0))
+                th.text_muted
+                    .blend(th.text, (1.0 - d / 4.0).clamp(0.0, 1.0))
             } else {
                 th.text
             };
@@ -632,10 +748,20 @@ impl Widget for Thinking {
             tail.push_str(d);
         }
         if let Some(started) = self.started {
-            tail.push_str(&format!(" ({:.1}s)", now.saturating_duration_since(started).as_secs_f32()));
+            tail.push_str(&format!(
+                " ({:.1}s)",
+                now.saturating_duration_since(started).as_secs_f32()
+            ));
         }
         if !tail.is_empty() && x < area.right() {
-            put(buf, x, area.y, &tail, area.right() - x, st(th.text_muted, bg));
+            put(
+                buf,
+                x,
+                area.y,
+                &tail,
+                area.right() - x,
+                st(th.text_muted, bg),
+            );
         }
     }
 }
@@ -699,7 +825,15 @@ pub struct ContextGauge<'a> {
 impl<'a> ContextGauge<'a> {
     /// Create from usage.
     pub fn new(usage: TokenUsage) -> Self {
-        Self { usage, compact: false, cost_usd: None, label: "context".to_string(), style: MeterStyle::Block, gradient: None, theme: None }
+        Self {
+            usage,
+            compact: false,
+            cost_usd: None,
+            label: "context".to_string(),
+            style: MeterStyle::Block,
+            gradient: None,
+            theme: None,
+        }
     }
 
     /// Compact mode (bar only).
@@ -746,24 +880,52 @@ impl Widget for ContextGauge<'_> {
         }
         let th = self.theme.unwrap_or_else(theme::current);
         let frac = self.usage.fraction();
-        let level = if frac >= 0.95 { th.error } else if frac >= 0.8 { th.warning } else { th.primary };
+        let level = if frac >= 0.95 {
+            th.error
+        } else if frac >= 0.8 {
+            th.warning
+        } else {
+            th.primary
+        };
 
         let bar_y = if self.compact {
             area.y
         } else {
-            let mut text = format!("{} {} / {}  {:.0}%", self.label, fmt_tokens(self.usage.used()), fmt_tokens(self.usage.limit), frac * 100.0);
+            let mut text = format!(
+                "{} {} / {}  {:.0}%",
+                self.label,
+                fmt_tokens(self.usage.used()),
+                fmt_tokens(self.usage.limit),
+                frac * 100.0
+            );
             if let Some(cost) = self.cost_usd {
                 text.push_str(&format!(" ${cost:.4}"));
             }
-            put(buf, area.x, area.y, &text, area.width, st(th.text, th.background));
+            put(
+                buf,
+                area.x,
+                area.y,
+                &text,
+                area.width,
+                st(th.text, th.background),
+            );
             if area.height < 2 {
                 return;
             }
             area.y + 1
         };
-        let bar = Rect { x: area.x, y: bar_y, width: area.width, height: 1 };
+        let bar = Rect {
+            x: area.x,
+            y: bar_y,
+            width: area.width,
+            height: 1,
+        };
 
-        let mut meter = Meter::new().value(frac.min(1.0)).style(self.style).color(level).theme(&th);
+        let mut meter = Meter::new()
+            .value(frac.min(1.0))
+            .style(self.style)
+            .color(level)
+            .theme(&th);
         if let Some(g) = self.gradient {
             meter = meter.gradient(g);
         }
@@ -771,10 +933,24 @@ impl Widget for ContextGauge<'_> {
 
         // the painted style also shows where the prompt ends and the completion begins
         if self.style == MeterStyle::Block && self.gradient.is_none() && self.usage.limit > 0 {
-            let prompt_w = ((self.usage.prompt as f32 / self.usage.limit as f32) * area.width as f32).round() as u16;
-            let used_w = ((self.usage.used() as f32 / self.usage.limit as f32) * area.width as f32).round() as u16;
+            let prompt_w = ((self.usage.prompt as f32 / self.usage.limit as f32)
+                * area.width as f32)
+                .round() as u16;
+            let used_w = ((self.usage.used() as f32 / self.usage.limit as f32) * area.width as f32)
+                .round() as u16;
             let completion = if frac >= 0.8 { level } else { th.accent };
-            fill(buf, Rect { x: area.x + prompt_w.min(area.width), y: bar_y, width: used_w.saturating_sub(prompt_w).min(area.width.saturating_sub(prompt_w)), height: 1 }, completion);
+            fill(
+                buf,
+                Rect {
+                    x: area.x + prompt_w.min(area.width),
+                    y: bar_y,
+                    width: used_w
+                        .saturating_sub(prompt_w)
+                        .min(area.width.saturating_sub(prompt_w)),
+                    height: 1,
+                },
+                completion,
+            );
         }
     }
 }
@@ -809,10 +985,10 @@ pub struct ToolCall {
 impl ToolCall {
     /// Create with name.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { 
-            name: name.into(), 
-            args: Vec::new(), 
-            status: ToolStatus::Pending, 
+        Self {
+            name: name.into(),
+            args: Vec::new(),
+            status: ToolStatus::Pending,
             output: String::new(),
             duration_ms: None,
             max_output_lines: 6,
@@ -824,7 +1000,10 @@ impl ToolCall {
 
     /// Set arguments.
     pub fn args(mut self, a: &[(impl AsRef<str>, impl AsRef<str>)]) -> Self {
-        self.args = a.iter().map(|(k, v)| (k.as_ref().to_string(), v.as_ref().to_string())).collect();
+        self.args = a
+            .iter()
+            .map(|(k, v)| (k.as_ref().to_string(), v.as_ref().to_string()))
+            .collect();
         self
     }
 
@@ -890,7 +1069,7 @@ impl Widget for ToolCall {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
-        
+
         let (glyph, color) = match self.status {
             ToolStatus::Pending => ("○", th.text_muted),
             ToolStatus::Running => {
@@ -915,9 +1094,25 @@ impl Widget for ToolCall {
         }
         if let Some(d) = self.duration_ms {
             let dur_str = format!("{}ms", d);
-            put_right(buf, Rect { y: inner.y, height: 1, ..inner }, &dur_str, st(th.text_muted, th.background));
+            put_right(
+                buf,
+                Rect {
+                    y: inner.y,
+                    height: 1,
+                    ..inner
+                },
+                &dur_str,
+                st(th.text_muted, th.background),
+            );
         }
-        put(buf, inner.x, inner.y, &header, inner.width.saturating_sub(10), st(th.text, th.background));
+        put(
+            buf,
+            inner.x,
+            inner.y,
+            &header,
+            inner.width.saturating_sub(10),
+            st(th.text, th.background),
+        );
 
         if !self.collapsed && !self.output.is_empty() && inner.height > 1 {
             let lines: Vec<&str> = self.output.lines().collect();
@@ -926,12 +1121,26 @@ impl Widget for ToolCall {
                 if y >= inner.bottom() {
                     break;
                 }
-                put(buf, inner.x, y, line, inner.width, st(th.text_muted, th.background));
+                put(
+                    buf,
+                    inner.x,
+                    y,
+                    line,
+                    inner.width,
+                    st(th.text_muted, th.background),
+                );
                 y = y.saturating_add(1);
             }
             if lines.len() > self.max_output_lines && y < inner.bottom() {
                 let more = format!("… +{} lines", lines.len() - self.max_output_lines);
-                put(buf, inner.x, y, &more, inner.width, st(th.text_disabled, th.background));
+                put(
+                    buf,
+                    inner.x,
+                    y,
+                    &more,
+                    inner.width,
+                    st(th.text_disabled, th.background),
+                );
             }
         }
     }
@@ -950,7 +1159,11 @@ pub struct TokenHeat {
 impl TokenHeat {
     /// Create from tokens and probabilities.
     pub fn new(tokens: &[(&str, f32)]) -> Self {
-        Self { tokens: tokens.iter().map(|(t, p)| (t.to_string(), *p)).collect(), legend: false, theme: None }
+        Self {
+            tokens: tokens.iter().map(|(t, p)| (t.to_string(), *p)).collect(),
+            legend: false,
+            theme: None,
+        }
     }
 
     /// Show legend.
@@ -972,10 +1185,10 @@ impl Widget for TokenHeat {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
-        
+
         let mut y = area.y;
         let mut x = area.x;
-        
+
         for (token, prob) in &self.tokens {
             let token_w = token.width() as u16;
             if x + token_w > area.right() {
@@ -985,7 +1198,7 @@ impl Widget for TokenHeat {
                     break;
                 }
             }
-            
+
             // prob → color: low=success (green), mid=warning (yellow), high=error (red)
             let bg = if prob < &0.33 {
                 th.success.blend(th.warning, prob * 3.0)
@@ -995,17 +1208,24 @@ impl Widget for TokenHeat {
                 th.error
             };
             let blended_bg = th.background.blend(bg, 0.35);
-            
+
             put(buf, x, y, token, token_w, st(th.text, blended_bg));
             x = x.saturating_add(token_w);
         }
-        
+
         if self.legend && y + 1 < area.bottom() {
             y = y.saturating_add(1);
             let legend_text = "low ";
-            put(buf, area.x, y, legend_text, area.width, st(th.text_muted, th.background));
+            put(
+                buf,
+                area.x,
+                y,
+                legend_text,
+                area.width,
+                st(th.text_muted, th.background),
+            );
             let mut lx = area.x + legend_text.width() as u16;
-            
+
             for i in 0..8 {
                 if lx >= area.right() {
                     break;
@@ -1018,12 +1238,28 @@ impl Widget for TokenHeat {
                 } else {
                     th.error
                 };
-                fill(buf, Rect { x: lx, y, width: 1, height: 1 }, th.background.blend(bg, 0.35));
+                fill(
+                    buf,
+                    Rect {
+                        x: lx,
+                        y,
+                        width: 1,
+                        height: 1,
+                    },
+                    th.background.blend(bg, 0.35),
+                );
                 lx = lx.saturating_add(1);
             }
-            
+
             if lx < area.right() {
-                put(buf, lx, y, " high", area.width.saturating_sub(lx - area.x), st(th.text_muted, th.background));
+                put(
+                    buf,
+                    lx,
+                    y,
+                    " high",
+                    area.width.saturating_sub(lx - area.x),
+                    st(th.text_muted, th.background),
+                );
             }
         }
     }
@@ -1064,7 +1300,13 @@ pub struct DiffView {
 impl DiffView {
     /// Create from diff lines.
     pub fn new(lines: &[DiffLine]) -> Self {
-        Self { lines: lines.to_vec(), file: None, line_numbers: false, scroll: 0, theme: None }
+        Self {
+            lines: lines.to_vec(),
+            file: None,
+            line_numbers: false,
+            scroll: 0,
+            theme: None,
+        }
     }
 
     /// Parse a unified diff. `+`/`-`/` ` prefixes are stripped (the kind carries them), hunk
@@ -1081,7 +1323,10 @@ impl DiffView {
                     Some(b' ') => (DiffKind::Ctx, &l[1..]),
                     _ => (DiffKind::Ctx, l),
                 };
-                DiffLine { kind, text: text.to_string() }
+                DiffLine {
+                    kind,
+                    text: text.to_string(),
+                }
             })
             .collect()
     }
@@ -1121,8 +1366,20 @@ impl DiffView {
 /// `@@ -12,3 +12,8 @@` → `(12, 12)`.
 fn hunk_start(header: &str) -> Option<(usize, usize)> {
     let mut it = header.split_whitespace().skip(1);
-    let old = it.next()?.trim_start_matches('-').split(',').next()?.parse().ok()?;
-    let new = it.next()?.trim_start_matches('+').split(',').next()?.parse().ok()?;
+    let old = it
+        .next()?
+        .trim_start_matches('-')
+        .split(',')
+        .next()?
+        .parse()
+        .ok()?;
+    let new = it
+        .next()?
+        .trim_start_matches('+')
+        .split(',')
+        .next()?
+        .parse()
+        .ok()?;
     Some((old, new))
 }
 
@@ -1135,7 +1392,14 @@ impl Widget for DiffView {
         let mut y = area.y;
 
         if let Some(file) = &self.file {
-            put(buf, area.x, y, file, area.width, st(th.text, th.background).add_modifier(Modifier::BOLD));
+            put(
+                buf,
+                area.x,
+                y,
+                file,
+                area.width,
+                st(th.text, th.background).add_modifier(Modifier::BOLD),
+            );
             y += 1;
         }
 
@@ -1166,7 +1430,18 @@ impl Widget for DiffView {
             };
             numbered.push((n, line));
         }
-        let num_w = if self.line_numbers { numbered.iter().filter_map(|(n, _)| *n).max().unwrap_or(0).to_string().len() as u16 + 1 } else { 0 };
+        let num_w = if self.line_numbers {
+            numbered
+                .iter()
+                .filter_map(|(n, _)| *n)
+                .max()
+                .unwrap_or(0)
+                .to_string()
+                .len() as u16
+                + 1
+        } else {
+            0
+        };
         let text_x = area.x + num_w + 2;
         let text_w = area.width.saturating_sub(num_w + 2);
 
@@ -1180,12 +1455,35 @@ impl Widget for DiffView {
                 DiffKind::Ctx => (" ", th.text, th.background),
                 DiffKind::Hunk => (" ", th.text_muted, th.surface),
             };
-            fill(buf, Rect { x: area.x, y, width: area.width, height: 1 }, bg);
+            fill(
+                buf,
+                Rect {
+                    x: area.x,
+                    y,
+                    width: area.width,
+                    height: 1,
+                },
+                bg,
+            );
             if line.kind == DiffKind::Hunk {
-                put(buf, area.x + 1, y, &line.text, area.width.saturating_sub(1), st(fg, bg));
+                put(
+                    buf,
+                    area.x + 1,
+                    y,
+                    &line.text,
+                    area.width.saturating_sub(1),
+                    st(fg, bg),
+                );
             } else {
                 if let Some(n) = n.filter(|_| num_w > 0) {
-                    put(buf, area.x, y, &format!("{n:>w$}", w = num_w as usize - 1), num_w, st(th.text_muted, bg));
+                    put(
+                        buf,
+                        area.x,
+                        y,
+                        &format!("{n:>w$}", w = num_w as usize - 1),
+                        num_w,
+                        st(th.text_muted, bg),
+                    );
                 }
                 put(buf, area.x + num_w, y, glyph, 1, st(fg, bg));
                 put(buf, text_x, y, &line.text, text_w, st(fg, bg));
@@ -1217,7 +1515,7 @@ impl Interactive for ComposerState {
         if !is_press(&k) {
             return Outcome::Ignored;
         }
-        
+
         // Enter without shift → submit
         if k.code == KeyCode::Enter && !k.modifiers.contains(KeyModifiers::SHIFT) {
             let text = self.editor.lines.join("\n");
@@ -1229,14 +1527,14 @@ impl Interactive for ComposerState {
             }
             return Outcome::Consumed;
         }
-        
+
         // Shift+Enter or Ctrl+J → newline (the editor's Enter path is grapheme-safe)
         if (k.code == KeyCode::Enter && k.modifiers.contains(KeyModifiers::SHIFT))
             || (k.code == KeyCode::Char('j') && k.modifiers.contains(KeyModifiers::CONTROL))
         {
             return self.editor.handle_key(KeyEvent::from(KeyCode::Enter));
         }
-        
+
         // forward to editor
         self.editor.handle_key(k)
     }
@@ -1336,7 +1634,10 @@ impl StatefulWidget for PromptComposer {
         let th = self.theme.unwrap_or_else(theme::current);
 
         // the editor draws the frame (focus colour included); one hint row sits under it
-        let editor_area = Rect { height: area.height - 1, ..area };
+        let editor_area = Rect {
+            height: area.height - 1,
+            ..area
+        };
         TextArea::new()
             .placeholder(&self.placeholder)
             .shape(self.shape)
@@ -1347,12 +1648,30 @@ impl StatefulWidget for PromptComposer {
 
         let y = area.bottom() - 1;
         let bg = th.background;
-        fill(buf, Rect { y, height: 1, ..area }, bg);
+        fill(
+            buf,
+            Rect {
+                y,
+                height: 1,
+                ..area
+            },
+            bg,
+        );
 
         // right: token estimate (~4 chars per token)
         let chars: usize = state.editor.lines.iter().map(|l| l.chars().count()).sum();
         let tokens = format!("~{} tokens", chars.div_ceil(4));
-        let right_w = put_right(buf, Rect { x: area.x, y, width: area.width, height: 1 }, &tokens, st(th.text_disabled, bg));
+        let right_w = put_right(
+            buf,
+            Rect {
+                x: area.x,
+                y,
+                width: area.width,
+                height: 1,
+            },
+            &tokens,
+            st(th.text_disabled, bg),
+        );
         let mut x = area.x + 1;
         let limit = area.right().saturating_sub(right_w + 2);
 
@@ -1365,7 +1684,11 @@ impl StatefulWidget for PromptComposer {
             }
         };
         if !self.model.is_empty() {
-            place(&format!(" {} ", self.model), st(th.text_primary, th.surface), &mut x);
+            place(
+                &format!(" {} ", self.model),
+                st(th.text_primary, th.surface),
+                &mut x,
+            );
         }
         place("⏎ send", st(th.text_muted, bg), &mut x);
         for attach in &self.attachments {
@@ -1407,7 +1730,7 @@ impl Interactive for ApprovalState {
         if !is_press(&k) {
             return Outcome::Ignored;
         }
-        
+
         match k.code {
             KeyCode::Char('y') | KeyCode::Enter if self.focus == 0 => {
                 self.choice = Some(ApprovalChoice::Once);
@@ -1466,7 +1789,12 @@ pub struct Approval {
 impl Approval {
     /// Create with title.
     pub fn new(title: impl Into<String>) -> Self {
-        Self { title: title.into(), detail: None, focused: false, theme: None }
+        Self {
+            title: title.into(),
+            detail: None,
+            focused: false,
+            theme: None,
+        }
     }
 
     /// Set detail text.
@@ -1495,7 +1823,9 @@ impl Approval {
 
     /// Rows the card needs at `width`: frame, title, wrapped detail, a gap, the button row.
     pub fn height(&self, width: u16) -> u16 {
-        let detail = self.detail.as_ref().map_or(0, |d| wrap(d, width.saturating_sub(2) as usize).len() as u16);
+        let detail = self.detail.as_ref().map_or(0, |d| {
+            wrap(d, width.saturating_sub(2) as usize).len() as u16
+        });
         2 + 1 + detail + 1 + 1
     }
 }
@@ -1507,30 +1837,44 @@ impl StatefulWidget for Approval {
         if area.width < 12 || area.height < 5 {
             return;
         }
-        
+
         let th = self.theme.unwrap_or_else(theme::current);
         Border::Round.draw(buf, area, th.warning, th.background);
         let inner = Border::Round.inner(area);
-        
+
         if inner.height < 2 {
             return;
         }
-        
+
         let mut y = inner.y;
-        put(buf, inner.x, y, &self.title, inner.width, st(th.text, th.background).add_modifier(Modifier::BOLD));
+        put(
+            buf,
+            inner.x,
+            y,
+            &self.title,
+            inner.width,
+            st(th.text, th.background).add_modifier(Modifier::BOLD),
+        );
         y = y.saturating_add(1);
-        
+
         if let Some(ref detail) = self.detail {
             let lines = wrap(detail, inner.width as usize);
             for line in lines {
                 if y >= inner.bottom().saturating_sub(2) {
                     break;
                 }
-                put(buf, inner.x, y, &line, inner.width, st(th.text_muted, th.background));
+                put(
+                    buf,
+                    inner.x,
+                    y,
+                    &line,
+                    inner.width,
+                    st(th.text_muted, th.background),
+                );
                 y = y.saturating_add(1);
             }
         }
-        
+
         // buttons
         let button_y = inner.bottom().saturating_sub(1);
         let specs = [
@@ -1538,16 +1882,25 @@ impl StatefulWidget for Approval {
             ("Always", "a", ApprovalChoice::Always, th.primary),
             ("Deny", "n", ApprovalChoice::Deny, th.error),
         ];
-        
+
         // three flat buttons, evenly spaced; the label is padded so the whole pill is painted
         let cell_w = inner.width / 3;
         for (i, (label, key, _, color)) in specs.iter().enumerate() {
             let focused = self.focused && state.focus == i;
-            let bg = if focused { Theme::shade(*color, 1) } else { *color };
+            let bg = if focused {
+                Theme::shade(*color, 1)
+            } else {
+                *color
+            };
             let text = format!(" {label}  {key} ");
             let w = (text.width() as u16).min(cell_w.max(1));
             let x = inner.x + i as u16 * cell_w + cell_w.saturating_sub(w) / 2;
-            let btn = Rect { x, y: button_y, width: w, height: 1 };
+            let btn = Rect {
+                x,
+                y: button_y,
+                width: w,
+                height: 1,
+            };
             state.hits[i].set_area(btn);
             let mut style = st(bg.text_on(0.9), bg);
             if focused {
@@ -1601,9 +1954,18 @@ mod tests {
     #[test]
     fn diff_stats_count_adds_and_dels() {
         let lines = vec![
-            DiffLine { kind: DiffKind::Add, text: "+a".to_string() },
-            DiffLine { kind: DiffKind::Add, text: "+b".to_string() },
-            DiffLine { kind: DiffKind::Del, text: "-c".to_string() },
+            DiffLine {
+                kind: DiffKind::Add,
+                text: "+a".to_string(),
+            },
+            DiffLine {
+                kind: DiffKind::Add,
+                text: "+b".to_string(),
+            },
+            DiffLine {
+                kind: DiffKind::Del,
+                text: "-c".to_string(),
+            },
         ];
         let (adds, dels) = DiffView::stats(&lines);
         assert_eq!(adds, 2);
@@ -1612,7 +1974,11 @@ mod tests {
 
     #[test]
     fn token_usage_fraction_and_fmt() {
-        let usage = TokenUsage { prompt: 100, completion: 50, limit: 200 };
+        let usage = TokenUsage {
+            prompt: 100,
+            completion: 50,
+            limit: 200,
+        };
         assert_eq!(usage.used(), 150);
         assert!((usage.fraction() - 0.75).abs() < 0.01);
         assert_eq!(fmt_tokens(950), "950");
@@ -1630,7 +1996,10 @@ mod tests {
 
     #[test]
     fn approval_take_choice_clears() {
-        let mut state = ApprovalState { choice: Some(ApprovalChoice::Once), ..Default::default() };
+        let mut state = ApprovalState {
+            choice: Some(ApprovalChoice::Once),
+            ..Default::default()
+        };
         assert_eq!(state.take_choice(), Some(ApprovalChoice::Once));
         assert_eq!(state.choice, None);
     }

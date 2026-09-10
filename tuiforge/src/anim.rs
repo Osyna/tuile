@@ -23,7 +23,11 @@ impl Easing {
         match self {
             Easing::Linear => p,
             Easing::InOutCubic => {
-                if p < 0.5 { 4.0 * p * p * p } else { 1.0 - (-2.0 * p + 2.0).powi(3) / 2.0 }
+                if p < 0.5 {
+                    4.0 * p * p * p
+                } else {
+                    1.0 - (-2.0 * p + 2.0).powi(3) / 2.0
+                }
             }
             Easing::OutCubic => 1.0 - (1.0 - p).powi(3),
             Easing::InCubic => p * p * p,
@@ -85,7 +89,13 @@ pub struct Tween {
 
 impl Tween {
     pub fn new(v: f32) -> Self {
-        Self { from: v, to: v, start: Instant::now(), dur: Duration::ZERO, easing: Easing::default() }
+        Self {
+            from: v,
+            to: v,
+            start: Instant::now(),
+            dur: Duration::ZERO,
+            easing: Easing::default(),
+        }
     }
 
     /// Alias kept for readability at call sites: a tween parked at `v`.
@@ -141,7 +151,8 @@ impl Tween {
         if self.dur.is_zero() {
             1.0
         } else {
-            (now.saturating_duration_since(self.start).as_secs_f32() / self.dur.as_secs_f32()).clamp(0.0, 1.0)
+            (now.saturating_duration_since(self.start).as_secs_f32() / self.dur.as_secs_f32())
+                .clamp(0.0, 1.0)
         }
     }
 }
@@ -227,7 +238,11 @@ mod tests {
         let mid = t.value(t0 + Duration::from_millis(100));
         assert!(mid > 0.4 && mid < 0.6);
         // retarget half-way: must start from the mid value, not from 0 or 1
-        t.go(0.0, t0 + Duration::from_millis(100), Duration::from_millis(200));
+        t.go(
+            0.0,
+            t0 + Duration::from_millis(100),
+            Duration::from_millis(200),
+        );
         let v = t.value(t0 + Duration::from_millis(100));
         assert!((v - mid).abs() < 1e-4);
         assert_eq!(t.value(t0 + Duration::from_secs(5)), 0.0);

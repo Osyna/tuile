@@ -23,7 +23,7 @@ use ratatui::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::Tween;
-use crate::core::{ctrl, is_press, mouse_pos, wheel_delta, Interactive, Look, Outcome};
+use crate::core::{Interactive, Look, Outcome, ctrl, is_press, mouse_pos, wheel_delta};
 use crate::draw::{Border, fill, hline, put, put_centered, st};
 use crate::layout::pad;
 use crate::theme::{self, Theme};
@@ -221,7 +221,7 @@ impl Interactive for TabBarState {
         if !is_press(&k) {
             return Outcome::Ignored;
         }
-            match k.code {
+        match k.code {
             KeyCode::Left => {
                 if self.active > 0 {
                     self.active -= 1;
@@ -283,30 +283,36 @@ impl Interactive for TabBarState {
         }
 
         // click tab
-        if matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(ratatui::crossterm::event::MouseButton::Left))
-            && let Some(i) = hover {
-                // check close button
-                if i < self.close_hits.len() && self.close_hits[i].contains(pos) {
-                    self.closed = Some(i);
-                    return Outcome::Changed;
-                }
-                if i != self.active {
-                    self.active = i;
-                    return Outcome::Changed;
-                }
-                return Outcome::Consumed;
+        if matches!(
+            m.kind,
+            ratatui::crossterm::event::MouseEventKind::Down(
+                ratatui::crossterm::event::MouseButton::Left
+            )
+        ) && let Some(i) = hover
+        {
+            // check close button
+            if i < self.close_hits.len() && self.close_hits[i].contains(pos) {
+                self.closed = Some(i);
+                return Outcome::Changed;
             }
+            if i != self.active {
+                self.active = i;
+                return Outcome::Changed;
+            }
+            return Outcome::Consumed;
+        }
 
         // wheel
         if let Some(delta) = wheel_delta(&m)
-            && (self.hits.iter().any(|r| r.contains(pos)) || hover.is_some()) {
-                if delta > 0 {
-                    self.active = self.active.saturating_add(1);
-                } else {
-                    self.active = self.active.saturating_sub(1);
-                }
-                return Outcome::Changed;
+            && (self.hits.iter().any(|r| r.contains(pos)) || hover.is_some())
+        {
+            if delta > 0 {
+                self.active = self.active.saturating_add(1);
+            } else {
+                self.active = self.active.saturating_sub(1);
             }
+            return Outcome::Changed;
+        }
 
         out
     }
@@ -331,10 +337,18 @@ impl StatefulWidget for TabBar {
 
         // skip disabled tabs when wrapping
         let items_vec: Vec<(usize, &TabItem)> = self.items.iter().enumerate().collect();
-        let enabled: Vec<usize> = items_vec.iter().filter(|(_, t)| !t.disabled).map(|(i, _)| *i).collect();
+        let enabled: Vec<usize> = items_vec
+            .iter()
+            .filter(|(_, t)| !t.disabled)
+            .map(|(i, _)| *i)
+            .collect();
         if !enabled.is_empty() && self.items.get(state.active).is_some_and(|t| t.disabled) {
             // move to next enabled
-            state.active = enabled.iter().copied().find(|&i| i >= state.active).unwrap_or(enabled[0]);
+            state.active = enabled
+                .iter()
+                .copied()
+                .find(|&i| i >= state.active)
+                .unwrap_or(enabled[0]);
         }
 
         match self.style {
@@ -349,7 +363,15 @@ impl StatefulWidget for TabBar {
 
 // ───────────────────────────── underline style ─────────────────────────────
 
-fn render_underline(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBarState, th: &Theme, bg: crate::theme::Rgb, now: Instant) {
+fn render_underline(
+    builder: TabBar,
+    area: Rect,
+    buf: &mut Buffer,
+    state: &mut TabBarState,
+    th: &Theme,
+    bg: crate::theme::Rgb,
+    now: Instant,
+) {
     fill(buf, area, bg);
     if area.height < 2 {
         return;
@@ -381,7 +403,11 @@ fn render_underline(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut T
     for (i, (item, (tx, tw))) in items.iter().zip(&ranges).enumerate() {
         let is_active = i == state.active;
         let is_hover = state.hover == Some(i);
-        let _look = Look { focused: builder.focused && is_active, hover: is_hover, enabled: !item.disabled };
+        let _look = Look {
+            focused: builder.focused && is_active,
+            hover: is_hover,
+            enabled: !item.disabled,
+        };
 
         let style = if is_active {
             st(th.text, bg).add_modifier(Modifier::BOLD)
@@ -464,7 +490,14 @@ fn render_underline(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut T
 
 // ───────────────────────────── boxed style ─────────────────────────────
 
-fn render_boxed(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBarState, th: &Theme, bg: crate::theme::Rgb) {
+fn render_boxed(
+    builder: TabBar,
+    area: Rect,
+    buf: &mut Buffer,
+    state: &mut TabBarState,
+    th: &Theme,
+    bg: crate::theme::Rgb,
+) {
     fill(buf, area, bg);
     if area.height < 3 {
         return;
@@ -525,11 +558,22 @@ fn render_boxed(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBa
         }
         put(buf, x + 1, label_y, &content, w - 2, style);
         if item.closable {
-            put(buf, x + w - 3, label_y, "×", 1, style.fg(th.text_muted.color()));
+            put(
+                buf,
+                x + w - 3,
+                label_y,
+                "×",
+                1,
+                style.fg(th.text_muted.color()),
+            );
         }
 
         state.hits.push(Rect::new(x, label_y, w, 1));
-        state.close_hits.push(if item.closable { Rect::new(x + w - 3, label_y, 1, 1) } else { Rect::ZERO });
+        state.close_hits.push(if item.closable {
+            Rect::new(x + w - 3, label_y, 1, 1)
+        } else {
+            Rect::ZERO
+        });
 
         x += w;
     }
@@ -537,7 +581,14 @@ fn render_boxed(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBa
 
 // ───────────────────────────── pills style ─────────────────────────────
 
-fn render_pills(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBarState, th: &Theme, bg: crate::theme::Rgb) {
+fn render_pills(
+    builder: TabBar,
+    area: Rect,
+    buf: &mut Buffer,
+    state: &mut TabBarState,
+    th: &Theme,
+    bg: crate::theme::Rgb,
+) {
     fill(buf, area, bg);
     state.hits.clear();
     state.close_hits.clear();
@@ -581,7 +632,11 @@ fn render_pills(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBa
         }
 
         state.hits.push(Rect::new(x, area.y, w, 1));
-        state.close_hits.push(if item.closable { Rect::new(x + w - 2, area.y, 1, 1) } else { Rect::ZERO });
+        state.close_hits.push(if item.closable {
+            Rect::new(x + w - 2, area.y, 1, 1)
+        } else {
+            Rect::ZERO
+        });
 
         x += w + 1;
     }
@@ -589,7 +644,14 @@ fn render_pills(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBa
 
 // ───────────────────────────── segmented style ─────────────────────────────
 
-fn render_segmented(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBarState, th: &Theme, bg: crate::theme::Rgb) {
+fn render_segmented(
+    builder: TabBar,
+    area: Rect,
+    buf: &mut Buffer,
+    state: &mut TabBarState,
+    th: &Theme,
+    bg: crate::theme::Rgb,
+) {
     fill(buf, area, bg);
     if area.width < 2 || area.height == 0 {
         return;
@@ -647,7 +709,14 @@ fn render_segmented(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut T
 
 // ───────────────────────────── minimal style ─────────────────────────────
 
-fn render_minimal(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBarState, th: &Theme, bg: crate::theme::Rgb) {
+fn render_minimal(
+    builder: TabBar,
+    area: Rect,
+    buf: &mut Buffer,
+    state: &mut TabBarState,
+    th: &Theme,
+    bg: crate::theme::Rgb,
+) {
     fill(buf, area, bg);
     state.hits.clear();
     state.close_hits.clear();
@@ -684,7 +753,12 @@ fn render_minimal(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut Tab
         }
 
         put(buf, x, area.y, &label, w, style);
-        state.hits.push(Rect::new(x - if is_active { 2 } else { 0 }, area.y, w + if is_active { 2 } else { 0 }, 1));
+        state.hits.push(Rect::new(
+            x - if is_active { 2 } else { 0 },
+            area.y,
+            w + if is_active { 2 } else { 0 },
+            1,
+        ));
         state.close_hits.push(Rect::ZERO);
 
         x += w + 2;
@@ -743,12 +817,21 @@ impl TabbedContent {
         if area.height < 2 {
             return Rect::ZERO;
         }
-        let bar_h = if matches!(self.bar.style, TabStyle::Underline) { 2 } else { 1 };
+        let bar_h = if matches!(self.bar.style, TabStyle::Underline) {
+            2
+        } else {
+            1
+        };
         let bar_area = Rect::new(area.x, area.y, area.width, bar_h);
         let th = self.bar.theme.unwrap_or_else(theme::current);
         self.bar.render(bar_area, buf, state);
 
-        let content_area = Rect::new(area.x, area.y + bar_h, area.width, area.height.saturating_sub(bar_h));
+        let content_area = Rect::new(
+            area.x,
+            area.y + bar_h,
+            area.width,
+            area.height.saturating_sub(bar_h),
+        );
         if self.bordered && content_area.width >= 2 && content_area.height >= 2 {
             Border::Round.draw(buf, content_area, th.border, th.surface);
             pad(content_area, 1, 1)
@@ -765,9 +848,21 @@ mod tests {
     #[test]
     fn tab_bar_switches_on_arrows() {
         let mut state = TabBarState::new(0);
-        assert_eq!(state.handle_key(KeyEvent::new(KeyCode::Right, ratatui::crossterm::event::KeyModifiers::NONE)), Outcome::Changed);
+        assert_eq!(
+            state.handle_key(KeyEvent::new(
+                KeyCode::Right,
+                ratatui::crossterm::event::KeyModifiers::NONE
+            )),
+            Outcome::Changed
+        );
         assert_eq!(state.active, 1);
-        assert_eq!(state.handle_key(KeyEvent::new(KeyCode::Left, ratatui::crossterm::event::KeyModifiers::NONE)), Outcome::Changed);
+        assert_eq!(
+            state.handle_key(KeyEvent::new(
+                KeyCode::Left,
+                ratatui::crossterm::event::KeyModifiers::NONE
+            )),
+            Outcome::Changed
+        );
         assert_eq!(state.active, 0);
     }
 
@@ -785,7 +880,9 @@ mod tests {
     fn tabbed_content_returns_content_rect() {
         let mut state = TabBarState::new(0);
         let mut buf = Buffer::empty(Rect::new(0, 0, 40, 10));
-        let content = TabbedContent::new(vec!["A".into(), "B".into()]).bordered(true).render(buf.area, &mut buf, &mut state);
+        let content = TabbedContent::new(vec!["A".into(), "B".into()])
+            .bordered(true)
+            .render(buf.area, &mut buf, &mut state);
         assert!(content.height < buf.area.height);
         assert!(content.y > buf.area.y);
     }

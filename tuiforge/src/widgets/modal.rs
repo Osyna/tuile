@@ -18,8 +18,8 @@ use ratatui::style::Modifier;
 use ratatui::widgets::StatefulWidget;
 
 use crate::anim::Easing;
-use crate::core::{HitBox, Hit, Outcome, Interactive, is_press, is_activate};
-use crate::draw::{fill, put, put_centered, wrap, Border, st, bold, blend_area};
+use crate::core::{Hit, HitBox, Interactive, Outcome, is_activate, is_press};
+use crate::draw::{Border, blend_area, bold, fill, put, put_centered, st, wrap};
 use crate::layout::center;
 use crate::theme::{self, Theme, Variant};
 
@@ -129,16 +129,28 @@ impl Modal {
     }
 
     pub fn confirm(title: impl Into<String>, msg: impl Into<String>) -> Self {
-        Self::new(title).body(msg).buttons(&[("Cancel", Variant::Default), ("Confirm", Variant::Primary)]).cancel_index(0).default_button(1)
+        Self::new(title)
+            .body(msg)
+            .buttons(&[("Cancel", Variant::Default), ("Confirm", Variant::Primary)])
+            .cancel_index(0)
+            .default_button(1)
     }
 
     pub fn alert(title: impl Into<String>, msg: impl Into<String>) -> Self {
-        Self::new(title).body(msg).buttons(&[("OK", Variant::Primary)]).default_button(0)
+        Self::new(title)
+            .body(msg)
+            .buttons(&[("OK", Variant::Primary)])
+            .default_button(0)
     }
 
     /// Dialog with a single-line text field above the buttons; read `state.input_text`.
     pub fn prompt(title: impl Into<String>, msg: impl Into<String>) -> Self {
-        Self::new(title).body(msg).buttons(&[("Cancel", Variant::Default), ("OK", Variant::Primary)]).cancel_index(0).default_button(1).with_input(true)
+        Self::new(title)
+            .body(msg)
+            .buttons(&[("Cancel", Variant::Default), ("OK", Variant::Primary)])
+            .cancel_index(0)
+            .default_button(1)
+            .with_input(true)
     }
 
     /// Show a text field (prompt dialog); `Tab`/arrows move between field and buttons.
@@ -212,18 +224,29 @@ impl ModalState {
         self.result.take()
     }
 
-
     fn next_button(&mut self) {
-        let total = if self.is_prompt { self.button_count + 1 } else { self.button_count };
+        let total = if self.is_prompt {
+            self.button_count + 1
+        } else {
+            self.button_count
+        };
         if total > 0 {
             self.focus = (self.focus + 1) % total;
         }
     }
 
     fn prev_button(&mut self) {
-        let total = if self.is_prompt { self.button_count + 1 } else { self.button_count };
+        let total = if self.is_prompt {
+            self.button_count + 1
+        } else {
+            self.button_count
+        };
         if total > 0 {
-            self.focus = if self.focus == 0 { total - 1 } else { self.focus - 1 };
+            self.focus = if self.focus == 0 {
+                total - 1
+            } else {
+                self.focus - 1
+            };
         }
     }
 
@@ -231,7 +254,6 @@ impl ModalState {
         self.result = Some(index);
         self.open = false;
     }
-
 }
 
 impl Interactive for ModalState {
@@ -347,7 +369,6 @@ impl Interactive for ModalState {
     }
 }
 
-
 impl StatefulWidget for Modal {
     type State = ModalState;
 
@@ -374,7 +395,11 @@ impl StatefulWidget for Modal {
         if state.fresh {
             state.fresh = false;
             let slots = self.buttons.len() + usize::from(is_prompt);
-            state.focus = if is_prompt { self.buttons.len() } else { self.default_button.min(slots.saturating_sub(1)) };
+            state.focus = if is_prompt {
+                self.buttons.len()
+            } else {
+                self.default_button.min(slots.saturating_sub(1))
+            };
         }
 
         let width = match self.kind {
@@ -387,12 +412,26 @@ impl StatefulWidget for Modal {
         let prompt_h = if is_prompt { 4 } else { 0 };
         let buttons_h = if self.buttons.is_empty() { 0 } else { 4 };
         let icon_h = if self.icon.is_some() { 2 } else { 0 };
-        let h = (2 + 1 + icon_h + 1 + body_lines.len() as u16 + if body_lines.is_empty() { 0 } else { 1 } + prompt_h + buttons_h + 1).min(area.height);
+        let h = (2
+            + 1
+            + icon_h
+            + 1
+            + body_lines.len() as u16
+            + if body_lines.is_empty() { 0 } else { 1 }
+            + prompt_h
+            + buttons_h
+            + 1)
+        .min(area.height);
 
         let modal_area = match self.kind {
             ModalKind::Dialog => center(area, width, h),
             // anchored to the bottom edge, wide, keeps the page context visible above
-            ModalKind::Sheet => Rect { x: area.x + (area.width - width) / 2, y: area.bottom().saturating_sub(h), width, height: h },
+            ModalKind::Sheet => Rect {
+                x: area.x + (area.width - width) / 2,
+                y: area.bottom().saturating_sub(h),
+                width,
+                height: h,
+            },
             ModalKind::Fullscreen => crate::layout::pad(area, 2, 1),
         };
         if modal_area.is_empty() {
@@ -436,7 +475,17 @@ impl StatefulWidget for Modal {
         let mut cy = modal_area.y + 2;
 
         if let Some(icon_str) = &self.icon {
-            put_centered(buf, Rect { x: cx, y: cy, width: inner_w, height: 1 }, icon_str, st(border_color, bg));
+            put_centered(
+                buf,
+                Rect {
+                    x: cx,
+                    y: cy,
+                    width: inner_w,
+                    height: 1,
+                },
+                icon_str,
+                st(border_color, bg),
+            );
             cy += 2;
         }
 
@@ -452,24 +501,56 @@ impl StatefulWidget for Modal {
         }
 
         if is_prompt {
-            let input_area = Rect { x: cx, y: cy, width: inner_w, height: 1 };
+            let input_area = Rect {
+                x: cx,
+                y: cy,
+                width: inner_w,
+                height: 1,
+            };
             let cursor_x = state.input_cursor.min(state.input_text.len());
-            let display_text = if state.input_text.is_empty() { "..." } else { &state.input_text };
-            
+            let display_text = if state.input_text.is_empty() {
+                "..."
+            } else {
+                &state.input_text
+            };
+
             fill(buf, input_area, th.focus_bg());
-            Border::Tall.draw(buf, Rect { x: cx - 1, y: cy - 1, width: inner_w + 2, height: 3 }, th.border, th.focus_bg());
-            
-            put(buf, cx, cy, display_text, inner_w, st(th.text, th.focus_bg()));
-            
+            Border::Tall.draw(
+                buf,
+                Rect {
+                    x: cx - 1,
+                    y: cy - 1,
+                    width: inner_w + 2,
+                    height: 3,
+                },
+                th.border,
+                th.focus_bg(),
+            );
+
+            put(
+                buf,
+                cx,
+                cy,
+                display_text,
+                inner_w,
+                st(th.text, th.focus_bg()),
+            );
+
             if state.focus == self.buttons.len() {
                 let cursor_char = if cursor_x < state.input_text.len() {
                     state.input_text.chars().nth(cursor_x).unwrap_or(' ')
                 } else {
                     ' '
                 };
-                put(buf, cx + cursor_x as u16, cy, &cursor_char.to_string(), 1, st(th.cursor_fg, th.cursor_bg));
+                put(
+                    buf,
+                    cx + cursor_x as u16,
+                    cy,
+                    &cursor_char.to_string(),
+                    1,
+                    st(th.cursor_fg, th.cursor_bg),
+                );
             }
-            
         }
 
         state.button_hits.clear();
@@ -480,7 +561,12 @@ impl StatefulWidget for Modal {
             for (i, (label, variant)) in self.buttons.iter().enumerate().rev() {
                 let bw = (label.len() as u16 + 4).max(16);
                 bx = bx.saturating_sub(bw);
-                let br = Rect { x: bx, y: by, width: bw, height: 3 };
+                let br = Rect {
+                    x: bx,
+                    y: by,
+                    width: bw,
+                    height: 3,
+                };
 
                 draw_button(buf, br, &th, label, *variant, state.focus == i);
                 state.button_hits.insert(0, {
@@ -492,11 +578,17 @@ impl StatefulWidget for Modal {
                 bx = bx.saturating_sub(2);
             }
         }
-
     }
 }
 
-fn draw_button(buf: &mut Buffer, area: Rect, th: &Theme, label: &str, variant: Variant, focused: bool) {
+fn draw_button(
+    buf: &mut Buffer,
+    area: Rect,
+    th: &Theme,
+    label: &str,
+    variant: Variant,
+    focused: bool,
+) {
     if area.height < 3 || area.width < 4 {
         return;
     }
@@ -508,11 +600,11 @@ fn draw_button(buf: &mut Buffer, area: Rect, th: &Theme, label: &str, variant: V
     };
 
     fill(buf, area, bg);
-    
+
     // 3D effect
     let top_color = bg.lighten(0.15);
     let bottom_color = bg.darken(0.15);
-    
+
     for x in area.left()..area.right() {
         put(buf, x, area.top(), "▔", 1, st(top_color, bg));
         put(buf, x, area.bottom() - 1, "▁", 1, st(bottom_color, bg));
@@ -524,7 +616,16 @@ fn draw_button(buf: &mut Buffer, area: Rect, th: &Theme, label: &str, variant: V
         st(fg, bg)
     };
 
-    put_centered(buf, Rect { y: area.y + 1, height: 1, ..area }, label, style);
+    put_centered(
+        buf,
+        Rect {
+            y: area.y + 1,
+            height: 1,
+            ..area
+        },
+        label,
+        style,
+    );
 }
 
 #[cfg(test)]
@@ -541,7 +642,9 @@ mod tests {
 
     #[test]
     fn modal_button_navigation_wraps_and_reports_result() {
-        let mut state = opened(Modal::new("Test").buttons(&[("Cancel", Variant::Default), ("OK", Variant::Primary)]));
+        let mut state = opened(
+            Modal::new("Test").buttons(&[("Cancel", Variant::Default), ("OK", Variant::Primary)]),
+        );
         assert_eq!(state.focus, 0);
         state.handle_key(KeyEvent::from(KeyCode::Tab));
         assert_eq!(state.focus, 1);

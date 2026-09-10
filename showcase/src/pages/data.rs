@@ -6,7 +6,9 @@ use ratatui::crossterm::event::{Event, KeyCode, KeyEvent};
 use ratatui::layout::{Alignment, Constraint};
 use ratatui::style::Modifier;
 use tuiforge::prelude::*;
-use tuiforge::widgets::{DataTable, DataTableState, Digits, KeyValueList, TableCell, TableColumn, TableCursor, TableRow};
+use tuiforge::widgets::{
+    DataTable, DataTableState, Digits, KeyValueList, TableCell, TableColumn, TableCursor, TableRow,
+};
 
 use super::{Ctx, Page};
 
@@ -77,7 +79,7 @@ impl Page for DataPage {
     }
 
     fn icon(&self) -> &'static str {
-        "▤"
+        "⊞"
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
@@ -109,10 +111,19 @@ impl Page for DataPage {
         }
 
         let cols = vec![
-            TableColumn::new("Name").width(Constraint::Length(12)).sortable(true),
-            TableColumn::new("Region").width(Constraint::Length(10)).sortable(true),
-            TableColumn::new("Status").width(Constraint::Length(10)).sortable(true),
-            TableColumn::new("CPU %").width(Constraint::Length(8)).align(Alignment::Right).sortable(true),
+            TableColumn::new("Name")
+                .width(Constraint::Length(12))
+                .sortable(true),
+            TableColumn::new("Region")
+                .width(Constraint::Length(10))
+                .sortable(true),
+            TableColumn::new("Status")
+                .width(Constraint::Length(10))
+                .sortable(true),
+            TableColumn::new("CPU %")
+                .width(Constraint::Length(8))
+                .align(Alignment::Right)
+                .sortable(true),
             TableColumn::new("Uptime").width(Constraint::Length(10)),
             TableColumn::new("Tags").width(Constraint::Fill(1)),
         ];
@@ -127,7 +138,8 @@ impl Page for DataPage {
                 _ => Variant::Default,
             };
             let cpu_cell = TableCell::new(format!("{:.1}", cpu)).sort_key(cpu);
-            let status_cell = TableCell::new(status).style(st(th.text_variant(status_variant), th.surface));
+            let status_cell =
+                TableCell::new(status).style(st(th.text_variant(status_variant), th.surface));
             rows_vec.push(TableRow::new(vec![
                 name.into(),
                 region.into(),
@@ -155,24 +167,58 @@ impl Page for DataPage {
         // Status line inside the card
         let status_y = main_inner.y + main_inner.height - 1;
         if !self.filter_mode {
-            let mut status_parts = vec![format!("row {}/{}", self.main_table.cursor_row + 1, self.main_table.visible_len())];
+            let mut status_parts = vec![format!(
+                "row {}/{}",
+                self.main_table.cursor_row + 1,
+                self.main_table.visible_len()
+            )];
             if let Some((col, asc)) = self.main_table.sort {
-                let col_name = ["Name", "Region", "Status", "CPU %", "Uptime", "Tags"].get(col).unwrap_or(&"?");
-                status_parts.push(format!("sorted by {} {}", col_name, if asc { "▲" } else { "▼" }));
+                let col_name = ["Name", "Region", "Status", "CPU %", "Uptime", "Tags"]
+                    .get(col)
+                    .unwrap_or(&"?");
+                status_parts.push(format!(
+                    "sorted by {} {}",
+                    col_name,
+                    if asc { "▲" } else { "▼" }
+                ));
             }
             if !self.main_table.selected_rows().is_empty() {
-                status_parts.push(format!("{} selected", self.main_table.selected_rows().len()));
+                status_parts.push(format!(
+                    "{} selected",
+                    self.main_table.selected_rows().len()
+                ));
             }
             let status = status_parts.join(" • ");
-            put(buf, main_inner.x, status_y, &status, main_inner.width, st(th.text_muted, th.background));
+            put(
+                buf,
+                main_inner.x,
+                status_y,
+                &status,
+                main_inner.width,
+                st(th.text_muted, th.background),
+            );
         } else {
             let filter_prompt = format!("Filter: {}", self.filter_buf);
-            put(buf, main_inner.x, status_y, &filter_prompt, main_inner.width, st(th.text, th.focus_bg()));
+            put(
+                buf,
+                main_inner.x,
+                status_y,
+                &filter_prompt,
+                main_inner.width,
+                st(th.text, th.focus_bg()),
+            );
         }
 
         // ─── bottom row: cell table + kvlist + digits ───
         let bottom_area = rows[1];
-        let bottom_cols = tuiforge::layout::cols(bottom_area, [Constraint::Percentage(35), Constraint::Percentage(30), Constraint::Fill(1)]);
+        let bottom_cols = tuiforge::layout::cols(
+            bottom_area,
+            [
+                Constraint::Percentage(35),
+                Constraint::Percentage(30),
+                Constraint::Fill(1),
+            ],
+        );
 
         // Cell navigation table
         let cell_card = bottom_cols[0];
@@ -187,10 +233,18 @@ impl Page for DataPage {
         );
 
         let cell_cols = vec![
-            TableColumn::new("Q1").width(Constraint::Fill(1)).align(Alignment::Right),
-            TableColumn::new("Q2").width(Constraint::Fill(1)).align(Alignment::Right),
-            TableColumn::new("Q3").width(Constraint::Fill(1)).align(Alignment::Right),
-            TableColumn::new("Q4").width(Constraint::Fill(1)).align(Alignment::Right),
+            TableColumn::new("Q1")
+                .width(Constraint::Fill(1))
+                .align(Alignment::Right),
+            TableColumn::new("Q2")
+                .width(Constraint::Fill(1))
+                .align(Alignment::Right),
+            TableColumn::new("Q3")
+                .width(Constraint::Fill(1))
+                .align(Alignment::Right),
+            TableColumn::new("Q4")
+                .width(Constraint::Fill(1))
+                .align(Alignment::Right),
         ];
         let heatmap_data = vec![
             vec![45.2, 52.1, 48.3, 61.5],
@@ -200,7 +254,9 @@ impl Page for DataPage {
         ];
         let mut cell_rows = vec![];
         for row in heatmap_data {
-            cell_rows.push(TableRow::from(row.into_iter().map(TableCell::from).collect::<Vec<_>>()));
+            cell_rows.push(TableRow::from(
+                row.into_iter().map(TableCell::from).collect::<Vec<_>>(),
+            ));
         }
 
         fn heatmap_style(_row: usize, _col: usize, cell: &TableCell, th: &Theme) -> Option<Style> {
@@ -322,9 +378,10 @@ impl Page for DataPage {
                 if focus.is(Id::MainTable) {
                     let out = self.main_table.handle_key(*k);
                     if out.is_changed()
-                        && let Some(act) = self.main_table.activated.take() {
-                            ctx.notify(format!("Activated row {}", act), Variant::Primary);
-                        }
+                        && let Some(act) = self.main_table.activated.take()
+                    {
+                        ctx.notify(format!("Activated row {}", act), Variant::Primary);
+                    }
                     return out;
                 } else if focus.is(Id::CellTable) {
                     return self.cell_table.handle_key(*k);
@@ -335,9 +392,10 @@ impl Page for DataPage {
                 out |= self.main_table.handle_mouse(*m);
                 out |= self.cell_table.handle_mouse(*m);
                 if out.is_changed()
-                    && let Some(act) = self.main_table.activated.take() {
-                        ctx.notify(format!("Clicked row {}", act), Variant::Primary);
-                    }
+                    && let Some(act) = self.main_table.activated.take()
+                {
+                    ctx.notify(format!("Clicked row {}", act), Variant::Primary);
+                }
                 return out;
             }
             _ => {}
@@ -350,51 +408,337 @@ impl Page for DataPage {
     }
 
     fn bindings(&self) -> &'static [(&'static str, &'static str)] {
-        &[("Tab", "focus"), ("/", "filter"), ("s", "sort"), ("Space", "select / +1"), ("Enter", "activate")]
+        &[
+            ("Tab", "focus"),
+            ("/", "filter"),
+            ("s", "sort"),
+            ("Space", "select / +1"),
+            ("Enter", "activate"),
+        ]
     }
 }
 
-fn fake_server_data() -> Vec<(&'static str, &'static str, &'static str, f64, &'static str, &'static str)> {
+fn fake_server_data() -> Vec<(
+    &'static str,
+    &'static str,
+    &'static str,
+    f64,
+    &'static str,
+    &'static str,
+)> {
     vec![
-        ("srv-web-01", "us-west", "online", 45.2, "23d 4h", "web,nginx"),
-        ("srv-web-02", "us-west", "online", 38.7, "23d 4h", "web,nginx"),
-        ("srv-db-01", "us-east", "online", 62.3, "45d 2h", "db,postgres"),
-        ("srv-db-02", "us-east", "warning", 78.1, "45d 2h", "db,postgres"),
-        ("srv-cache-01", "eu-central", "online", 12.8, "12d 8h", "cache,redis"),
-        ("srv-cache-02", "eu-central", "online", 15.3, "12d 8h", "cache,redis"),
-        ("srv-app-01", "ap-south", "online", 51.0, "8d 16h", "app,node"),
+        (
+            "srv-web-01",
+            "us-west",
+            "online",
+            45.2,
+            "23d 4h",
+            "web,nginx",
+        ),
+        (
+            "srv-web-02",
+            "us-west",
+            "online",
+            38.7,
+            "23d 4h",
+            "web,nginx",
+        ),
+        (
+            "srv-db-01",
+            "us-east",
+            "online",
+            62.3,
+            "45d 2h",
+            "db,postgres",
+        ),
+        (
+            "srv-db-02",
+            "us-east",
+            "warning",
+            78.1,
+            "45d 2h",
+            "db,postgres",
+        ),
+        (
+            "srv-cache-01",
+            "eu-central",
+            "online",
+            12.8,
+            "12d 8h",
+            "cache,redis",
+        ),
+        (
+            "srv-cache-02",
+            "eu-central",
+            "online",
+            15.3,
+            "12d 8h",
+            "cache,redis",
+        ),
+        (
+            "srv-app-01",
+            "ap-south",
+            "online",
+            51.0,
+            "8d 16h",
+            "app,node",
+        ),
         ("srv-app-02", "ap-south", "offline", 0.0, "0h", "app,node"),
-        ("srv-queue-01", "us-west", "online", 22.4, "30d 1h", "queue,rabbitmq"),
-        ("srv-monitor-01", "us-east", "online", 8.5, "60d 5h", "monitor,grafana"),
-        ("srv-web-03", "us-west", "online", 41.2, "15d 3h", "web,nginx"),
-        ("srv-web-04", "us-west", "online", 39.8, "15d 3h", "web,nginx"),
-        ("srv-db-03", "eu-west", "online", 55.6, "28d 7h", "db,postgres"),
-        ("srv-db-04", "eu-west", "warning", 72.9, "28d 7h", "db,postgres"),
-        ("srv-worker-01", "us-east", "online", 33.1, "18d 12h", "worker,python"),
-        ("srv-worker-02", "us-east", "online", 31.7, "18d 12h", "worker,python"),
-        ("srv-worker-03", "us-east", "online", 35.4, "18d 12h", "worker,python"),
-        ("srv-lb-01", "us-west", "online", 18.9, "40d 3h", "lb,haproxy"),
-        ("srv-lb-02", "us-east", "online", 17.2, "40d 3h", "lb,haproxy"),
-        ("srv-search-01", "eu-central", "online", 48.3, "22d 9h", "search,elastic"),
-        ("srv-search-02", "eu-central", "online", 46.7, "22d 9h", "search,elastic"),
-        ("srv-metrics-01", "us-west", "online", 14.5, "55d 2h", "metrics,prometheus"),
-        ("srv-backup-01", "us-east", "online", 6.2, "90d 1h", "backup,rsync"),
-        ("srv-backup-02", "eu-west", "online", 5.8, "90d 1h", "backup,rsync"),
-        ("srv-cdn-01", "ap-northeast", "online", 28.3, "35d 6h", "cdn,nginx"),
-        ("srv-cdn-02", "ap-northeast", "online", 27.1, "35d 6h", "cdn,nginx"),
-        ("srv-mail-01", "us-west", "online", 9.7, "120d 4h", "mail,postfix"),
-        ("srv-dns-01", "us-east", "online", 3.2, "150d 8h", "dns,bind"),
-        ("srv-dns-02", "eu-west", "online", 3.5, "150d 8h", "dns,bind"),
-        ("srv-vpn-01", "us-west", "online", 11.4, "80d 11h", "vpn,wireguard"),
-        ("srv-proxy-01", "us-east", "online", 24.6, "50d 7h", "proxy,squid"),
-        ("srv-git-01", "us-west", "online", 19.8, "65d 9h", "git,gitlab"),
-        ("srv-ci-01", "us-west", "online", 42.7, "25d 5h", "ci,jenkins"),
-        ("srv-ci-02", "us-west", "warning", 68.9, "25d 5h", "ci,jenkins"),
-        ("srv-log-01", "us-east", "online", 31.2, "45d 3h", "log,fluentd"),
-        ("srv-log-02", "eu-central", "online", 29.8, "45d 3h", "log,fluentd"),
-        ("srv-registry-01", "us-west", "online", 16.3, "70d 2h", "registry,harbor"),
-        ("srv-vault-01", "us-east", "online", 7.9, "100d 6h", "vault,hashicorp"),
-        ("srv-k8s-master-01", "us-west", "online", 54.2, "20d 4h", "k8s,master"),
-        ("srv-k8s-node-01", "us-west", "online", 61.7, "20d 4h", "k8s,node"),
+        (
+            "srv-queue-01",
+            "us-west",
+            "online",
+            22.4,
+            "30d 1h",
+            "queue,rabbitmq",
+        ),
+        (
+            "srv-monitor-01",
+            "us-east",
+            "online",
+            8.5,
+            "60d 5h",
+            "monitor,grafana",
+        ),
+        (
+            "srv-web-03",
+            "us-west",
+            "online",
+            41.2,
+            "15d 3h",
+            "web,nginx",
+        ),
+        (
+            "srv-web-04",
+            "us-west",
+            "online",
+            39.8,
+            "15d 3h",
+            "web,nginx",
+        ),
+        (
+            "srv-db-03",
+            "eu-west",
+            "online",
+            55.6,
+            "28d 7h",
+            "db,postgres",
+        ),
+        (
+            "srv-db-04",
+            "eu-west",
+            "warning",
+            72.9,
+            "28d 7h",
+            "db,postgres",
+        ),
+        (
+            "srv-worker-01",
+            "us-east",
+            "online",
+            33.1,
+            "18d 12h",
+            "worker,python",
+        ),
+        (
+            "srv-worker-02",
+            "us-east",
+            "online",
+            31.7,
+            "18d 12h",
+            "worker,python",
+        ),
+        (
+            "srv-worker-03",
+            "us-east",
+            "online",
+            35.4,
+            "18d 12h",
+            "worker,python",
+        ),
+        (
+            "srv-lb-01",
+            "us-west",
+            "online",
+            18.9,
+            "40d 3h",
+            "lb,haproxy",
+        ),
+        (
+            "srv-lb-02",
+            "us-east",
+            "online",
+            17.2,
+            "40d 3h",
+            "lb,haproxy",
+        ),
+        (
+            "srv-search-01",
+            "eu-central",
+            "online",
+            48.3,
+            "22d 9h",
+            "search,elastic",
+        ),
+        (
+            "srv-search-02",
+            "eu-central",
+            "online",
+            46.7,
+            "22d 9h",
+            "search,elastic",
+        ),
+        (
+            "srv-metrics-01",
+            "us-west",
+            "online",
+            14.5,
+            "55d 2h",
+            "metrics,prometheus",
+        ),
+        (
+            "srv-backup-01",
+            "us-east",
+            "online",
+            6.2,
+            "90d 1h",
+            "backup,rsync",
+        ),
+        (
+            "srv-backup-02",
+            "eu-west",
+            "online",
+            5.8,
+            "90d 1h",
+            "backup,rsync",
+        ),
+        (
+            "srv-cdn-01",
+            "ap-northeast",
+            "online",
+            28.3,
+            "35d 6h",
+            "cdn,nginx",
+        ),
+        (
+            "srv-cdn-02",
+            "ap-northeast",
+            "online",
+            27.1,
+            "35d 6h",
+            "cdn,nginx",
+        ),
+        (
+            "srv-mail-01",
+            "us-west",
+            "online",
+            9.7,
+            "120d 4h",
+            "mail,postfix",
+        ),
+        (
+            "srv-dns-01",
+            "us-east",
+            "online",
+            3.2,
+            "150d 8h",
+            "dns,bind",
+        ),
+        (
+            "srv-dns-02",
+            "eu-west",
+            "online",
+            3.5,
+            "150d 8h",
+            "dns,bind",
+        ),
+        (
+            "srv-vpn-01",
+            "us-west",
+            "online",
+            11.4,
+            "80d 11h",
+            "vpn,wireguard",
+        ),
+        (
+            "srv-proxy-01",
+            "us-east",
+            "online",
+            24.6,
+            "50d 7h",
+            "proxy,squid",
+        ),
+        (
+            "srv-git-01",
+            "us-west",
+            "online",
+            19.8,
+            "65d 9h",
+            "git,gitlab",
+        ),
+        (
+            "srv-ci-01",
+            "us-west",
+            "online",
+            42.7,
+            "25d 5h",
+            "ci,jenkins",
+        ),
+        (
+            "srv-ci-02",
+            "us-west",
+            "warning",
+            68.9,
+            "25d 5h",
+            "ci,jenkins",
+        ),
+        (
+            "srv-log-01",
+            "us-east",
+            "online",
+            31.2,
+            "45d 3h",
+            "log,fluentd",
+        ),
+        (
+            "srv-log-02",
+            "eu-central",
+            "online",
+            29.8,
+            "45d 3h",
+            "log,fluentd",
+        ),
+        (
+            "srv-registry-01",
+            "us-west",
+            "online",
+            16.3,
+            "70d 2h",
+            "registry,harbor",
+        ),
+        (
+            "srv-vault-01",
+            "us-east",
+            "online",
+            7.9,
+            "100d 6h",
+            "vault,hashicorp",
+        ),
+        (
+            "srv-k8s-master-01",
+            "us-west",
+            "online",
+            54.2,
+            "20d 4h",
+            "k8s,master",
+        ),
+        (
+            "srv-k8s-node-01",
+            "us-west",
+            "online",
+            61.7,
+            "20d 4h",
+            "k8s,node",
+        ),
     ]
 }

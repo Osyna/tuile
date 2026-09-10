@@ -33,8 +33,16 @@ use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 pub enum OptionValue {
     Bool(bool),
     /// One of `options`, `index` selected.
-    Choice { options: Vec<String>, index: usize },
-    Int { value: i64, min: i64, max: i64, step: i64 },
+    Choice {
+        options: Vec<String>,
+        index: usize,
+    },
+    Int {
+        value: i64,
+        min: i64,
+        max: i64,
+        step: i64,
+    },
     /// Read-only text (the app edits it elsewhere; Enter reports `changed`).
     Text(String),
     /// A command; Enter reports `changed`.
@@ -46,7 +54,9 @@ impl OptionValue {
     pub fn display(&self) -> String {
         match self {
             OptionValue::Bool(b) => b.to_string(),
-            OptionValue::Choice { options, index } => options.get(*index).cloned().unwrap_or_default(),
+            OptionValue::Choice { options, index } => {
+                options.get(*index).cloned().unwrap_or_default()
+            }
             OptionValue::Int { value, .. } => value.to_string(),
             OptionValue::Text(t) => t.clone(),
             OptionValue::Action => String::new(),
@@ -65,7 +75,12 @@ impl OptionValue {
                 *index = ((*index as i64 + dir).rem_euclid(n)) as usize;
                 true
             }
-            OptionValue::Int { value, min, max, step } => {
+            OptionValue::Int {
+                value,
+                min,
+                max,
+                step,
+            } => {
                 let next = (*value + dir * *step).clamp(*min, *max);
                 let moved = next != *value;
                 *value = next;
@@ -89,16 +104,37 @@ pub struct OptionItem {
 
 impl OptionItem {
     pub fn new(key: &str, label: &str, value: OptionValue) -> Self {
-        Self { key: key.to_string(), label: label.to_string(), value, hint: None }
+        Self {
+            key: key.to_string(),
+            label: label.to_string(),
+            value,
+            hint: None,
+        }
     }
     pub fn bool(key: &str, label: &str, v: bool) -> Self {
         Self::new(key, label, OptionValue::Bool(v))
     }
     pub fn choice(key: &str, label: &str, options: &[&str], index: usize) -> Self {
-        Self::new(key, label, OptionValue::Choice { options: options.iter().map(|s| s.to_string()).collect(), index })
+        Self::new(
+            key,
+            label,
+            OptionValue::Choice {
+                options: options.iter().map(|s| s.to_string()).collect(),
+                index,
+            },
+        )
     }
     pub fn int(key: &str, label: &str, value: i64, min: i64, max: i64, step: i64) -> Self {
-        Self::new(key, label, OptionValue::Int { value, min, max, step: step.max(1) })
+        Self::new(
+            key,
+            label,
+            OptionValue::Int {
+                value,
+                min,
+                max,
+                step: step.max(1),
+            },
+        )
     }
     pub fn text(key: &str, label: &str, v: &str) -> Self {
         Self::new(key, label, OptionValue::Text(v.to_string()))
@@ -121,7 +157,10 @@ pub struct OptionGroup {
 
 impl OptionGroup {
     pub fn new(title: &str, items: Vec<OptionItem>) -> Self {
-        Self { title: title.to_string(), items }
+        Self {
+            title: title.to_string(),
+            items,
+        }
     }
 }
 
@@ -141,7 +180,10 @@ pub struct OptionListState {
 
 impl OptionListState {
     pub fn new(groups: Vec<OptionGroup>) -> Self {
-        Self { groups, ..Default::default() }
+        Self {
+            groups,
+            ..Default::default()
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -158,11 +200,19 @@ impl OptionListState {
     }
 
     pub fn get(&self, key: &str) -> Option<&OptionValue> {
-        self.groups.iter().flat_map(|g| &g.items).find(|i| i.key == key).map(|i| &i.value)
+        self.groups
+            .iter()
+            .flat_map(|g| &g.items)
+            .find(|i| i.key == key)
+            .map(|i| &i.value)
     }
 
     pub fn get_mut(&mut self, key: &str) -> Option<&mut OptionValue> {
-        self.groups.iter_mut().flat_map(|g| &mut g.items).find(|i| i.key == key).map(|i| &mut i.value)
+        self.groups
+            .iter_mut()
+            .flat_map(|g| &mut g.items)
+            .find(|i| i.key == key)
+            .map(|i| &mut i.value)
     }
 
     pub fn bool(&self, key: &str) -> Option<bool> {
@@ -236,7 +286,9 @@ impl OptionListState {
 
     fn step_value(&mut self, dir: i64) -> Outcome {
         let cursor = self.cursor;
-        let Some(item) = self.item_mut(cursor) else { return Outcome::Ignored };
+        let Some(item) = self.item_mut(cursor) else {
+            return Outcome::Ignored;
+        };
         if item.value.step(dir) {
             let key = item.key.clone();
             self.changed = Some(key);
@@ -271,7 +323,9 @@ impl Interactive for OptionListState {
             KeyCode::Home => self.move_cursor(i64::MIN / 2),
             KeyCode::End => self.move_cursor(i64::MAX / 2),
             KeyCode::Left | KeyCode::Char('h') => self.step_value(-1),
-            KeyCode::Right | KeyCode::Char('l') | KeyCode::Enter | KeyCode::Char(' ') => self.step_value(1),
+            KeyCode::Right | KeyCode::Char('l') | KeyCode::Enter | KeyCode::Char(' ') => {
+                self.step_value(1)
+            }
             _ => Outcome::Ignored,
         }
     }
@@ -287,7 +341,11 @@ impl Interactive for OptionListState {
             return Outcome::Consumed;
         }
         let pos = mouse_pos(&m);
-        let over = self.row_hits.iter().find(|(r, _)| r.contains(pos)).map(|&(_, i)| i);
+        let over = self
+            .row_hits
+            .iter()
+            .find(|(r, _)| r.contains(pos))
+            .map(|&(_, i)| i);
         let sb = self.scrollbar_state.handle_mouse(m);
         if sb.is_changed() {
             self.scroll = self.scrollbar_state.offset;
@@ -297,9 +355,16 @@ impl Interactive for OptionListState {
             Some(i) if is_left_down(&m) => {
                 let was = self.cursor;
                 self.cursor = i;
-                if was == i { self.step_value(1) } else { Outcome::Consumed }
+                if was == i {
+                    self.step_value(1)
+                } else {
+                    Outcome::Consumed
+                }
             }
-            Some(i) if i != self.cursor && matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Moved) => {
+            Some(i)
+                if i != self.cursor
+                    && matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Moved) =>
+            {
                 self.cursor = i;
                 Outcome::Consumed
             }
@@ -319,7 +384,12 @@ pub struct OptionList {
 
 impl OptionList {
     pub fn new() -> Self {
-        Self { focused: false, value_column: None, cursor_glyph: "❯", theme: None }
+        Self {
+            focused: false,
+            value_column: None,
+            cursor_glyph: "❯",
+            theme: None,
+        }
     }
 
     pub fn focused(mut self, v: bool) -> Self {
@@ -366,9 +436,16 @@ impl StatefulWidget for OptionList {
         let total = state.total_rows();
         let viewport = area.height as usize;
         state.rows_visible = viewport;
-        state.scroll = keep_visible(state.scroll, state.row_of_item(state.cursor), viewport).min(total.saturating_sub(viewport));
+        state.scroll = keep_visible(state.scroll, state.row_of_item(state.cursor), viewport)
+            .min(total.saturating_sub(viewport));
 
-        let label_w = state.groups.iter().flat_map(|g| &g.items).map(|i| i.label.width()).max().unwrap_or(0) as u16;
+        let label_w = state
+            .groups
+            .iter()
+            .flat_map(|g| &g.items)
+            .map(|i| i.label.width())
+            .max()
+            .unwrap_or(0) as u16;
         let value_x = area.x + self.value_column.unwrap_or(label_w + 4).min(area.width / 2);
         let has_sb = total > viewport;
         let right = area.right() - u16::from(has_sb);
@@ -379,13 +456,25 @@ impl StatefulWidget for OptionList {
             // header
             if row >= state.scroll && row < state.scroll + viewport {
                 let y = area.y + (row - state.scroll) as u16;
-                put(buf, area.x + 2, y, &g.title, right.saturating_sub(area.x + 2), st(th.text_primary, bg).add_modifier(Modifier::BOLD | Modifier::UNDERLINED));
+                put(
+                    buf,
+                    area.x + 2,
+                    y,
+                    &g.title,
+                    right.saturating_sub(area.x + 2),
+                    st(th.text_primary, bg).add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
+                );
             }
             row += 1;
             for item in &g.items {
                 if row >= state.scroll && row < state.scroll + viewport {
                     let y = area.y + (row - state.scroll) as u16;
-                    let line = Rect { x: area.x, y, width: right - area.x, height: 1 };
+                    let line = Rect {
+                        x: area.x,
+                        y,
+                        width: right - area.x,
+                        height: 1,
+                    };
                     let is_cursor = flat == state.cursor;
                     let (label_fg, value_fg) = if is_cursor && self.focused {
                         (th.text_primary, th.text_primary)
@@ -395,19 +484,54 @@ impl StatefulWidget for OptionList {
                         (th.text, th.text_muted)
                     };
                     if is_cursor {
-                        put(buf, area.x, y, self.cursor_glyph, 1, st(th.primary, bg).add_modifier(Modifier::BOLD));
+                        put(
+                            buf,
+                            area.x,
+                            y,
+                            self.cursor_glyph,
+                            1,
+                            st(th.primary, bg).add_modifier(Modifier::BOLD),
+                        );
                     }
-                    let label_style = if is_cursor { st(label_fg, bg).add_modifier(Modifier::BOLD) } else { st(label_fg, bg) };
-                    put(buf, area.x + 2, y, &truncate(&item.label, value_x.saturating_sub(area.x + 3) as usize), value_x.saturating_sub(area.x + 3), label_style);
+                    let label_style = if is_cursor {
+                        st(label_fg, bg).add_modifier(Modifier::BOLD)
+                    } else {
+                        st(label_fg, bg)
+                    };
+                    put(
+                        buf,
+                        area.x + 2,
+                        y,
+                        &truncate(&item.label, value_x.saturating_sub(area.x + 3) as usize),
+                        value_x.saturating_sub(area.x + 3),
+                        label_style,
+                    );
                     let value = item.value.display();
                     let mut vx = value_x;
                     if !value.is_empty() {
-                        vx += put(buf, value_x, y, &truncate(&value, right.saturating_sub(value_x) as usize), right.saturating_sub(value_x), st(value_fg, bg));
+                        vx += put(
+                            buf,
+                            value_x,
+                            y,
+                            &truncate(&value, right.saturating_sub(value_x) as usize),
+                            right.saturating_sub(value_x),
+                            st(value_fg, bg),
+                        );
                     }
                     if let (true, Some(h)) = (is_cursor, &item.hint) {
-                        let slot = Rect { x: vx + 2, y, width: right.saturating_sub(vx + 2), height: 1 };
+                        let slot = Rect {
+                            x: vx + 2,
+                            y,
+                            width: right.saturating_sub(vx + 2),
+                            height: 1,
+                        };
                         if slot.width > 4 {
-                            put_right(buf, slot, &truncate(h, slot.width as usize), st(th.text_muted, bg));
+                            put_right(
+                                buf,
+                                slot,
+                                &truncate(h, slot.width as usize),
+                                st(th.text_muted, bg),
+                            );
                         }
                     }
                     state.row_hits.push((line, flat));
@@ -418,8 +542,15 @@ impl StatefulWidget for OptionList {
         }
 
         if has_sb {
-            let sb = Rect { x: area.right() - 1, width: 1, ..area };
-            Scrollbar::vertical(total, viewport).offset(state.scroll).theme(&th).render(sb, buf, &mut state.scrollbar_state);
+            let sb = Rect {
+                x: area.right() - 1,
+                width: 1,
+                ..area
+            };
+            Scrollbar::vertical(total, viewport)
+                .offset(state.scroll)
+                .theme(&th)
+                .render(sb, buf, &mut state.scrollbar_state);
         }
     }
 }
@@ -430,7 +561,13 @@ mod tests {
 
     fn state() -> OptionListState {
         OptionListState::new(vec![
-            OptionGroup::new("A", vec![OptionItem::choice("shape", "Shape", &["field", "bars", "rule"], 0), OptionItem::bool("on", "On", false)]),
+            OptionGroup::new(
+                "A",
+                vec![
+                    OptionItem::choice("shape", "Shape", &["field", "bars", "rule"], 0),
+                    OptionItem::bool("on", "On", false),
+                ],
+            ),
             OptionGroup::new("B", vec![OptionItem::int("fps", "FPS", 60, 15, 60, 15)]),
         ])
     }
@@ -456,7 +593,10 @@ mod tests {
         assert_eq!(s.take_changed().as_deref(), Some("shape"));
         assert_eq!(s.take_changed(), None);
         s.cursor = 2;
-        assert!(s.handle_key(KeyEvent::from(KeyCode::Right)).is_consumed(), "already at max: no change");
+        assert!(
+            s.handle_key(KeyEvent::from(KeyCode::Right)).is_consumed(),
+            "already at max: no change"
+        );
         assert!(s.handle_key(KeyEvent::from(KeyCode::Left)).is_changed());
         assert_eq!(s.int("fps"), Some(45));
     }
@@ -465,7 +605,9 @@ mod tests {
     fn renders_cursor_and_values() {
         let mut s = state();
         let mut buf = Buffer::empty(Rect::new(0, 0, 40, 6));
-        OptionList::new().focused(true).render(buf.area, &mut buf, &mut s);
+        OptionList::new()
+            .focused(true)
+            .render(buf.area, &mut buf, &mut s);
         assert_eq!(buf[(0, 1)].symbol(), "❯");
         let row: String = (0..40).map(|x| buf[(x, 1)].symbol().to_string()).collect();
         assert!(row.contains("Shape") && row.contains("field"), "{row}");

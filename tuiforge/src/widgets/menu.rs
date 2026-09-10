@@ -14,12 +14,12 @@
 //! ```
 
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind, MouseButton};
+use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::{Position, Rect};
 use ratatui::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
-use crate::core::{is_press, mouse_pos, Interactive, Outcome};
+use crate::core::{Interactive, Outcome, is_press, mouse_pos};
 use crate::draw::{Border, fill, put, st};
 use crate::layout::popup_below;
 use crate::theme::{self, Theme};
@@ -186,12 +186,26 @@ impl MenuBarState {
 
         // main dropdown
         if self.dropdown_area.width > 0 && self.dropdown_area.height > 0 {
-            render_dropdown(buf, self.dropdown_area, &self.item_hits, self.highlight, self.sub_open, &th);
+            render_dropdown(
+                buf,
+                self.dropdown_area,
+                &self.item_hits,
+                self.highlight,
+                self.sub_open,
+                &th,
+            );
         }
 
         // submenu dropdown
         if self.sub_open.is_some() && self.sub_area.width > 0 && self.sub_area.height > 0 {
-            render_dropdown(buf, self.sub_area, &self.sub_hits, self.sub_highlight, None, &th);
+            render_dropdown(
+                buf,
+                self.sub_area,
+                &self.sub_hits,
+                self.sub_highlight,
+                None,
+                &th,
+            );
         }
     }
 }
@@ -228,7 +242,8 @@ impl Interactive for MenuBarState {
             }
             KeyCode::Up => {
                 if self.sub_open.is_some() {
-                    self.sub_highlight = self.sub_highlight.map(|h| h.saturating_sub(1)).or(Some(0));
+                    self.sub_highlight =
+                        self.sub_highlight.map(|h| h.saturating_sub(1)).or(Some(0));
                 } else {
                     self.highlight = self.highlight.map(|h| h.saturating_sub(1)).or(Some(0));
                 }
@@ -246,11 +261,12 @@ impl Interactive for MenuBarState {
                 // activate highlighted item
                 if self.sub_open.is_some() {
                     if let Some(h) = self.sub_highlight
-                        && let Some((id, _)) = self.sub_hits.get(h) {
-                            self.action = Some(*id);
-                            self.close();
-                            return Outcome::Changed;
-                        }
+                        && let Some((id, _)) = self.sub_hits.get(h)
+                    {
+                        self.action = Some(*id);
+                        self.close();
+                        return Outcome::Changed;
+                    }
                 } else {
                     if let Some(h) = self.highlight {
                         // check if submenu
@@ -314,11 +330,13 @@ impl Interactive for MenuBarState {
             }
 
             // click outside closes
-            if !self.dropdown_area.contains(pos) && !self.sub_area.contains(pos)
-                && self.open.is_some() {
-                    self.close();
-                    return Outcome::Changed;
-                }
+            if !self.dropdown_area.contains(pos)
+                && !self.sub_area.contains(pos)
+                && self.open.is_some()
+            {
+                self.close();
+                return Outcome::Changed;
+            }
         }
 
         // hover dropdown items
@@ -359,11 +377,12 @@ impl Interactive for MenuBarState {
                         return Outcome::Changed;
                     }
                 } else if let Some(h) = self.highlight
-                    && let Some((id, _)) = self.item_hits.get(h) {
-                        self.action = Some(*id);
-                        self.close();
-                        return Outcome::Changed;
-                    }
+                    && let Some((id, _)) = self.item_hits.get(h)
+                {
+                    self.action = Some(*id);
+                    self.close();
+                    return Outcome::Changed;
+                }
             }
         }
 
@@ -416,7 +435,13 @@ impl StatefulWidget for MenuBar {
     }
 }
 
-fn compute_dropdown(menu: &MenuDef, anchor: Rect, state: &mut MenuBarState, _th: &Theme, bounds: Rect) {
+fn compute_dropdown(
+    menu: &MenuDef,
+    anchor: Rect,
+    state: &mut MenuBarState,
+    _th: &Theme,
+    bounds: Rect,
+) {
     state.item_hits.clear();
     state.sub_hits.clear();
 
@@ -425,7 +450,9 @@ fn compute_dropdown(menu: &MenuDef, anchor: Rect, state: &mut MenuBarState, _th:
     let mut h = 0u16;
     for item in &menu.items {
         match item {
-            MenuItem::Action { label, shortcut, .. } => {
+            MenuItem::Action {
+                label, shortcut, ..
+            } => {
                 let mut w = label.width() as u16 + 4; // "  label "
                 if shortcut.is_some() {
                     w += 10;
@@ -457,7 +484,9 @@ fn compute_dropdown(menu: &MenuDef, anchor: Rect, state: &mut MenuBarState, _th:
             let mut sub_h = 0u16;
             for item in items {
                 match item {
-                    MenuItem::Action { label, shortcut, .. } => {
+                    MenuItem::Action {
+                        label, shortcut, ..
+                    } => {
                         let mut w = label.width() as u16 + 4;
                         if shortcut.is_some() {
                             w += 10;
@@ -478,7 +507,12 @@ fn compute_dropdown(menu: &MenuDef, anchor: Rect, state: &mut MenuBarState, _th:
             let sub_rect = if dropdown.right() + sub_w <= bounds.right() {
                 Rect::new(dropdown.right(), dropdown.y + sub_idx as u16, sub_w, sub_h)
             } else {
-                Rect::new(dropdown.x.saturating_sub(sub_w), dropdown.y + sub_idx as u16, sub_w, sub_h)
+                Rect::new(
+                    dropdown.x.saturating_sub(sub_w),
+                    dropdown.y + sub_idx as u16,
+                    sub_w,
+                    sub_h,
+                )
             };
             state.sub_area = sub_rect;
         }
@@ -487,7 +521,14 @@ fn compute_dropdown(menu: &MenuDef, anchor: Rect, state: &mut MenuBarState, _th:
     }
 }
 
-fn render_dropdown(buf: &mut Buffer, area: Rect, hits: &[(usize, Rect)], highlight: Option<usize>, sub_open: Option<usize>, th: &Theme) {
+fn render_dropdown(
+    buf: &mut Buffer,
+    area: Rect,
+    hits: &[(usize, Rect)],
+    highlight: Option<usize>,
+    sub_open: Option<usize>,
+    th: &Theme,
+) {
     if area.width < 2 || area.height < 2 {
         return;
     }
@@ -613,11 +654,12 @@ impl Interactive for ContextMenuState {
             }
             KeyCode::Enter | KeyCode::Char(' ') => {
                 if let Some(h) = self.highlight
-                    && let Some((id, _)) = self.hits.get(h) {
-                        self.action = Some(*id);
-                        self.close();
-                        return Outcome::Changed;
-                    }
+                    && let Some((id, _)) = self.hits.get(h)
+                {
+                    self.action = Some(*id);
+                    self.close();
+                    return Outcome::Changed;
+                }
             }
             KeyCode::Esc => {
                 self.close();
@@ -685,7 +727,9 @@ impl StatefulWidget for ContextMenu {
         let mut h = 0u16;
         for item in &self.items {
             match item {
-                MenuItem::Action { label, shortcut, .. } => {
+                MenuItem::Action {
+                    label, shortcut, ..
+                } => {
                     let mut w = label.width() as u16 + 4;
                     if shortcut.is_some() {
                         w += 10;
@@ -716,7 +760,9 @@ impl StatefulWidget for ContextMenu {
         for (i, item) in self.items.iter().enumerate() {
             match item {
                 MenuItem::Action { .. } => {
-                    state.hits.push((i, Rect::new(menu_rect.x, y, menu_rect.width, 1)));
+                    state
+                        .hits
+                        .push((i, Rect::new(menu_rect.x, y, menu_rect.width, 1)));
                     y += 1;
                 }
                 MenuItem::Separator => {
@@ -751,9 +797,18 @@ mod tests {
 
     #[test]
     fn menu_item_builder() {
-        let item = MenuItem::action(1, "Save").shortcut("^S").checked(true).disabled(false);
+        let item = MenuItem::action(1, "Save")
+            .shortcut("^S")
+            .checked(true)
+            .disabled(false);
         match item {
-            MenuItem::Action { id, label, shortcut, checked, disabled } => {
+            MenuItem::Action {
+                id,
+                label,
+                shortcut,
+                checked,
+                disabled,
+            } => {
                 assert_eq!(id, 1);
                 assert_eq!(label, "Save");
                 assert_eq!(shortcut, Some("^S".to_string()));

@@ -272,7 +272,9 @@ impl InputState {
     }
 
     fn save_history(&mut self) {
-        if !self.value.is_empty() && (self.history.is_empty() || self.history.last() != Some(&self.value)) {
+        if !self.value.is_empty()
+            && (self.history.is_empty() || self.history.last() != Some(&self.value))
+        {
             self.history.push(self.value.clone());
             if self.history.len() > 50 {
                 self.history.remove(0);
@@ -286,7 +288,9 @@ impl InputState {
             InputRestrict::None => true,
             InputRestrict::Digits => c.is_ascii_digit(),
             InputRestrict::Integer => c.is_ascii_digit() || (c == '-' && self.cursor == 0),
-            InputRestrict::Number => c.is_ascii_digit() || c == '.' || c == '-' || c == '+' || c == 'e' || c == 'E',
+            InputRestrict::Number => {
+                c.is_ascii_digit() || c == '.' || c == '-' || c == '+' || c == 'e' || c == 'E'
+            }
             InputRestrict::Alpha => c.is_alphabetic(),
             InputRestrict::Alnum => c.is_alphanumeric(),
             InputRestrict::Custom => {
@@ -324,7 +328,12 @@ impl InputState {
         if let Some((a, b)) = self.selection {
             let (start, end) = if a < b { (a, b) } else { (b, a) };
             let graphemes = self.graphemes();
-            self.value = graphemes.iter().enumerate().filter(|(i, _)| *i < start || *i >= end).map(|(_, g)| *g).collect();
+            self.value = graphemes
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| *i < start || *i >= end)
+                .map(|(_, g)| *g)
+                .collect();
             self.cursor = start;
             self.selection = None;
             self.last_edit = Instant::now();
@@ -342,7 +351,12 @@ impl InputState {
             return;
         }
         let graphemes = self.graphemes();
-        self.value = graphemes.iter().enumerate().filter(|(i, _)| *i != self.cursor - 1).map(|(_, g)| *g).collect();
+        self.value = graphemes
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| *i != self.cursor - 1)
+            .map(|(_, g)| *g)
+            .collect();
         self.cursor = self.cursor.saturating_sub(1);
         self.last_edit = Instant::now();
         self.validate();
@@ -356,7 +370,12 @@ impl InputState {
         if self.cursor >= graphemes.len() {
             return;
         }
-        self.value = graphemes.iter().enumerate().filter(|(i, _)| *i != self.cursor).map(|(_, g)| *g).collect();
+        self.value = graphemes
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| *i != self.cursor)
+            .map(|(_, g)| *g)
+            .collect();
         self.last_edit = Instant::now();
         self.validate();
     }
@@ -393,7 +412,11 @@ impl InputState {
             while i > 0 && graphemes[i].chars().all(|c| !c.is_alphanumeric()) {
                 i = i.saturating_sub(1);
             }
-            while i > 0 && graphemes[i.saturating_sub(1)].chars().all(|c| c.is_alphanumeric()) {
+            while i > 0
+                && graphemes[i.saturating_sub(1)]
+                    .chars()
+                    .all(|c| c.is_alphanumeric())
+            {
                 i = i.saturating_sub(1);
             }
             i
@@ -402,13 +425,14 @@ impl InputState {
 
     fn accept_suggestion(&mut self) -> bool {
         if let Some(sg) = self.suggester
-            && let Some(suggestion) = sg(&self.value) {
-                self.value.push_str(&suggestion);
-                self.cursor = self.value.graphemes(true).count();
-                self.last_edit = Instant::now();
-                self.validate();
-                return true;
-            }
+            && let Some(suggestion) = sg(&self.value)
+        {
+            self.value.push_str(&suggestion);
+            self.cursor = self.value.graphemes(true).count();
+            self.last_edit = Instant::now();
+            self.validate();
+            return true;
+        }
         false
     }
 }
@@ -462,10 +486,13 @@ impl Interactive for InputState {
             }
             KeyCode::Right if !shift || self.selection.is_some() => {
                 // Accept suggestion only at end with no selection
-                if !shift && self.cursor == self.value.graphemes(true).count() && self.selection.is_none()
-                    && self.accept_suggestion() {
-                        return Outcome::Changed;
-                    }
+                if !shift
+                    && self.cursor == self.value.graphemes(true).count()
+                    && self.selection.is_none()
+                    && self.accept_suggestion()
+                {
+                    return Outcome::Changed;
+                }
                 self.move_cursor(1, shift);
                 return Outcome::Consumed;
             }
@@ -536,7 +563,11 @@ impl Interactive for InputState {
             for c in text.chars() {
                 self.insert_char(c);
             }
-            return if text.is_empty() { Outcome::Consumed } else { Outcome::Changed };
+            return if text.is_empty() {
+                Outcome::Consumed
+            } else {
+                Outcome::Changed
+            };
         }
         if ctrl(&k, 'z') {
             if let Some(prev) = self.history.pop() {
@@ -582,9 +613,10 @@ impl Interactive for InputState {
 
         // Typing
         if let Some(c) = plain_char(&k)
-            && self.insert_char(c) {
-                return Outcome::Changed;
-            }
+            && self.insert_char(c)
+        {
+            return Outcome::Changed;
+        }
 
         Outcome::Ignored
     }
@@ -617,7 +649,11 @@ impl StatefulWidget for Input {
         state.validate();
 
         let th = self.theme.unwrap_or_else(theme::current);
-        let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
+        let look = Look {
+            focused: self.focused,
+            hover: state.hit.hover,
+            enabled: self.enabled,
+        };
         let now = self.now.unwrap_or_else(Instant::now);
         let cursor_visible = blink(elapsed(state.last_edit, now), 1.0);
 
@@ -627,30 +663,71 @@ impl StatefulWidget for Input {
             if area.width < 2 || area.height == 0 {
                 return;
             }
-            let bg = if look.focused { th.focus_bg() } else { th.surface };
+            let bg = if look.focused {
+                th.focus_bg()
+            } else {
+                th.surface
+            };
             fill(buf, area, bg);
-            let _fg = if look.enabled { th.text } else { th.text_disabled };
-            
+            let _fg = if look.enabled {
+                th.text
+            } else {
+                th.text_disabled
+            };
+
             let prefix_w = self.prefix.width() as u16;
             let suffix_w = self.suffix.width() as u16;
             let text_w = area.width.saturating_sub(prefix_w + suffix_w);
-            
+
             if prefix_w > 0 {
-                put(buf, area.x, area.y, &self.prefix, prefix_w, st(th.text_muted, bg));
+                put(
+                    buf,
+                    area.x,
+                    area.y,
+                    &self.prefix,
+                    prefix_w,
+                    st(th.text_muted, bg),
+                );
             }
             if suffix_w > 0 {
-                put(buf, area.right().saturating_sub(suffix_w), area.y, &self.suffix, suffix_w, st(th.text_muted, bg));
+                put(
+                    buf,
+                    area.right().saturating_sub(suffix_w),
+                    area.y,
+                    &self.suffix,
+                    suffix_w,
+                    st(th.text_muted, bg),
+                );
             }
-            
+
             let text_x = area.x + prefix_w;
             if state.value.is_empty() {
-                put(buf, text_x, area.y, &self.placeholder, text_w, st(th.text_muted, bg));
-                if look.focused && cursor_visible
-                    && let Some(cell) = buf.cell_mut((text_x, area.y)) {
-                        cell.set_style(st(th.cursor_fg, th.cursor_bg));
-                    }
+                put(
+                    buf,
+                    text_x,
+                    area.y,
+                    &self.placeholder,
+                    text_w,
+                    st(th.text_muted, bg),
+                );
+                if look.focused
+                    && cursor_visible
+                    && let Some(cell) = buf.cell_mut((text_x, area.y))
+                {
+                    cell.set_style(st(th.cursor_fg, th.cursor_bg));
+                }
             } else {
-                render_text(buf, text_x, area.y, text_w as usize, state, &th, cursor_visible, self.password, look.focused);
+                render_text(
+                    buf,
+                    text_x,
+                    area.y,
+                    text_w as usize,
+                    state,
+                    &th,
+                    cursor_visible,
+                    self.password,
+                    look.focused,
+                );
             }
             return;
         }
@@ -663,13 +740,33 @@ impl StatefulWidget for Input {
         }
 
         state.hit.set_area(area);
-        let bg = if look.focused { th.focus_bg() } else { th.surface };
+        let bg = if look.focused {
+            th.focus_bg()
+        } else {
+            th.surface
+        };
         fill(buf, area, bg);
 
-        let border = if state.error.is_some() { th.error } else if look.focused { th.border } else { th.border_blurred };
-        let frame = Rect { height: 1 + chrome, ..area };
-        let extra = u16::from(matches!(self.shape, FieldShape::Tall(_) | FieldShape::Round));
-        let inner = pad(self.shape.draw(buf, frame, border, bg), self.shape.padding() + extra, 0);
+        let border = if state.error.is_some() {
+            th.error
+        } else if look.focused {
+            th.border
+        } else {
+            th.border_blurred
+        };
+        let frame = Rect {
+            height: 1 + chrome,
+            ..area
+        };
+        let extra = u16::from(matches!(
+            self.shape,
+            FieldShape::Tall(_) | FieldShape::Round
+        ));
+        let inner = pad(
+            self.shape.draw(buf, frame, border, bg),
+            self.shape.padding() + extra,
+            0,
+        );
         if inner.width == 0 {
             return;
         }
@@ -679,50 +776,119 @@ impl StatefulWidget for Input {
         let text_w = inner.width.saturating_sub(prefix_w + suffix_w);
 
         if prefix_w > 0 {
-            put(buf, inner.x, inner.y, &self.prefix, prefix_w, st(th.text_muted, bg));
+            put(
+                buf,
+                inner.x,
+                inner.y,
+                &self.prefix,
+                prefix_w,
+                st(th.text_muted, bg),
+            );
         }
         if suffix_w > 0 {
-            put(buf, inner.right().saturating_sub(suffix_w), inner.y, &self.suffix, suffix_w, st(th.text_muted, bg));
+            put(
+                buf,
+                inner.right().saturating_sub(suffix_w),
+                inner.y,
+                &self.suffix,
+                suffix_w,
+                st(th.text_muted, bg),
+            );
         }
 
         let text_x = inner.x + prefix_w;
-        let _fg = if look.enabled { th.text } else { th.text_disabled };
+        let _fg = if look.enabled {
+            th.text
+        } else {
+            th.text_disabled
+        };
 
         if state.value.is_empty() {
-            put(buf, text_x, inner.y, &self.placeholder, text_w, st(th.text_muted, bg));
-            if look.focused && cursor_visible
-                && let Some(cell) = buf.cell_mut((text_x, inner.y)) {
-                    cell.set_style(st(th.cursor_fg, th.cursor_bg));
-                }
+            put(
+                buf,
+                text_x,
+                inner.y,
+                &self.placeholder,
+                text_w,
+                st(th.text_muted, bg),
+            );
+            if look.focused
+                && cursor_visible
+                && let Some(cell) = buf.cell_mut((text_x, inner.y))
+            {
+                cell.set_style(st(th.cursor_fg, th.cursor_bg));
+            }
         } else {
-            render_text(buf, text_x, inner.y, text_w as usize, state, &th, cursor_visible, self.password, look.focused);
+            render_text(
+                buf,
+                text_x,
+                inner.y,
+                text_w as usize,
+                state,
+                &th,
+                cursor_visible,
+                self.password,
+                look.focused,
+            );
         }
 
         // Error message below
         if self.show_error
             && let Some(err) = &state.error
-                && area.height > 3 {
-                    put(buf, area.x + 3, area.bottom().saturating_sub(1), err, area.width.saturating_sub(6), st(th.error, th.background));
-                }
+            && area.height > 3
+        {
+            put(
+                buf,
+                area.x + 3,
+                area.bottom().saturating_sub(1),
+                err,
+                area.width.saturating_sub(6),
+                st(th.error, th.background),
+            );
+        }
 
         // Ghost suggestion (never over the placeholder)
-        if look.focused && !state.value.is_empty() && state.selection.is_none() && state.cursor == state.value.graphemes(true).count()
+        if look.focused
+            && !state.value.is_empty()
+            && state.selection.is_none()
+            && state.cursor == state.value.graphemes(true).count()
             && let Some(sg) = state.suggester
-                && let Some(suggestion) = sg(&state.value) {
-                    let graphemes = state.value.graphemes(true);
-                    let cursor_col: usize = graphemes.map(|g| g.width()).sum();
-                    let offset = state.scroll;
-                    if cursor_col >= offset && cursor_col - offset < text_w as usize {
-                        let ghost_x = text_x + (cursor_col - offset) as u16;
-                        put(buf, ghost_x, inner.y, &suggestion, text_w.saturating_sub((cursor_col - offset) as u16), st(th.text_disabled, bg));
-                    }
-                }
+            && let Some(suggestion) = sg(&state.value)
+        {
+            let graphemes = state.value.graphemes(true);
+            let cursor_col: usize = graphemes.map(|g| g.width()).sum();
+            let offset = state.scroll;
+            if cursor_col >= offset && cursor_col - offset < text_w as usize {
+                let ghost_x = text_x + (cursor_col - offset) as u16;
+                put(
+                    buf,
+                    ghost_x,
+                    inner.y,
+                    &suggestion,
+                    text_w.saturating_sub((cursor_col - offset) as u16),
+                    st(th.text_disabled, bg),
+                );
+            }
+        }
     }
 }
 
-fn render_text(buf: &mut Buffer, x: u16, y: u16, max_w: usize, state: &mut InputState, th: &Theme, cursor_visible: bool, password: bool, focused: bool) {
+fn render_text(
+    buf: &mut Buffer,
+    x: u16,
+    y: u16,
+    max_w: usize,
+    state: &mut InputState,
+    th: &Theme,
+    cursor_visible: bool,
+    password: bool,
+    focused: bool,
+) {
     let graphemes: Vec<&str> = state.value.graphemes(true).collect();
-    let widths: Vec<usize> = graphemes.iter().map(|g| if password { 1 } else { g.width() }).collect();
+    let widths: Vec<usize> = graphemes
+        .iter()
+        .map(|g| if password { 1 } else { g.width() })
+        .collect();
     let _total: usize = widths.iter().sum();
     let cursor_col: usize = widths.iter().take(state.cursor).sum();
 
@@ -777,11 +943,14 @@ fn render_text(buf: &mut Buffer, x: u16, y: u16, max_w: usize, state: &mut Input
     // Cursor past end
     if focused && cursor_visible && state.cursor >= graphemes.len() {
         let cursor_col: usize = widths.iter().sum();
-        if cursor_col >= state.scroll && cursor_col < state.scroll + max_w && px < x + max_w as u16
-            && let Some(cell) = buf.cell_mut((px, y)) {
-                cell.set_symbol(" ");
-                cell.set_style(st(th.cursor_fg, th.cursor_bg));
-            }
+        if cursor_col >= state.scroll
+            && cursor_col < state.scroll + max_w
+            && px < x + max_w as u16
+            && let Some(cell) = buf.cell_mut((px, y))
+        {
+            cell.set_symbol(" ");
+            cell.set_style(st(th.cursor_fg, th.cursor_bg));
+        }
     }
 }
 

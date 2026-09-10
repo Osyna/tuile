@@ -4,10 +4,10 @@ use std::time::Instant;
 
 use tuiforge::draw::{Border, fill, put, st};
 
-use tuiforge::prelude::*;
-use tuiforge::layout::stack;
-use tuiforge::runtime::local_ymd;
 use tuiforge::anim::elapsed;
+use tuiforge::layout::stack;
+use tuiforge::prelude::*;
+use tuiforge::runtime::local_ymd;
 
 use crate::pages::{Ctx, Page};
 
@@ -37,7 +37,15 @@ pub struct ContentPage {
 impl ContentPage {
     fn new() -> Self {
         let mut page = Self {
-            focus: Focus::new([Id::Markdown, Id::Log, Id::Calendar, Id::DatePicker, Id::ColorPicker, Id::Swatches, Id::Steps]),
+            focus: Focus::new([
+                Id::Markdown,
+                Id::Log,
+                Id::Calendar,
+                Id::DatePicker,
+                Id::ColorPicker,
+                Id::Swatches,
+                Id::Steps,
+            ]),
             markdown: MarkdownState::default(),
             log: LogViewState::default(),
             calendar: CalendarState::default(),
@@ -50,10 +58,14 @@ impl ContentPage {
 
         // Pre-populate log
         page.log.push(LogLevel::Info, "Application started");
-        page.log.push(LogLevel::Success, "Configuration loaded successfully");
-        page.log.push(LogLevel::Debug, "Database connection established");
-        page.log.push(LogLevel::Warn, "Cache size approaching limit");
-        page.log.push(LogLevel::Error, "Failed to fetch remote data");
+        page.log
+            .push(LogLevel::Success, "Configuration loaded successfully");
+        page.log
+            .push(LogLevel::Debug, "Database connection established");
+        page.log
+            .push(LogLevel::Warn, "Cache size approaching limit");
+        page.log
+            .push(LogLevel::Error, "Failed to fetch remote data");
         page.log.set_level_column(true);
         page.log.max_lines = Some(100);
 
@@ -90,7 +102,14 @@ impl Page for ContentPage {
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
         if area.width < 80 || area.height < 20 {
             fill(buf, area, ctx.theme.surface);
-            put(buf, area.x + 2, area.y + 2, "Content page requires at least 80×20", 50, st(ctx.theme.text_muted, ctx.theme.surface));
+            put(
+                buf,
+                area.x + 2,
+                area.y + 2,
+                "Content page requires at least 80×20",
+                50,
+                st(ctx.theme.text_muted, ctx.theme.surface),
+            );
             return;
         }
 
@@ -98,29 +117,44 @@ impl Page for ContentPage {
 
         // Two columns
         let split_x = area.width / 2;
-        let left = Rect { x: area.x, y: area.y, width: split_x.saturating_sub(1), height: area.height };
-        let right = Rect { x: area.x + split_x, y: area.y, width: area.width.saturating_sub(split_x), height: area.height };
+        let left = Rect {
+            x: area.x,
+            y: area.y,
+            width: split_x.saturating_sub(1),
+            height: area.height,
+        };
+        let right = Rect {
+            x: area.x + split_x,
+            y: area.y,
+            width: area.width.saturating_sub(split_x),
+            height: area.height,
+        };
 
         self.draw_left(left, buf, ctx);
         self.draw_right(right, buf, ctx);
 
         // Overlay (datepicker calendar)
         if self.datepicker.open {
-            DatePicker::new().focused(self.focus.is(Id::DatePicker)).theme(&ctx.theme).render_overlay(&mut self.datepicker, buf, area);
+            DatePicker::new()
+                .focused(self.focus.is(Id::DatePicker))
+                .theme(&ctx.theme)
+                .render_overlay(&mut self.datepicker, buf, area);
         }
     }
 
     fn event(&mut self, ev: &Event, ctx: &mut Ctx) -> Outcome {
         // Tab cycles focus
         if let Event::Key(k) = ev
-            && is_press(k) && k.code == KeyCode::Tab {
-                if k.modifiers.contains(KeyModifiers::SHIFT) {
-                    self.focus.prev();
-                } else {
-                    self.focus.next();
-                }
-                return Outcome::Consumed;
+            && is_press(k)
+            && k.code == KeyCode::Tab
+        {
+            if k.modifiers.contains(KeyModifiers::SHIFT) {
+                self.focus.prev();
+            } else {
+                self.focus.next();
             }
+            return Outcome::Consumed;
+        }
 
         // Route to focused widget
         let mut out = Outcome::Ignored;
@@ -143,9 +177,13 @@ impl Page for ContentPage {
                 if let Event::Key(k) = ev {
                     out = self.calendar.handle_key(*k);
                     if out.is_changed()
-                        && let Some((y, m, d)) = self.calendar.selected {
-                            ctx.notify(format!("Selected {}-{:02}-{:02}", y, m, d), Variant::Success);
-                        }
+                        && let Some((y, m, d)) = self.calendar.selected
+                    {
+                        ctx.notify(
+                            format!("Selected {}-{:02}-{:02}", y, m, d),
+                            Variant::Success,
+                        );
+                    }
                 } else if let Event::Mouse(m) = ev {
                     out = self.calendar.handle_mouse(*m);
                 }
@@ -154,9 +192,13 @@ impl Page for ContentPage {
                 if let Event::Key(k) = ev {
                     out = self.datepicker.handle_key(*k);
                     if out.is_changed()
-                        && let Some((y, m, d)) = self.datepicker.selected() {
-                            ctx.notify(format!("DatePicker: {}-{:02}-{:02}", y, m, d), Variant::Primary);
-                        }
+                        && let Some((y, m, d)) = self.datepicker.selected()
+                    {
+                        ctx.notify(
+                            format!("DatePicker: {}-{:02}-{:02}", y, m, d),
+                            Variant::Primary,
+                        );
+                    }
                 }
             }
             Some(Id::ColorPicker) => {
@@ -164,7 +206,10 @@ impl Page for ContentPage {
                     out = self.colorpicker.handle_key(*k);
                     if out.is_changed() {
                         let rgb = self.colorpicker.value();
-                        ctx.notify(format!("Color: #{:02X}{:02X}{:02X}", rgb.0, rgb.1, rgb.2), Variant::Accent);
+                        ctx.notify(
+                            format!("Color: #{:02X}{:02X}{:02X}", rgb.0, rgb.1, rgb.2),
+                            Variant::Accent,
+                        );
                     }
                 } else if let Event::Mouse(m) = ev {
                     out = self.colorpicker.handle_mouse(*m);
@@ -174,9 +219,10 @@ impl Page for ContentPage {
                 if let Event::Key(k) = ev {
                     out = self.swatches.handle_key(*k);
                     if out.is_changed()
-                        && let Some(idx) = self.swatches.selected {
-                            ctx.notify(format!("Swatch {}", idx), Variant::Secondary);
-                        }
+                        && let Some(idx) = self.swatches.selected
+                    {
+                        ctx.notify(format!("Swatch {}", idx), Variant::Secondary);
+                    }
                 } else if let Event::Mouse(m) = ev {
                     out = self.swatches.handle_mouse(*m);
                 }
@@ -206,9 +252,13 @@ impl Page for ContentPage {
                     self.focus.set(Id::DatePicker);
                 }
                 if dp.is_changed()
-                    && let Some((y, m, d)) = self.datepicker.selected() {
-                        ctx.notify(format!("DatePicker: {}-{:02}-{:02}", y, m, d), Variant::Primary);
-                    }
+                    && let Some((y, m, d)) = self.datepicker.selected()
+                {
+                    ctx.notify(
+                        format!("DatePicker: {}-{:02}-{:02}", y, m, d),
+                        Variant::Primary,
+                    );
+                }
                 out |= dp;
             }
             self.colorpicker.handle_mouse(*m);
@@ -249,7 +299,11 @@ impl ContentPage {
 
         // Rule
         if let Some(rule_area) = sections.get(2) {
-            Rule::horizontal().style(RuleStyle::Solid).title("Divider").theme(&ctx.theme).render(*rule_area, buf);
+            Rule::horizontal()
+                .style(RuleStyle::Solid)
+                .title("Divider")
+                .theme(&ctx.theme)
+                .render(*rule_area, buf);
         }
 
         // Stat cards
@@ -279,8 +333,13 @@ impl ContentPage {
         // Steps horizontal
         if let Some(steps_area) = sections.get(3) {
             let inner = Border::Round.draw_titled_with(
-                buf, *steps_area, ctx.theme.border_blurred, ctx.theme.background, "Steps", Alignment::Left,
-                st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD)
+                buf,
+                *steps_area,
+                ctx.theme.border_blurred,
+                ctx.theme.background,
+                "Steps",
+                Alignment::Left,
+                st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD),
             );
             Steps::new(&["Init", "Build", "Test", "Deploy"])
                 .active(2)
@@ -336,42 +395,114 @@ fn main() {
         let _focused = self.focus.is(Id::Markdown);
 
         let inner = Border::Round.draw_titled_with(
-            buf, area, ctx.theme.border_blurred, ctx.theme.background, "Markdown", Alignment::Left,
-            st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD)
+            buf,
+            area,
+            ctx.theme.border_blurred,
+            ctx.theme.background,
+            "Markdown",
+            Alignment::Left,
+            st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD),
         );
 
-        Markdown::new(md_src).theme(&ctx.theme).render(inner, buf, &mut self.markdown);
+        Markdown::new(md_src)
+            .theme(&ctx.theme)
+            .render(inner, buf, &mut self.markdown);
     }
     fn draw_text_gallery(&self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
         let inner = Border::Round.draw_titled_with(
-            buf, area, ctx.theme.border_blurred, ctx.theme.background, "Text Widgets", Alignment::Left,
-            st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD)
+            buf,
+            area,
+            ctx.theme.border_blurred,
+            ctx.theme.background,
+            "Text Widgets",
+            Alignment::Left,
+            st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD),
         );
 
         let rows = stack(inner, &[1, 1, 1, 1, 1, 1, 1], 0);
 
         if let Some(r) = rows.first() {
-            Label::new("Primary label").variant(Variant::Primary).bold(true).theme(&ctx.theme).render(*r, buf);
+            Label::new("Primary label")
+                .variant(Variant::Primary)
+                .bold(true)
+                .theme(&ctx.theme)
+                .render(*r, buf);
         }
         if let Some(r) = rows.get(1) {
             let mut x = r.x;
-            Badge::new("NEW").variant(Variant::Accent).theme(&ctx.theme).render(Rect { x, y: r.y, width: 5, height: 1 }, buf);
+            Badge::new("NEW")
+                .variant(Variant::Accent)
+                .theme(&ctx.theme)
+                .render(
+                    Rect {
+                        x,
+                        y: r.y,
+                        width: 5,
+                        height: 1,
+                    },
+                    buf,
+                );
             x += 6;
-            Badge::new("BETA").variant(Variant::Warning).style(BadgeStyle::Outline).theme(&ctx.theme).render(Rect { x, y: r.y, width: 6, height: 1 }, buf);
+            Badge::new("BETA")
+                .variant(Variant::Warning)
+                .style(BadgeStyle::Outline)
+                .theme(&ctx.theme)
+                .render(
+                    Rect {
+                        x,
+                        y: r.y,
+                        width: 6,
+                        height: 1,
+                    },
+                    buf,
+                );
             x += 7;
-            Pill::new("v2.0").variant(Variant::Success).theme(&ctx.theme).render(Rect { x, y: r.y, width: 6, height: 1 }, buf);
+            Pill::new("v2.0")
+                .variant(Variant::Success)
+                .theme(&ctx.theme)
+                .render(
+                    Rect {
+                        x,
+                        y: r.y,
+                        width: 6,
+                        height: 1,
+                    },
+                    buf,
+                );
         }
         if let Some(r) = rows.get(2) {
             let mut x = r.x;
-            KeyCap::new("⌘K").theme(&ctx.theme).render(Rect { x, y: r.y, width: 4, height: 1 }, buf);
+            KeyCap::new("⌘K").theme(&ctx.theme).render(
+                Rect {
+                    x,
+                    y: r.y,
+                    width: 4,
+                    height: 1,
+                },
+                buf,
+            );
             x += 5;
-            KeyCap::new("Esc").theme(&ctx.theme).render(Rect { x, y: r.y, width: 5, height: 1 }, buf);
+            KeyCap::new("Esc").theme(&ctx.theme).render(
+                Rect {
+                    x,
+                    y: r.y,
+                    width: 5,
+                    height: 1,
+                },
+                buf,
+            );
         }
         if let Some(r) = rows.get(3) {
-            Link::new("Documentation").url("https://docs.rs").show_url(false).theme(&ctx.theme).render(*r, buf, &mut LinkState::default());
+            Link::new("Documentation")
+                .url("https://docs.rs")
+                .show_url(false)
+                .theme(&ctx.theme)
+                .render(*r, buf, &mut LinkState::default());
         }
         if let Some(r) = rows.get(4) {
-            MarkupLabel::new("[b]Bold[/b] [i]italic[/] [accent]accent[/] [#FF5733]custom[/]").theme(&ctx.theme).render(*r, buf);
+            MarkupLabel::new("[b]Bold[/b] [i]italic[/] [accent]accent[/] [#FF5733]custom[/]")
+                .theme(&ctx.theme)
+                .render(*r, buf);
         }
     }
 
@@ -392,7 +523,7 @@ fn main() {
             StatCard::new("89%", "Uptime")
                 .delta(2.1, false)
                 .variant(Variant::Warning)
-                .icon("⚡")
+                .icon("⊙")
                 .bordered(true)
                 .theme(&ctx.theme)
                 .render(*c, buf);
@@ -414,19 +545,26 @@ fn main() {
             self.log_timer = Some(ctx.now);
         }
         if let Some(t) = self.log_timer
-            && elapsed(t, ctx.now) > 0.7 {
-                let levels = [LogLevel::Info, LogLevel::Debug, LogLevel::Warn, LogLevel::Success, LogLevel::Error];
-                let messages = [
-                    "Processing batch job",
-                    "Cache hit ratio: 92%",
-                    "Memory usage high",
-                    "Backup completed",
-                    "Connection timeout",
-                ];
-                let idx = (self.log.len() % levels.len()).min(messages.len() - 1);
-                self.log.push(levels[idx], messages[idx]);
-                self.log_timer = Some(ctx.now);
-            }
+            && elapsed(t, ctx.now) > 0.7
+        {
+            let levels = [
+                LogLevel::Info,
+                LogLevel::Debug,
+                LogLevel::Warn,
+                LogLevel::Success,
+                LogLevel::Error,
+            ];
+            let messages = [
+                "Processing batch job",
+                "Cache hit ratio: 92%",
+                "Memory usage high",
+                "Backup completed",
+                "Connection timeout",
+            ];
+            let idx = (self.log.len() % levels.len()).min(messages.len() - 1);
+            self.log.push(levels[idx], messages[idx]);
+            self.log_timer = Some(ctx.now);
+        }
 
         let _focused = self.focus.is(Id::Log);
         LogView::new()
@@ -444,13 +582,20 @@ fn main() {
         // Calendar
         if let Some(cal_area) = cols.first() {
             let inner = Border::Round.draw_titled_with(
-                buf, *cal_area, ctx.theme.border_blurred, ctx.theme.background, "Calendar", Alignment::Left,
-                st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD)
+                buf,
+                *cal_area,
+                ctx.theme.border_blurred,
+                ctx.theme.background,
+                "Calendar",
+                Alignment::Left,
+                st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD),
             );
             let focused = self.focus.is(Id::Calendar);
-            let marks = [(ctx.theme.primary, Variant::Primary),
+            let marks = [
+                (ctx.theme.primary, Variant::Primary),
                 (ctx.theme.warning, Variant::Warning),
-                (ctx.theme.success, Variant::Success)];
+                (ctx.theme.success, Variant::Success),
+            ];
             let today = local_ymd();
             let month_marks: Vec<(i32, u32, u32, Variant)> = (1..=5)
                 .map(|d| {
@@ -469,22 +614,38 @@ fn main() {
         // DatePicker
         if let Some(dp_area) = cols.get(1) {
             let inner = Border::Round.draw_titled_with(
-                buf, *dp_area, ctx.theme.border_blurred, ctx.theme.background, "DatePicker", Alignment::Left,
-                st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD)
+                buf,
+                *dp_area,
+                ctx.theme.border_blurred,
+                ctx.theme.background,
+                "DatePicker",
+                Alignment::Left,
+                st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD),
             );
-            let field_area = Rect { x: inner.x, y: inner.y + 1, width: inner.width, height: 3 };
+            let field_area = Rect {
+                x: inner.x,
+                y: inner.y + 1,
+                width: inner.width,
+                height: 3,
+            };
             let focused = self.focus.is(Id::DatePicker);
-            DatePicker::new()
-                .focused(focused)
-                .theme(&ctx.theme)
-                .render(field_area, buf, &mut self.datepicker);
+            DatePicker::new().focused(focused).theme(&ctx.theme).render(
+                field_area,
+                buf,
+                &mut self.datepicker,
+            );
         }
     }
 
     fn draw_color_section(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
         let inner = Border::Round.draw_titled_with(
-            buf, area, ctx.theme.border_blurred, ctx.theme.background, "Color Widgets", Alignment::Left,
-            st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD)
+            buf,
+            area,
+            ctx.theme.border_blurred,
+            ctx.theme.background,
+            "Color Widgets",
+            Alignment::Left,
+            st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD),
         );
 
         let rows = stack(inner, &[10, 2, 2], 0);
@@ -492,7 +653,9 @@ fn main() {
         // ColorPicker
         if let Some(picker_area) = rows.first() {
             let _focused = self.focus.is(Id::ColorPicker);
-            ColorPicker::new().theme(&ctx.theme).render(*picker_area, buf, &mut self.colorpicker);
+            ColorPicker::new()
+                .theme(&ctx.theme)
+                .render(*picker_area, buf, &mut self.colorpicker);
         }
 
         // Swatches
@@ -506,20 +669,33 @@ fn main() {
                 ctx.theme.error,
             ];
             let labels = ["Pri", "Sec", "Acc", "OK", "Warn", "Err"];
-            Swatches::new(&colors).labels(&labels).cell_width(5).theme(&ctx.theme).render(*sw_area, buf, &mut self.swatches);
+            Swatches::new(&colors)
+                .labels(&labels)
+                .cell_width(5)
+                .theme(&ctx.theme)
+                .render(*sw_area, buf, &mut self.swatches);
         }
 
         // GradientBar
         if let Some(grad_area) = rows.get(2) {
             let stops = vec![ctx.theme.primary, ctx.theme.accent, ctx.theme.warning];
-            GradientBar::new(&stops).labels("Min", "Max").marker(0.6).theme(&ctx.theme).render(*grad_area, buf);
+            GradientBar::new(&stops)
+                .labels("Min", "Max")
+                .marker(0.6)
+                .theme(&ctx.theme)
+                .render(*grad_area, buf);
         }
     }
 
     fn draw_timeline(&self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
         let inner = Border::Round.draw_titled_with(
-            buf, area, ctx.theme.border_blurred, ctx.theme.background, "Timeline", Alignment::Left,
-            st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD)
+            buf,
+            area,
+            ctx.theme.border_blurred,
+            ctx.theme.background,
+            "Timeline",
+            Alignment::Left,
+            st(ctx.theme.text, ctx.theme.background).add_modifier(Modifier::BOLD),
         );
 
         let entries = vec![

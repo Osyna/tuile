@@ -20,7 +20,10 @@ use ratatui::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{Easing, Tween};
-use crate::core::{Hit, HitBox, Interactive, Look, Outcome, is_left_down, is_press, mouse_in, mouse_pos, wheel_delta};
+use crate::core::{
+    Hit, HitBox, Interactive, Look, Outcome, is_left_down, is_press, mouse_in, mouse_pos,
+    wheel_delta,
+};
 use crate::draw::{FieldShape, fill, put, st};
 use crate::theme::{self, Theme, Variant};
 
@@ -135,11 +138,23 @@ impl StatefulWidget for Slider {
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
-        let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
-        let bg = if look.focused { th.surface.blend(th.foreground, 0.05) } else { th.surface };
+        let look = Look {
+            focused: self.focused,
+            hover: state.hit.hover,
+            enabled: self.enabled,
+        };
+        let bg = if look.focused {
+            th.surface.blend(th.foreground, 0.05)
+        } else {
+            th.surface
+        };
         fill(buf, area, bg);
 
-        let border = if look.focused { th.border } else { th.border_blurred };
+        let border = if look.focused {
+            th.border
+        } else {
+            th.border_blurred
+        };
         let inner = self.shape.draw(buf, area, border, bg);
         if inner.width < 8 || inner.height == 0 {
             state.hit.set_area(Rect::default());
@@ -148,16 +163,27 @@ impl StatefulWidget for Slider {
         // label on the last row, track just above it (or on the only row)
         let label_text = self.label.as_deref().unwrap_or("");
         let has_label = !label_text.is_empty() && inner.height >= 2;
-        let track_y = if has_label { inner.bottom() - 2 } else { inner.bottom() - 1 };
+        let track_y = if has_label {
+            inner.bottom() - 2
+        } else {
+            inner.bottom() - 1
+        };
 
         let fmt_value = |v: f32| match self.format {
             Some(fmt) => fmt(v),
             None => format!("{v:.0}"),
         };
-        let value_text = if self.show_value { fmt_value(state.value) } else { String::new() };
+        let value_text = if self.show_value {
+            fmt_value(state.value)
+        } else {
+            String::new()
+        };
         // slot sized for the widest value the range can produce, so the track keeps its width
         let right_w = if self.show_value {
-            (fmt_value(state.min).width().max(fmt_value(state.max).width()).max(value_text.width())) as u16
+            (fmt_value(state.min)
+                .width()
+                .max(fmt_value(state.max).width())
+                .max(value_text.width())) as u16
         } else {
             0
         };
@@ -165,7 +191,9 @@ impl StatefulWidget for Slider {
         state.track = Rect {
             x: inner.x + 2,
             y: track_y,
-            width: inner.width.saturating_sub(4 + right_w + u16::from(right_w > 0)),
+            width: inner
+                .width
+                .saturating_sub(4 + right_w + u16::from(right_w > 0)),
             height: 1,
         };
         state.hit.set_area(area);
@@ -188,14 +216,26 @@ impl StatefulWidget for Slider {
 
         // ticks: 11 evenly spaced marks on the track itself, so no extra row and no collision
         // with the label row
-        let tick_at = |x: u16| self.ticks && (0..=10u32).any(|k| x == state.track.x + ((k * (state.track.width as u32 - 1) + 5) / 10) as u16);
+        let tick_at = |x: u16| {
+            self.ticks
+                && (0..=10u32).any(|k| {
+                    x == state.track.x + ((k * (state.track.width as u32 - 1) + 5) / 10) as u16
+                })
+        };
         for x in state.track.left()..state.track.right() {
             let (sym, color) = if x < thumb_x {
                 (if tick_at(x) { "┿" } else { "━" }, filled)
             } else if x > thumb_x {
                 (if tick_at(x) { "┼" } else { "─" }, rest)
             } else {
-                ("●", if look.focused || look.hover { th.accent } else { filled })
+                (
+                    "●",
+                    if look.focused || look.hover {
+                        th.accent
+                    } else {
+                        filled
+                    },
+                )
             };
             if let Some(c) = buf.cell_mut((x, state.track.y)) {
                 c.set_symbol(sym).set_fg(color.color()).set_bg(bg.color());
@@ -203,14 +243,38 @@ impl StatefulWidget for Slider {
         }
 
         if !value_text.is_empty() {
-            let fg = if look.enabled { th.foreground } else { th.text_disabled };
+            let fg = if look.enabled {
+                th.foreground
+            } else {
+                th.text_disabled
+            };
             let vx = state.track.right() + 1 + right_w.saturating_sub(value_text.width() as u16);
-            put(buf, vx, state.track.y, &value_text, right_w, st(fg, bg).add_modifier(Modifier::BOLD));
+            put(
+                buf,
+                vx,
+                state.track.y,
+                &value_text,
+                right_w,
+                st(fg, bg).add_modifier(Modifier::BOLD),
+            );
         }
 
         if has_label {
-            let fg = if !look.enabled { th.text_disabled } else if look.focused { th.text_primary } else { th.text };
-            put(buf, inner.x, inner.bottom() - 1, label_text, inner.width, st(fg, bg));
+            let fg = if !look.enabled {
+                th.text_disabled
+            } else if look.focused {
+                th.text_primary
+            } else {
+                th.text
+            };
+            put(
+                buf,
+                inner.x,
+                inner.bottom() - 1,
+                label_text,
+                inner.width,
+                st(fg, bg),
+            );
         }
     }
 }
@@ -264,7 +328,8 @@ impl SliderState {
         if self.track.width <= 1 {
             return self.min;
         }
-        let p = (x.saturating_sub(self.track.x) as f32 / (self.track.width - 1) as f32).clamp(0.0, 1.0);
+        let p =
+            (x.saturating_sub(self.track.x) as f32 / (self.track.width - 1) as f32).clamp(0.0, 1.0);
         let raw = self.min + p * (self.max - self.min);
         let stepped = ((raw - self.min) / self.step).round() * self.step + self.min;
         stepped.clamp(self.min, self.max)
@@ -282,7 +347,11 @@ impl Interactive for SliderState {
         }
         let now = Instant::now();
         let dur = self.duration;
-        let multiplier = if key.modifiers.contains(KeyModifiers::SHIFT) { 10.0 } else { 1.0 };
+        let multiplier = if key.modifiers.contains(KeyModifiers::SHIFT) {
+            10.0
+        } else {
+            1.0
+        };
         match key.code {
             KeyCode::Left => {
                 self.adjust(-self.step * multiplier, now, dur);
@@ -314,13 +383,14 @@ impl Interactive for SliderState {
 
     fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
         let hit = self.hit.mouse(&m);
-        
+
         if let Some(delta) = wheel_delta(&m)
-            && mouse_in(self.track, &m) {
-                let now = Instant::now();
-                self.adjust(self.step * delta as f32, now, self.duration);
-                return Outcome::Changed;
-            }
+            && mouse_in(self.track, &m)
+        {
+            let now = Instant::now();
+            self.adjust(self.step * delta as f32, now, self.duration);
+            return Outcome::Changed;
+        }
 
         match hit {
             Hit::Press if mouse_in(self.track, &m) => {
@@ -427,21 +497,39 @@ impl StatefulWidget for RangeSlider {
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
-        let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
-        let bg = if look.focused { th.surface.blend(th.foreground, 0.05) } else { th.surface };
+        let look = Look {
+            focused: self.focused,
+            hover: state.hit.hover,
+            enabled: self.enabled,
+        };
+        let bg = if look.focused {
+            th.surface.blend(th.foreground, 0.05)
+        } else {
+            th.surface
+        };
         fill(buf, area, bg);
 
-        let border = if look.focused { th.border } else { th.border_blurred };
+        let border = if look.focused {
+            th.border
+        } else {
+            th.border_blurred
+        };
         let inner = self.shape.draw(buf, area, border, bg);
         if inner.width < 10 || inner.height == 0 {
             state.hit.set_area(Rect::default());
             return;
         }
         let has_label = self.label.as_deref().is_some_and(|l| !l.is_empty()) && inner.height >= 2;
-        let track_y = if has_label { inner.bottom() - 2 } else { inner.bottom() - 1 };
+        let track_y = if has_label {
+            inner.bottom() - 2
+        } else {
+            inner.bottom() - 1
+        };
 
         let label_text = format!("{:.0} – {:.0}", state.lo, state.hi);
-        let bound_w = format!("{:.0}", state.min).width().max(format!("{:.0}", state.max).width());
+        let bound_w = format!("{:.0}", state.min)
+            .width()
+            .max(format!("{:.0}", state.max).width());
         let right_w = (bound_w * 2 + 3).max(label_text.width()) as u16;
 
         state.track = Rect {
@@ -473,7 +561,14 @@ impl StatefulWidget for RangeSlider {
 
         for x in state.track.left()..state.track.right() {
             let (sym, color) = if x == x_lo || x == x_hi {
-                ("●", if look.focused || look.hover { th.accent } else { filled })
+                (
+                    "●",
+                    if look.focused || look.hover {
+                        th.accent
+                    } else {
+                        filled
+                    },
+                )
             } else if x > x_lo && x < x_hi {
                 ("━", filled)
             } else {
@@ -484,13 +579,37 @@ impl StatefulWidget for RangeSlider {
             }
         }
 
-        let fg = if look.enabled { th.foreground } else { th.text_disabled };
+        let fg = if look.enabled {
+            th.foreground
+        } else {
+            th.text_disabled
+        };
         let lx = state.track.right() + 1 + right_w.saturating_sub(label_text.width() as u16);
-        put(buf, lx, state.track.y, &label_text, right_w, st(fg, bg).add_modifier(Modifier::BOLD));
+        put(
+            buf,
+            lx,
+            state.track.y,
+            &label_text,
+            right_w,
+            st(fg, bg).add_modifier(Modifier::BOLD),
+        );
 
         if has_label && let Some(label) = &self.label {
-            let fg = if !look.enabled { th.text_disabled } else if look.focused { th.text_primary } else { th.text };
-            put(buf, inner.x, inner.bottom() - 1, label, inner.width, st(fg, bg));
+            let fg = if !look.enabled {
+                th.text_disabled
+            } else if look.focused {
+                th.text_primary
+            } else {
+                th.text
+            };
+            put(
+                buf,
+                inner.x,
+                inner.bottom() - 1,
+                label,
+                inner.width,
+                st(fg, bg),
+            );
         }
     }
 }
@@ -532,7 +651,8 @@ impl RangeState {
         if self.track.width <= 1 {
             return self.min;
         }
-        let p = (x.saturating_sub(self.track.x) as f32 / (self.track.width - 1) as f32).clamp(0.0, 1.0);
+        let p =
+            (x.saturating_sub(self.track.x) as f32 / (self.track.width - 1) as f32).clamp(0.0, 1.0);
         let raw = self.min + p * (self.max - self.min);
         let stepped = ((raw - self.min) / self.step).round() * self.step + self.min;
         stepped.clamp(self.min, self.max)
@@ -573,7 +693,11 @@ impl Interactive for RangeState {
             return Outcome::Ignored;
         }
         let now = Instant::now();
-        let multiplier = if key.modifiers.contains(KeyModifiers::SHIFT) { 10.0 } else { 1.0 };
+        let multiplier = if key.modifiers.contains(KeyModifiers::SHIFT) {
+            10.0
+        } else {
+            1.0
+        };
         match key.code {
             KeyCode::Enter => {
                 self.active_thumb = !self.active_thumb;
@@ -581,17 +705,33 @@ impl Interactive for RangeState {
             }
             KeyCode::Left => {
                 if self.active_thumb {
-                    self.set_hi(self.hi - self.step * multiplier, now, Duration::from_millis(150));
+                    self.set_hi(
+                        self.hi - self.step * multiplier,
+                        now,
+                        Duration::from_millis(150),
+                    );
                 } else {
-                    self.set_lo(self.lo - self.step * multiplier, now, Duration::from_millis(150));
+                    self.set_lo(
+                        self.lo - self.step * multiplier,
+                        now,
+                        Duration::from_millis(150),
+                    );
                 }
                 Outcome::Changed
             }
             KeyCode::Right => {
                 if self.active_thumb {
-                    self.set_hi(self.hi + self.step * multiplier, now, Duration::from_millis(150));
+                    self.set_hi(
+                        self.hi + self.step * multiplier,
+                        now,
+                        Duration::from_millis(150),
+                    );
                 } else {
-                    self.set_lo(self.lo + self.step * multiplier, now, Duration::from_millis(150));
+                    self.set_lo(
+                        self.lo + self.step * multiplier,
+                        now,
+                        Duration::from_millis(150),
+                    );
                 }
                 Outcome::Changed
             }
@@ -603,15 +743,24 @@ impl Interactive for RangeState {
         let hit = self.hit.mouse(&m);
 
         if let Some(delta) = wheel_delta(&m)
-            && mouse_in(self.track, &m) {
-                let now = Instant::now();
-                if self.active_thumb {
-                    self.set_hi(self.hi + self.step * delta as f32, now, Duration::from_millis(150));
-                } else {
-                    self.set_lo(self.lo + self.step * delta as f32, now, Duration::from_millis(150));
-                }
-                return Outcome::Changed;
+            && mouse_in(self.track, &m)
+        {
+            let now = Instant::now();
+            if self.active_thumb {
+                self.set_hi(
+                    self.hi + self.step * delta as f32,
+                    now,
+                    Duration::from_millis(150),
+                );
+            } else {
+                self.set_lo(
+                    self.lo + self.step * delta as f32,
+                    now,
+                    Duration::from_millis(150),
+                );
             }
+            return Outcome::Changed;
+        }
 
         match hit {
             Hit::Press if mouse_in(self.track, &m) => {
@@ -703,29 +852,63 @@ impl StatefulWidget for Stepper {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
-        let look = Look { focused: self.focused, hover: false, enabled: self.enabled };
+        let look = Look {
+            focused: self.focused,
+            hover: false,
+            enabled: self.enabled,
+        };
         let bg = th.background;
 
         // `[ - ]  42  [ + ]` — value column sized for the widest possible number
         let value_text = format!("{}", state.value);
-        let max_w = format!("{}", state.max).width().max(format!("{}", state.min).width()) as u16;
+        let max_w = format!("{}", state.max)
+            .width()
+            .max(format!("{}", state.min).width()) as u16;
         let btn_w = 5u16;
         let total_w = btn_w + 1 + max_w + 2 + 1 + btn_w;
         if total_w > area.width {
             return;
         }
         let x = area.x;
-        state.hit_minus = Rect { x, y: area.y, width: btn_w, height: 1 };
-        state.hit_plus = Rect { x: x + btn_w + 1 + max_w + 2 + 1, y: area.y, width: btn_w, height: 1 };
+        state.hit_minus = Rect {
+            x,
+            y: area.y,
+            width: btn_w,
+            height: 1,
+        };
+        state.hit_plus = Rect {
+            x: x + btn_w + 1 + max_w + 2 + 1,
+            y: area.y,
+            width: btn_w,
+            height: 1,
+        };
 
-        let btn_fg = if look.enabled { th.text } else { th.text_disabled };
+        let btn_fg = if look.enabled {
+            th.text
+        } else {
+            th.text_disabled
+        };
         let btn_bg = if look.enabled { th.panel } else { bg };
         let at_min = state.value <= state.min;
         let at_max = state.value >= state.max;
         let minus_fg = if at_min { th.text_disabled } else { btn_fg };
         let plus_fg = if at_max { th.text_disabled } else { btn_fg };
-        put(buf, state.hit_minus.x, area.y, "[ - ]", btn_w, st(minus_fg, btn_bg).add_modifier(Modifier::BOLD));
-        put(buf, state.hit_plus.x, area.y, "[ + ]", btn_w, st(plus_fg, btn_bg).add_modifier(Modifier::BOLD));
+        put(
+            buf,
+            state.hit_minus.x,
+            area.y,
+            "[ - ]",
+            btn_w,
+            st(minus_fg, btn_bg).add_modifier(Modifier::BOLD),
+        );
+        put(
+            buf,
+            state.hit_plus.x,
+            area.y,
+            "[ + ]",
+            btn_w,
+            st(plus_fg, btn_bg).add_modifier(Modifier::BOLD),
+        );
 
         let (val_fg, val_bg) = if look.focused {
             (th.cursor_fg, th.cursor_bg)
@@ -735,7 +918,14 @@ impl StatefulWidget for Stepper {
             (th.text_disabled, bg)
         };
         let val = format!(" {value_text:>width$} ", width = max_w as usize);
-        put(buf, x + btn_w + 1, area.y, &val, max_w + 2, st(val_fg, val_bg).add_modifier(Modifier::BOLD));
+        put(
+            buf,
+            x + btn_w + 1,
+            area.y,
+            &val,
+            max_w + 2,
+            st(val_fg, val_bg).add_modifier(Modifier::BOLD),
+        );
     }
 }
 
@@ -812,10 +1002,18 @@ impl Interactive for StepperState {
         let pos = mouse_pos(&m);
         if is_left_down(&m) {
             if self.hit_minus.contains(pos) {
-                return if self.decrement() { Outcome::Changed } else { Outcome::Consumed };
+                return if self.decrement() {
+                    Outcome::Changed
+                } else {
+                    Outcome::Consumed
+                };
             }
             if self.hit_plus.contains(pos) {
-                return if self.increment() { Outcome::Changed } else { Outcome::Consumed };
+                return if self.increment() {
+                    Outcome::Changed
+                } else {
+                    Outcome::Consumed
+                };
             }
         }
         Outcome::Ignored
@@ -888,14 +1086,23 @@ impl StatefulWidget for Rating {
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
-        let look = Look { focused: self.focused, hover: false, enabled: self.enabled };
+        let look = Look {
+            focused: self.focused,
+            hover: false,
+            enabled: self.enabled,
+        };
         let bg = th.background;
 
         let display = state.hover_value.unwrap_or(state.value);
 
         for i in 0..self.max {
             let x = area.x + i as u16 * 2;
-            let r = Rect { x, y: area.y, width: 2, height: 1 };
+            let r = Rect {
+                x,
+                y: area.y,
+                width: 2,
+                height: 1,
+            };
             state.hits.push(r);
 
             let filled = i < display;
@@ -924,11 +1131,19 @@ pub struct RatingState {
 
 impl RatingState {
     pub fn new(value: u8) -> Self {
-        Self { value, hover_value: None, hits: vec![] }
+        Self {
+            value,
+            hover_value: None,
+            hits: vec![],
+        }
     }
 
     pub fn set(&mut self, v: u8, max: u8, allow_clear: bool) -> bool {
-        let new_val = if allow_clear && v == self.value { 0 } else { v.min(max) };
+        let new_val = if allow_clear && v == self.value {
+            0
+        } else {
+            v.min(max)
+        };
         if new_val != self.value {
             self.value = new_val;
             true
@@ -1004,7 +1219,12 @@ mod tests {
     #[test]
     fn slider_value_at_maps_position() {
         let state = SliderState::new(50.0, 0.0, 100.0, 1.0);
-        let track = Rect { x: 10, y: 5, width: 21, height: 1 };
+        let track = Rect {
+            x: 10,
+            y: 5,
+            width: 21,
+            height: 1,
+        };
         let mut s = state;
         s.track = track;
         assert!((s.value_at(10) - 0.0).abs() < 0.1);

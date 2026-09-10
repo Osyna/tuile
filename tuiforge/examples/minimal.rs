@@ -28,15 +28,48 @@ impl App for Demo {
         let th = theme::current();
         fill(buf, area, th.background);
         let card = center(area, 46, 13);
-        let inner = Border::Round.draw_titled(buf, card, th.border_blurred, th.background, "tuiforge", Alignment::Left);
-        let [a, b, c] = Layout::vertical([Constraint::Length(3), Constraint::Length(3), Constraint::Length(3)]).areas(pad(inner, 1, 0));
+        let inner = Border::Round.draw_titled(
+            buf,
+            card,
+            th.border_blurred,
+            th.background,
+            "tuiforge",
+            Alignment::Left,
+        );
+        let [a, b, c] = Layout::vertical([
+            Constraint::Length(3),
+            Constraint::Length(3),
+            Constraint::Length(3),
+        ])
+        .areas(pad(inner, 1, 0));
 
-        Switch::new().label("Dark mode").focused(self.focus.is(Id::Dark)).now(now).render(a, buf, &mut self.dark);
-        Input::new().placeholder("Your name").focused(self.focus.is(Id::Name)).now(now).render(b, buf, &mut self.name);
-        Button::new("Save").variant(Variant::Primary).focused(self.focus.is(Id::Save)).now(now).render(Rect { width: 16, ..c }, buf, &mut self.save);
-        put(buf, c.x + 18, c.y + 1, "Tab: focus · Enter: save · ^c: quit", c.width.saturating_sub(18), st(th.text_muted, th.background));
+        Switch::new()
+            .label("Dark mode")
+            .focused(self.focus.is(Id::Dark))
+            .now(now)
+            .render(a, buf, &mut self.dark);
+        Input::new()
+            .placeholder("Your name")
+            .focused(self.focus.is(Id::Name))
+            .now(now)
+            .render(b, buf, &mut self.name);
+        Button::new("Save")
+            .variant(Variant::Primary)
+            .focused(self.focus.is(Id::Save))
+            .now(now)
+            .render(Rect { width: 16, ..c }, buf, &mut self.save);
+        put(
+            buf,
+            c.x + 18,
+            c.y + 1,
+            "Tab: focus · Enter: save · ^c: quit",
+            c.width.saturating_sub(18),
+            st(th.text_muted, th.background),
+        );
 
-        ToastStack::new().now(now).render(area, buf, &mut self.toasts);
+        ToastStack::new()
+            .now(now)
+            .render(area, buf, &mut self.toasts);
     }
 
     fn update(&mut self, now: Instant) {
@@ -77,7 +110,11 @@ impl App for Demo {
         };
         if out.is_changed() {
             if self.focus.is(Id::Dark) {
-                theme::set_by_name(if self.dark.on { "textual-dark" } else { "textual-light" });
+                theme::set_by_name(if self.dark.on {
+                    "textual-dark"
+                } else {
+                    "textual-light"
+                });
             }
             if self.focus.is(Id::Save) {
                 self.toasts.success(format!("Saved {:?}", self.name.value));

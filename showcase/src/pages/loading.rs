@@ -8,7 +8,14 @@ use tuiforge::prelude::*;
 
 use super::{Ctx, Page, card};
 
-const OVERLAY_STYLES: [LoaderStyle; 6] = [LoaderStyle::Sweep, LoaderStyle::Scanner, LoaderStyle::Snake, LoaderStyle::Ping, LoaderStyle::Radar, LoaderStyle::Rain];
+const OVERLAY_STYLES: [LoaderStyle; 6] = [
+    LoaderStyle::Sweep,
+    LoaderStyle::Scanner,
+    LoaderStyle::Snake,
+    LoaderStyle::Ping,
+    LoaderStyle::Radar,
+    LoaderStyle::Rain,
+];
 
 pub struct LoadingPage {
     speed: f32,
@@ -22,14 +29,21 @@ pub struct LoadingPage {
 
 impl Default for LoadingPage {
     fn default() -> Self {
-        Self { speed: 1.0, paused_at: None, offset: 0.0, overlay: true, overlay_style: 0 }
+        Self {
+            speed: 1.0,
+            paused_at: None,
+            offset: 0.0,
+            overlay: true,
+            overlay_style: 0,
+        }
     }
 }
 
 impl LoadingPage {
     /// Animation phase in seconds: `(app clock - offset) × speed`, frozen while paused.
     fn clock(&self, ctx: &Ctx) -> f32 {
-        self.paused_at.unwrap_or((ctx.elapsed() - self.offset) * self.speed)
+        self.paused_at
+            .unwrap_or((ctx.elapsed() - self.offset) * self.speed)
     }
 
     /// Change speed keeping the current phase, so nothing jumps.
@@ -53,7 +67,12 @@ impl Page for LoadingPage {
         "◌"
     }
     fn bindings(&self) -> &'static [(&'static str, &'static str)] {
-        &[("space", "Pause"), ("+/-", "Speed"), ("o", "Overlay"), ("l", "Overlay style")]
+        &[
+            ("space", "Pause"),
+            ("+/-", "Speed"),
+            ("o", "Overlay"),
+            ("l", "Overlay style"),
+        ]
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
@@ -63,15 +82,46 @@ impl Page for LoadingPage {
         if area.height < 6 || area.width < 30 {
             return;
         }
-        let [top, mid, bottom] = Layout::vertical([Constraint::Length(17), Constraint::Length(11), Constraint::Fill(1)]).areas(area);
+        let [top, mid, bottom] = Layout::vertical([
+            Constraint::Length(17),
+            Constraint::Length(11),
+            Constraint::Fill(1),
+        ])
+        .areas(area);
 
         // ── one-row loaders: 4 columns × 5 rows of (name / loader / gap) ──
-        let title = format!("Loader · {} styles · {:.1}×{}", LoaderStyle::ALL.len(), self.speed, if self.paused_at.is_some() { " · paused" } else { "" });
+        let title = format!(
+            "Loader · {} styles · {:.1}×{}",
+            LoaderStyle::ALL.len(),
+            self.speed,
+            if self.paused_at.is_some() {
+                " · paused"
+            } else {
+                ""
+            }
+        );
         let g = pad(card(buf, top, &th, &title), 1, 0);
-        let one_row: Vec<LoaderStyle> = LoaderStyle::ALL.iter().copied().filter(|s| !s.multi_row()).collect();
-        let cols = if g.width >= 100 { 4 } else if g.width >= 60 { 3 } else { 2 };
+        let one_row: Vec<LoaderStyle> = LoaderStyle::ALL
+            .iter()
+            .copied()
+            .filter(|s| !s.multi_row())
+            .collect();
+        let cols = if g.width >= 100 {
+            4
+        } else if g.width >= 60 {
+            3
+        } else {
+            2
+        };
         let col_w = g.width / cols;
-        let palette = [th.primary, th.accent, th.success, th.warning, th.secondary, th.error];
+        let palette = [
+            th.primary,
+            th.accent,
+            th.success,
+            th.warning,
+            th.secondary,
+            th.error,
+        ];
         for (i, style) in one_row.iter().enumerate() {
             let (c, r) = ((i % cols as usize) as u16, (i / cols as usize) as u16);
             let y = g.y + r * 3;
@@ -88,44 +138,114 @@ impl Page for LoadingPage {
                 LoaderStyle::Typewriter => "Indexing 1,204 files",
                 _ => "",
             };
-            Loader::new(*style).label(label).color(color).color2(palette[(i + 2) % palette.len()]).elapsed(el).theme(&th).render(Rect { x, y: y + 1, width: w, height: 1 }, buf);
+            Loader::new(*style)
+                .label(label)
+                .color(color)
+                .color2(palette[(i + 2) % palette.len()])
+                .elapsed(el)
+                .theme(&th)
+                .render(
+                    Rect {
+                        x,
+                        y: y + 1,
+                        width: w,
+                        height: 1,
+                    },
+                    buf,
+                );
         }
 
         // ── scenes: the three multi-row styles side by side ──
-        let s = pad(card(buf, mid, &th, "Scenes (use every row you give them)"), 1, 0);
-        let [e, r, d] = Layout::horizontal([Constraint::Percentage(34), Constraint::Percentage(33), Constraint::Fill(1)]).areas(s);
-        for (cell, style, c1, c2) in [(e, LoaderStyle::Equalizer, th.success, th.error), (r, LoaderStyle::Rain, th.success, th.success), (d, LoaderStyle::Radar, th.primary, th.warning)] {
+        let s = pad(
+            card(buf, mid, &th, "Scenes (use every row you give them)"),
+            1,
+            0,
+        );
+        let [e, r, d] = Layout::horizontal([
+            Constraint::Percentage(34),
+            Constraint::Percentage(33),
+            Constraint::Fill(1),
+        ])
+        .areas(s);
+        for (cell, style, c1, c2) in [
+            (e, LoaderStyle::Equalizer, th.success, th.error),
+            (r, LoaderStyle::Rain, th.success, th.success),
+            (d, LoaderStyle::Radar, th.primary, th.warning),
+        ] {
             put(buf, cell.x, cell.y, style.name(), cell.width, muted);
-            let body = Rect { y: cell.y + 1, height: cell.height.saturating_sub(1), width: cell.width.saturating_sub(2), ..cell };
-            Loader::new(style).color(c1).color2(c2).elapsed(el).theme(&th).render(body, buf);
+            let body = Rect {
+                y: cell.y + 1,
+                height: cell.height.saturating_sub(1),
+                width: cell.width.saturating_sub(2),
+                ..cell
+            };
+            Loader::new(style)
+                .color(c1)
+                .color2(c2)
+                .elapsed(el)
+                .theme(&th)
+                .render(body, buf);
         }
 
         // ── skeletons | overlay ──
-        let [sk, ov] = Layout::horizontal([Constraint::Percentage(72), Constraint::Fill(1)]).areas(bottom);
+        let [sk, ov] =
+            Layout::horizontal([Constraint::Percentage(72), Constraint::Fill(1)]).areas(bottom);
         let k = pad(card(buf, sk, &th, "Skeleton shapes"), 1, 0);
-        let shapes = [(SkeletonShape::Text, "Text", 15u16), (SkeletonShape::Card, "Card", 13), (SkeletonShape::List, "List", 13), (SkeletonShape::Table, "Table", 19), (SkeletonShape::Chart, "Chart", 0)];
+        let shapes = [
+            (SkeletonShape::Text, "Text", 15u16),
+            (SkeletonShape::Card, "Card", 13),
+            (SkeletonShape::List, "List", 13),
+            (SkeletonShape::Table, "Table", 19),
+            (SkeletonShape::Chart, "Chart", 0),
+        ];
         let mut x = k.x;
         for (shape, name, fixed) in shapes {
-            let w = if fixed == 0 { k.right().saturating_sub(x) } else { fixed.min(k.right().saturating_sub(x)) };
+            let w = if fixed == 0 {
+                k.right().saturating_sub(x)
+            } else {
+                fixed.min(k.right().saturating_sub(x))
+            };
             if w < 4 {
                 break;
             }
             let w = w.saturating_sub(2);
             put(buf, x, k.y, name, w, muted);
-            let body = Rect { x, y: k.y + 1, width: w, height: k.height.saturating_sub(1) };
-            Skeleton::new().shape(shape).lines(&[w, w * 9 / 10, w * 19 / 20, w * 3 / 5]).elapsed(el).theme(&th).render(body, buf);
+            let body = Rect {
+                x,
+                y: k.y + 1,
+                width: w,
+                height: k.height.saturating_sub(1),
+            };
+            Skeleton::new()
+                .shape(shape)
+                .lines(&[w, w * 9 / 10, w * 19 / 20, w * 3 / 5])
+                .elapsed(el)
+                .theme(&th)
+                .render(body, buf);
             x += w + 2;
         }
 
         let o = pad(card(buf, ov, &th, "LoadingOverlay over content"), 1, 0);
         // the "content": a little table that the overlay dims
-        let rows = [("id", "name", "status"), ("1042", "deploy-api", "running"), ("1041", "build-web", "passed"), ("1040", "lint", "passed"), ("1039", "e2e-smoke", "failed"), ("1038", "migrate-db", "passed"), ("1037", "publish", "queued")];
+        let rows = [
+            ("id", "name", "status"),
+            ("1042", "deploy-api", "running"),
+            ("1041", "build-web", "passed"),
+            ("1040", "lint", "passed"),
+            ("1039", "e2e-smoke", "failed"),
+            ("1038", "migrate-db", "passed"),
+            ("1037", "publish", "queued"),
+        ];
         for (i, (a, b, c)) in rows.iter().enumerate() {
             let y = o.y + i as u16;
             if y >= o.bottom() {
                 break;
             }
-            let style = if i == 0 { st(th.text_muted, th.background).add_modifier(Modifier::BOLD) } else { st(th.text, th.background) };
+            let style = if i == 0 {
+                st(th.text_muted, th.background).add_modifier(Modifier::BOLD)
+            } else {
+                st(th.text, th.background)
+            };
             put(buf, o.x, y, a, 6, style);
             put(buf, o.x + 6, y, b, o.width.saturating_sub(16), style);
             put_right(buf, Rect { y, height: 1, ..o }, c, style);
@@ -141,7 +261,9 @@ impl Page for LoadingPage {
     }
 
     fn event(&mut self, ev: &Event, ctx: &mut Ctx) -> Outcome {
-        let Event::Key(k) = ev else { return Outcome::Ignored };
+        let Event::Key(k) = ev else {
+            return Outcome::Ignored;
+        };
         if !is_press(k) {
             return Outcome::Ignored;
         }

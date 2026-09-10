@@ -5,7 +5,7 @@
 //! # let area = Rect::new(0, 0, 80, 3);
 //! # let mut buf = Buffer::empty(area);
 //! let mut state = AppHeaderState::default();
-//! AppHeader::new().title("Settings").icon("⚙").clock(true).render(area, &mut buf, &mut state);
+//! AppHeader::new().title("Settings").icon("⊛").clock(true).render(area, &mut buf, &mut state);
 //! ```
 
 use ratatui::buffer::Buffer;
@@ -113,69 +113,112 @@ impl AppHeader {
     }
 
     pub fn title(mut self, t: impl Into<String>) -> Self {
-        self.title = t.into(); self
+        self.title = t.into();
+        self
     }
 
     pub fn subtitle(mut self, s: impl Into<String>) -> Self {
-        self.subtitle = Some(s.into()); self
+        self.subtitle = Some(s.into());
+        self
     }
 
     pub fn icon(mut self, i: impl Into<String>) -> Self {
-        self.icon = Some(i.into()); self
+        self.icon = Some(i.into());
+        self
     }
 
     pub fn clock(mut self, c: bool) -> Self {
-        self.clock = c; self
+        self.clock = c;
+        self
     }
 
     pub fn clock_seconds(mut self, s: bool) -> Self {
-        self.clock_seconds = s; self
+        self.clock_seconds = s;
+        self
     }
 
     pub fn tall(mut self, t: bool) -> Self {
-        self.tall = t; self
+        self.tall = t;
+        self
     }
 
     pub fn right(mut self, r: impl Into<String>) -> Self {
-        self.right = Some(r.into()); self
+        self.right = Some(r.into());
+        self
     }
 
     pub fn actions(mut self, a: &[&str]) -> Self {
-        self.actions = a.iter().map(|s| s.to_string()).collect(); self
+        self.actions = a.iter().map(|s| s.to_string()).collect();
+        self
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(*t); self
+        self.theme = Some(*t);
+        self
     }
 
     pub fn render(self, area: Rect, buf: &mut Buffer, state: &mut AppHeaderState) {
         let th = self.theme.unwrap_or_else(theme::current);
 
-        if area.width == 0 || area.height == 0 { return; }
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
 
         fill(buf, area, th.panel);
 
         if self.tall {
             // Tall: 3 rows, subtitle centered on row 2
-            if area.height < 3 { return; }
+            if area.height < 3 {
+                return;
+            }
 
             // Icon
             if let Some(ref icon) = self.icon {
-                let icon_area = Rect { x: area.x + 1, y: area.y, width: icon.len() as u16 + 2, height: 1 };
+                let icon_area = Rect {
+                    x: area.x + 1,
+                    y: area.y,
+                    width: icon.len() as u16 + 2,
+                    height: 1,
+                };
                 state.icon_hit.set_area(icon_area);
-                let icon_bg = if state.icon_hit.hover { th.hover_bg } else { th.panel };
+                let icon_bg = if state.icon_hit.hover {
+                    th.hover_bg
+                } else {
+                    th.panel
+                };
                 fill(buf, icon_area, icon_bg);
-                put(buf, area.x + 1, area.y, icon, icon.len() as u16, st(th.foreground, icon_bg));
+                put(
+                    buf,
+                    area.x + 1,
+                    area.y,
+                    icon,
+                    icon.len() as u16,
+                    st(th.foreground, icon_bg),
+                );
             } else {
                 state.icon_hit.set_area(Rect::default());
             }
 
             // Title row 1
-            put_centered(buf, Rect { height: 1, ..area }, &self.title, st(th.foreground, th.panel).add_modifier(Modifier::BOLD));
+            put_centered(
+                buf,
+                Rect { height: 1, ..area },
+                &self.title,
+                st(th.foreground, th.panel).add_modifier(Modifier::BOLD),
+            );
 
             // Subtitle row 2
             if let Some(ref sub) = self.subtitle {
-                put_centered(buf, Rect { y: area.y + 1, height: 1, ..area }, sub, st(th.text_muted, th.panel));
+                put_centered(
+                    buf,
+                    Rect {
+                        y: area.y + 1,
+                        height: 1,
+                        ..area
+                    },
+                    sub,
+                    st(th.text_muted, th.panel),
+                );
             }
 
             // Actions row 2 right
@@ -185,11 +228,27 @@ impl AppHeader {
             for (i, act) in self.actions.iter().enumerate().rev() {
                 let w = act.len() as u16 + 2;
                 x = x.saturating_sub(w + 1);
-                let r = Rect { x, y: area.y + 1, width: w, height: 1 };
+                let r = Rect {
+                    x,
+                    y: area.y + 1,
+                    width: w,
+                    height: 1,
+                };
                 state.hits[i].set_area(r);
-                let bg = if state.hover == Some(i) { th.hover_bg } else { th.panel };
+                let bg = if state.hover == Some(i) {
+                    th.hover_bg
+                } else {
+                    th.panel
+                };
                 fill(buf, r, bg);
-                put(buf, x, area.y + 1, &format!(" {} ", act), w, st(th.accent, bg));
+                put(
+                    buf,
+                    x,
+                    area.y + 1,
+                    &format!(" {} ", act),
+                    w,
+                    st(th.accent, bg),
+                );
             }
 
             // Clock row 2 or row 0 right
@@ -201,7 +260,12 @@ impl AppHeader {
                     format!("{:02}:{:02}", h, m)
                 };
                 let clock_w = text.len() as u16 + 2;
-                let clock_area = Rect { x: area.right().saturating_sub(clock_w + 1), y: area.y, width: clock_w, height: 1 };
+                let clock_area = Rect {
+                    x: area.right().saturating_sub(clock_w + 1),
+                    y: area.y,
+                    width: clock_w,
+                    height: 1,
+                };
                 let clock_bg = th.panel.blend(Theme::shade(th.foreground, -1), 0.05);
                 fill(buf, clock_area, clock_bg);
                 put_centered(buf, clock_area, &text, st(th.foreground, clock_bg));
@@ -211,11 +275,27 @@ impl AppHeader {
             // Icon
             let mut x_offset = 0;
             if let Some(ref icon) = self.icon {
-                let icon_area = Rect { x: area.x + 1, y: area.y, width: icon.len() as u16 + 2, height: 1 };
+                let icon_area = Rect {
+                    x: area.x + 1,
+                    y: area.y,
+                    width: icon.len() as u16 + 2,
+                    height: 1,
+                };
                 state.icon_hit.set_area(icon_area);
-                let icon_bg = if state.icon_hit.hover { th.hover_bg } else { th.panel };
+                let icon_bg = if state.icon_hit.hover {
+                    th.hover_bg
+                } else {
+                    th.panel
+                };
                 fill(buf, icon_area, icon_bg);
-                put(buf, area.x + 1, area.y, icon, icon.len() as u16, st(th.foreground, icon_bg));
+                put(
+                    buf,
+                    area.x + 1,
+                    area.y,
+                    icon,
+                    icon.len() as u16,
+                    st(th.foreground, icon_bg),
+                );
                 x_offset = icon_area.width + 1;
             } else {
                 state.icon_hit.set_area(Rect::default());
@@ -227,7 +307,16 @@ impl AppHeader {
             } else {
                 self.title.clone()
             };
-            put_centered(buf, Rect { x: area.x + x_offset, width: area.width.saturating_sub(x_offset), ..area }, &title_text, st(th.foreground, th.panel).add_modifier(Modifier::BOLD));
+            put_centered(
+                buf,
+                Rect {
+                    x: area.x + x_offset,
+                    width: area.width.saturating_sub(x_offset),
+                    ..area
+                },
+                &title_text,
+                st(th.foreground, th.panel).add_modifier(Modifier::BOLD),
+            );
 
             // Right text
             if let Some(ref right_text) = self.right {
@@ -241,9 +330,18 @@ impl AppHeader {
             for (i, act) in self.actions.iter().enumerate().rev() {
                 let w = act.len() as u16 + 2;
                 x = x.saturating_sub(w + 1);
-                let r = Rect { x, y: area.y, width: w, height: 1 };
+                let r = Rect {
+                    x,
+                    y: area.y,
+                    width: w,
+                    height: 1,
+                };
                 state.hits[i].set_area(r);
-                let bg = if state.hover == Some(i) { th.hover_bg } else { th.panel };
+                let bg = if state.hover == Some(i) {
+                    th.hover_bg
+                } else {
+                    th.panel
+                };
                 fill(buf, r, bg);
                 put(buf, x, area.y, &format!(" {} ", act), w, st(th.accent, bg));
             }
@@ -257,7 +355,12 @@ impl AppHeader {
                     format!("{:02}:{:02}", h, m)
                 };
                 let clock_w = text.len() as u16 + 2;
-                let clock_area = Rect { x: area.right().saturating_sub(clock_w + 1), y: area.y, width: clock_w, height: 1 };
+                let clock_area = Rect {
+                    x: area.right().saturating_sub(clock_w + 1),
+                    y: area.y,
+                    width: clock_w,
+                    height: 1,
+                };
                 let clock_bg = th.panel.blend(Theme::shade(th.foreground, -1), 0.05);
                 fill(buf, clock_area, clock_bg);
                 put_centered(buf, clock_area, &text, st(th.foreground, clock_bg));
@@ -267,7 +370,9 @@ impl AppHeader {
 }
 
 impl Default for AppHeader {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
@@ -279,21 +384,30 @@ mod tests {
     fn header_renders_without_panic() {
         let mut state = AppHeaderState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 80, 1));
-        AppHeader::new().title("Test").render(buf.area, &mut buf, &mut state);
+        AppHeader::new()
+            .title("Test")
+            .render(buf.area, &mut buf, &mut state);
     }
 
     #[test]
     fn header_tall_mode() {
         let mut state = AppHeaderState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 80, 3));
-        AppHeader::new().title("Test").subtitle("Sub").tall(true).render(buf.area, &mut buf, &mut state);
+        AppHeader::new()
+            .title("Test")
+            .subtitle("Sub")
+            .tall(true)
+            .render(buf.area, &mut buf, &mut state);
     }
 
     #[test]
     fn header_actions_clickable() {
         let mut state = AppHeaderState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 80, 1));
-        AppHeader::new().title("Test").actions(&["Action1", "Action2"]).render(buf.area, &mut buf, &mut state);
+        AppHeader::new()
+            .title("Test")
+            .actions(&["Action1", "Action2"])
+            .render(buf.area, &mut buf, &mut state);
         assert_eq!(state.hits.len(), 2);
     }
 }

@@ -32,7 +32,14 @@ enum Id {
 }
 
 const LABEL_W: u16 = 16;
-const ACCENTS: [Rgb; 6] = [Rgb::hex(0x0178D4), Rgb::hex(0xffa62b), Rgb::hex(0x4EBF71), Rgb::hex(0xba3c5b), Rgb::hex(0xc4a7e7), Rgb::hex(0x24837B)];
+const ACCENTS: [Rgb; 6] = [
+    Rgb::hex(0x0178D4),
+    Rgb::hex(0xffa62b),
+    Rgb::hex(0x4EBF71),
+    Rgb::hex(0xba3c5b),
+    Rgb::hex(0xc4a7e7),
+    Rgb::hex(0x24837B),
+];
 
 pub struct SettingsPage {
     focus: Focus<Id>,
@@ -133,7 +140,8 @@ impl Default for SettingsPage {
 
 impl SettingsPage {
     fn reset_values(&mut self) {
-        self.theme_sel.set_selected(BUILTIN.iter().position(|t| t.name == theme::current().name));
+        self.theme_sel
+            .set_selected(BUILTIN.iter().position(|t| t.name == theme::current().name));
         self.density.selected = 1;
         self.accent.selected = Some(0);
         self.quiet.set_value("22:00-07:00");
@@ -157,9 +165,19 @@ impl SettingsPage {
 
     /// Label + control rects for one form row inside `col` at offset `y`.
     fn row(col: Rect, y: &mut u16, h: u16, control_w: u16) -> (Rect, Rect) {
-        let label = Rect { x: col.x, y: *y, width: LABEL_W.min(col.width), height: 1 };
+        let label = Rect {
+            x: col.x,
+            y: *y,
+            width: LABEL_W.min(col.width),
+            height: 1,
+        };
         let cx = col.x + LABEL_W;
-        let control = Rect { x: cx, y: *y, width: control_w.min(col.right().saturating_sub(cx)), height: h };
+        let control = Rect {
+            x: cx,
+            y: *y,
+            width: control_w.min(col.right().saturating_sub(cx)),
+            height: h,
+        };
         *y += h + 1;
         (label, control)
     }
@@ -187,10 +205,14 @@ impl Page for SettingsPage {
         "A complete preferences form from library widgets"
     }
     fn icon(&self) -> &'static str {
-        "⚙"
+        "⊕"
     }
     fn bindings(&self) -> &'static [(&'static str, &'static str)] {
-        &[("Tab", "Next field"), ("Enter/Space", "Toggle / open"), ("←→", "Adjust")]
+        &[
+            ("Tab", "Next field"),
+            ("Enter/Space", "Toggle / open"),
+            ("←→", "Adjust"),
+        ]
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
@@ -198,91 +220,223 @@ impl Page for SettingsPage {
         let now = ctx.now;
         let f = |id: Id, focus: &Focus<Id>| focus.is(id);
         let inner = pad(area, 1, 0);
-        let [left, right] = Layout::horizontal([Constraint::Percentage(50), Constraint::Fill(1)]).areas(inner);
+        let [left, right] =
+            Layout::horizontal([Constraint::Percentage(50), Constraint::Fill(1)]).areas(inner);
 
         // ── Appearance ──
-        let [app_a, editor_a] = Layout::vertical([Constraint::Length(20), Constraint::Fill(1)]).areas(left);
+        let [app_a, editor_a] =
+            Layout::vertical([Constraint::Length(20), Constraint::Fill(1)]).areas(left);
         let a = pad(card(buf, app_a, &th, "Appearance"), 1, 0);
         let mut y = a.y;
         let (l, c) = Self::row(a, &mut y, 3, 30);
         Self::label(buf, l, "Theme", &th, 3, true);
-        Select::new().focused(f(Id::Theme, &self.focus)).now(now).theme(&th).render(c, buf, &mut self.theme_sel);
+        Select::new()
+            .focused(f(Id::Theme, &self.focus))
+            .now(now)
+            .theme(&th)
+            .render(c, buf, &mut self.theme_sel);
         let (l, c) = Self::row(a, &mut y, 1, 40);
         Self::label(buf, l, "Density", &th, 1, true);
-        Segmented::new(vec!["Compact".into(), "Normal".into(), "Spacious".into()]).focused(f(Id::Density, &self.focus)).theme(&th).render(c, buf, &mut self.density);
+        Segmented::new(vec!["Compact".into(), "Normal".into(), "Spacious".into()])
+            .focused(f(Id::Density, &self.focus))
+            .theme(&th)
+            .render(c, buf, &mut self.density);
         let (l, c) = Self::row(a, &mut y, 1, 40);
         Self::label(buf, l, "Accent", &th, 1, true);
-        Swatches::new(&ACCENTS).focused(f(Id::Accent, &self.focus)).theme(&th).render(c, buf, &mut self.accent);
+        Swatches::new(&ACCENTS)
+            .focused(f(Id::Accent, &self.focus))
+            .theme(&th)
+            .render(c, buf, &mut self.accent);
         let (l, c) = Self::row(a, &mut y, 3, 16);
         Self::label(buf, l, "Line numbers", &th, 3, true);
-        Switch::new().focused(f(Id::LineNumbers, &self.focus)).now(now).theme(&th).render(c, buf, &mut self.line_numbers);
+        Switch::new()
+            .focused(f(Id::LineNumbers, &self.focus))
+            .now(now)
+            .theme(&th)
+            .render(c, buf, &mut self.line_numbers);
         let (l, c) = Self::row(a, &mut y, 3, 34);
         Self::label(buf, l, "Sidebar width", &th, 3, true);
-        Slider::new().show_value(true).format(|v| format!("{v:.0} cols")).focused(f(Id::SidebarWidth, &self.focus)).now(now).theme(&th).render(c, buf, &mut self.sidebar_width);
+        Slider::new()
+            .show_value(true)
+            .format(|v| format!("{v:.0} cols"))
+            .focused(f(Id::SidebarWidth, &self.focus))
+            .now(now)
+            .theme(&th)
+            .render(c, buf, &mut self.sidebar_width);
 
         // ── Editor ──
         let e = pad(card(buf, editor_a, &th, "Editor"), 1, 0);
         let mut y = e.y;
         let (l, c) = Self::row(e, &mut y, 1, 16);
         Self::label(buf, l, "Tab size", &th, 1, true);
-        Stepper::new().focused(f(Id::TabSize, &self.focus)).theme(&th).render(c, buf, &mut self.tab_size);
+        Stepper::new()
+            .focused(f(Id::TabSize, &self.focus))
+            .theme(&th)
+            .render(c, buf, &mut self.tab_size);
         let (l, c) = Self::row(e, &mut y, 1, 30);
         Self::label(buf, l, "Word wrap", &th, 1, true);
-        Checkbox::new("Soft-wrap long lines").focused(f(Id::WordWrap, &self.focus)).theme(&th).render(c, buf, &mut self.word_wrap);
+        Checkbox::new("Soft-wrap long lines")
+            .focused(f(Id::WordWrap, &self.focus))
+            .theme(&th)
+            .render(c, buf, &mut self.word_wrap);
         let (l, c) = Self::row(e, &mut y, 3, 16);
         Self::label(buf, l, "Ligatures", &th, 3, true);
-        Switch::new().focused(f(Id::Ligatures, &self.focus)).now(now).theme(&th).render(c, buf, &mut self.ligatures);
+        Switch::new()
+            .focused(f(Id::Ligatures, &self.focus))
+            .now(now)
+            .theme(&th)
+            .render(c, buf, &mut self.ligatures);
         let (l, c) = Self::row(e, &mut y, 1, 40);
         Self::label(buf, l, "Cursor", &th, 1, true);
-        RadioGroup::new(vec!["Block".into(), "Beam".into(), "Underline".into()]).horizontal(true).focused(f(Id::Cursor, &self.focus)).theme(&th).render(c, buf, &mut self.cursor);
+        RadioGroup::new(vec!["Block".into(), "Beam".into(), "Underline".into()])
+            .horizontal(true)
+            .focused(f(Id::Cursor, &self.focus))
+            .theme(&th)
+            .render(c, buf, &mut self.cursor);
 
         // ── Notifications ──
-        let [notif_a, acct_a, actions_a] = Layout::vertical([Constraint::Length(12), Constraint::Length(14), Constraint::Fill(1)]).areas(right);
+        let [notif_a, acct_a, actions_a] = Layout::vertical([
+            Constraint::Length(12),
+            Constraint::Length(14),
+            Constraint::Fill(1),
+        ])
+        .areas(right);
         let n = pad(card(buf, notif_a, &th, "Notifications"), 1, 0);
         let enabled = self.notify.on;
         let mut y = n.y;
         let (l, c) = Self::row(n, &mut y, 3, 16);
         Self::label(buf, l, "Enabled", &th, 3, true);
-        Switch::new().focused(f(Id::Notify, &self.focus)).now(now).theme(&th).render(c, buf, &mut self.notify);
+        Switch::new()
+            .focused(f(Id::Notify, &self.focus))
+            .now(now)
+            .theme(&th)
+            .render(c, buf, &mut self.notify);
         let (l, c) = Self::row(n, &mut y, 1, 30);
         Self::label(buf, l, "Sound", &th, 1, enabled);
-        Checkbox::new("Play a sound").enabled(enabled).focused(f(Id::Sound, &self.focus)).theme(&th).render(c, buf, &mut self.sound);
+        Checkbox::new("Play a sound")
+            .enabled(enabled)
+            .focused(f(Id::Sound, &self.focus))
+            .theme(&th)
+            .render(c, buf, &mut self.sound);
         let (l, c) = Self::row(n, &mut y, 1, 30);
         Self::label(buf, l, "Desktop", &th, 1, enabled);
-        Checkbox::new("Desktop banners").enabled(enabled).focused(f(Id::Desktop, &self.focus)).theme(&th).render(c, buf, &mut self.desktop);
+        Checkbox::new("Desktop banners")
+            .enabled(enabled)
+            .focused(f(Id::Desktop, &self.focus))
+            .theme(&th)
+            .render(c, buf, &mut self.desktop);
         let (l, c) = Self::row(n, &mut y, 3, 24);
         Self::label(buf, l, "Quiet hours", &th, 3, enabled);
-        Input::new().validator(time_ok).enabled(enabled).focused(f(Id::Quiet, &self.focus)).now(now).theme(&th).render(c, buf, &mut self.quiet);
+        Input::new()
+            .validator(time_ok)
+            .enabled(enabled)
+            .focused(f(Id::Quiet, &self.focus))
+            .now(now)
+            .theme(&th)
+            .render(c, buf, &mut self.quiet);
 
         // ── Account ──
         let ac = pad(card(buf, acct_a, &th, "Account"), 1, 0);
         let mut y = ac.y;
         let (l, c) = Self::row(ac, &mut y, 3, 34);
         Self::label(buf, l, "Name", &th, 3, true);
-        Input::new().placeholder("Full name").max_len(40).focused(f(Id::Name, &self.focus)).now(now).theme(&th).render(c, buf, &mut self.name);
+        Input::new()
+            .placeholder("Full name")
+            .max_len(40)
+            .focused(f(Id::Name, &self.focus))
+            .now(now)
+            .theme(&th)
+            .render(c, buf, &mut self.name);
         let (l, c) = Self::row(ac, &mut y, 3, 34);
         Self::label(buf, l, "Email", &th, 3, true);
-        Input::new().placeholder("you@example.com").validator(email_ok).focused(f(Id::Email, &self.focus)).now(now).theme(&th).render(c, buf, &mut self.email);
+        Input::new()
+            .placeholder("you@example.com")
+            .validator(email_ok)
+            .focused(f(Id::Email, &self.focus))
+            .now(now)
+            .theme(&th)
+            .render(c, buf, &mut self.email);
         let (l, c) = Self::row(ac, &mut y, 3, 24);
         Self::label(buf, l, "Plan", &th, 3, true);
-        Select::new().focused(f(Id::Plan, &self.focus)).now(now).theme(&th).render(c, buf, &mut self.plan);
+        Select::new()
+            .focused(f(Id::Plan, &self.focus))
+            .now(now)
+            .theme(&th)
+            .render(c, buf, &mut self.plan);
 
         // ── Actions ──
-        let act = pad(card(buf, actions_a, &th, if self.dirty { "Actions • unsaved changes" } else { "Actions" }), 1, 0);
+        let act = pad(
+            card(
+                buf,
+                actions_a,
+                &th,
+                if self.dirty {
+                    "Actions • unsaved changes"
+                } else {
+                    "Actions"
+                },
+            ),
+            1,
+            0,
+        );
         if act.height >= 3 {
             let bw = 14u16;
-            let b1 = Rect { x: act.x, y: act.y, width: bw, height: 3 };
-            let b2 = Rect { x: b1.right() + 1, y: act.y, width: bw, height: 3 };
-            let b3 = Rect { x: act.right().saturating_sub(18), y: act.y, width: 18, height: 3 };
-            Button::new("Save").variant(Variant::Primary).min_width(bw).focused(f(Id::Save, &self.focus)).now(now).theme(&th).render(b1, buf, &mut self.save);
-            Button::new("Reset").min_width(bw).focused(f(Id::Reset, &self.focus)).now(now).theme(&th).render(b2, buf, &mut self.reset);
+            let b1 = Rect {
+                x: act.x,
+                y: act.y,
+                width: bw,
+                height: 3,
+            };
+            let b2 = Rect {
+                x: b1.right() + 1,
+                y: act.y,
+                width: bw,
+                height: 3,
+            };
+            let b3 = Rect {
+                x: act.right().saturating_sub(18),
+                y: act.y,
+                width: 18,
+                height: 3,
+            };
+            Button::new("Save")
+                .variant(Variant::Primary)
+                .min_width(bw)
+                .focused(f(Id::Save, &self.focus))
+                .now(now)
+                .theme(&th)
+                .render(b1, buf, &mut self.save);
+            Button::new("Reset")
+                .min_width(bw)
+                .focused(f(Id::Reset, &self.focus))
+                .now(now)
+                .theme(&th)
+                .render(b2, buf, &mut self.reset);
             if b3.x > b2.right() {
-                Button::new("Delete account").variant(Variant::Error).min_width(18).focused(f(Id::Delete, &self.focus)).now(now).theme(&th).render(b3, buf, &mut self.delete);
+                Button::new("Delete account")
+                    .variant(Variant::Error)
+                    .min_width(18)
+                    .focused(f(Id::Delete, &self.focus))
+                    .now(now)
+                    .theme(&th)
+                    .render(b3, buf, &mut self.delete);
             }
             if act.height >= 5 {
-                let s = Rect { x: act.x, y: act.y + 4, width: act.width, height: 1 };
+                let s = Rect {
+                    x: act.x,
+                    y: act.y + 4,
+                    width: act.width,
+                    height: 1,
+                };
                 fill(buf, s, th.background);
-                put(buf, s.x, s.y, &truncate(&self.summary(), s.width as usize), s.width, st(th.text_muted, th.background));
+                put(
+                    buf,
+                    s.x,
+                    s.y,
+                    &truncate(&self.summary(), s.width as usize),
+                    s.width,
+                    st(th.text_muted, th.background),
+                );
             }
         }
 
@@ -290,11 +444,14 @@ impl Page for SettingsPage {
         self.theme_sel.render_overlay(buf, area, &th, 8);
         self.plan.render_overlay(buf, area, &th, 8);
         if self.confirm.open {
-            Modal::confirm("Delete account?", "This removes Ada Lovelace and every workspace she owns. This cannot be undone.")
-                .buttons(&[("Cancel", Variant::Default), ("Delete", Variant::Error)])
-                .now(now)
-                .theme(&th)
-                .render(area, buf, &mut self.confirm);
+            Modal::confirm(
+                "Delete account?",
+                "This removes Ada Lovelace and every workspace she owns. This cannot be undone.",
+            )
+            .buttons(&[("Cancel", Variant::Default), ("Delete", Variant::Error)])
+            .now(now)
+            .theme(&th)
+            .render(area, buf, &mut self.confirm);
         }
     }
 
@@ -383,7 +540,11 @@ impl Page for SettingsPage {
                 }
                 route!(self.name, Id::Name);
                 route!(self.email, Id::Email);
-                for (state, id) in [(&mut self.save, Id::Save), (&mut self.reset, Id::Reset), (&mut self.delete, Id::Delete)] {
+                for (state, id) in [
+                    (&mut self.save, Id::Save),
+                    (&mut self.reset, Id::Reset),
+                    (&mut self.delete, Id::Delete),
+                ] {
                     let o = state.handle_mouse(m);
                     if o.is_changed() {
                         pressed = Some(id);
@@ -422,9 +583,13 @@ impl Page for SettingsPage {
     }
 
     fn animating(&self, now: Instant) -> bool {
-        [&self.line_numbers, &self.ligatures, &self.notify].iter().any(|s| s.animating(now))
+        [&self.line_numbers, &self.ligatures, &self.notify]
+            .iter()
+            .any(|s| s.animating(now))
             || self.sidebar_width.animating(now)
             || self.confirm.open
-            || [&self.save, &self.reset, &self.delete].iter().any(|b| b.animating(now))
+            || [&self.save, &self.reset, &self.delete]
+                .iter()
+                .any(|b| b.animating(now))
     }
 }

@@ -12,16 +12,16 @@
 
 use std::time::{Duration, Instant};
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::widgets::StatefulWidget;
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::Modifier;
 use crate::anim::{Easing, Tween};
 use crate::core::{Outcome, is_press, wheel_delta};
 use crate::draw::{Border, blit, st};
 use crate::theme::{self, Theme};
 use crate::widgets::scrollbar::{ScrollAxis, Scrollbar, ScrollbarState};
+use ratatui::buffer::Buffer;
+use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui::layout::{Alignment, Rect};
+use ratatui::style::Modifier;
+use ratatui::widgets::StatefulWidget;
 
 /// Scrollbar visibility.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -117,17 +117,43 @@ impl ScrollViewState {
 
 impl crate::core::Interactive for ScrollViewState {
     fn handle_key(&mut self, k: KeyEvent) -> Outcome {
-        if !is_press(&k) { return Outcome::Ignored; }
+        if !is_press(&k) {
+            return Outcome::Ignored;
+        }
         let page = self.viewport.height.saturating_sub(1) as i32;
         match k.code {
-            KeyCode::Up => { self.scroll_by(0, -1, Instant::now(), Duration::ZERO); Outcome::Consumed }
-            KeyCode::Down => { self.scroll_by(0, 1, Instant::now(), Duration::ZERO); Outcome::Consumed }
-            KeyCode::Left => { self.scroll_by(-1, 0, Instant::now(), Duration::ZERO); Outcome::Consumed }
-            KeyCode::Right => { self.scroll_by(1, 0, Instant::now(), Duration::ZERO); Outcome::Consumed }
-            KeyCode::PageUp => { self.scroll_by(0, -page, Instant::now(), Duration::ZERO); Outcome::Consumed }
-            KeyCode::PageDown => { self.scroll_by(0, page, Instant::now(), Duration::ZERO); Outcome::Consumed }
-            KeyCode::Home => { self.scroll_to(self.offset_x, 0, Instant::now(), Duration::ZERO); Outcome::Consumed }
-            KeyCode::End => { self.scroll_to(self.offset_x, usize::MAX, Instant::now(), Duration::ZERO); Outcome::Consumed }
+            KeyCode::Up => {
+                self.scroll_by(0, -1, Instant::now(), Duration::ZERO);
+                Outcome::Consumed
+            }
+            KeyCode::Down => {
+                self.scroll_by(0, 1, Instant::now(), Duration::ZERO);
+                Outcome::Consumed
+            }
+            KeyCode::Left => {
+                self.scroll_by(-1, 0, Instant::now(), Duration::ZERO);
+                Outcome::Consumed
+            }
+            KeyCode::Right => {
+                self.scroll_by(1, 0, Instant::now(), Duration::ZERO);
+                Outcome::Consumed
+            }
+            KeyCode::PageUp => {
+                self.scroll_by(0, -page, Instant::now(), Duration::ZERO);
+                Outcome::Consumed
+            }
+            KeyCode::PageDown => {
+                self.scroll_by(0, page, Instant::now(), Duration::ZERO);
+                Outcome::Consumed
+            }
+            KeyCode::Home => {
+                self.scroll_to(self.offset_x, 0, Instant::now(), Duration::ZERO);
+                Outcome::Consumed
+            }
+            KeyCode::End => {
+                self.scroll_to(self.offset_x, usize::MAX, Instant::now(), Duration::ZERO);
+                Outcome::Consumed
+            }
             _ => Outcome::Ignored,
         }
     }
@@ -141,7 +167,9 @@ impl crate::core::Interactive for ScrollViewState {
 
         let vb = self.vbar.handle_mouse(m);
         if vb.is_changed() {
-            let new_y = (self.vbar.offset as f32 / self.vbar.max_offset().max(1) as f32 * self.content.1.saturating_sub(self.viewport.height) as f32) as usize;
+            let new_y = (self.vbar.offset as f32 / self.vbar.max_offset().max(1) as f32
+                * self.content.1.saturating_sub(self.viewport.height) as f32)
+                as usize;
             self.offset_y = new_y;
             self.anim_y.set(new_y as f32);
             out |= Outcome::Consumed;
@@ -151,7 +179,9 @@ impl crate::core::Interactive for ScrollViewState {
 
         let hb = self.hbar.handle_mouse(m);
         if hb.is_changed() {
-            let new_x = (self.hbar.offset as f32 / self.hbar.max_offset().max(1) as f32 * self.content.0.saturating_sub(self.viewport.width) as f32) as usize;
+            let new_x = (self.hbar.offset as f32 / self.hbar.max_offset().max(1) as f32
+                * self.content.0.saturating_sub(self.viewport.width) as f32)
+                as usize;
             self.offset_x = new_x;
             out |= Outcome::Consumed;
         } else if hb == Outcome::Consumed {
@@ -187,39 +217,59 @@ impl ScrollView {
 
     pub fn content_size(mut self, w: u16, h: u16) -> Self {
         // ponytail: clamp at 4000×4000 cells to avoid runaway memory
-        self.content = (w.min(4000), h.min(4000)); self
+        self.content = (w.min(4000), h.min(4000));
+        self
     }
 
     pub fn show_scrollbars(mut self, s: ScrollBars) -> Self {
-        self.show_scrollbars = s; self
+        self.show_scrollbars = s;
+        self
     }
 
     pub fn smooth(mut self, s: bool) -> Self {
-        self.smooth = s; self
+        self.smooth = s;
+        self
     }
 
     pub fn border(mut self, b: Border) -> Self {
-        self.border = Some(b); self
+        self.border = Some(b);
+        self
     }
 
     pub fn title(mut self, t: impl Into<String>) -> Self {
-        self.title = Some(t.into()); self
+        self.title = Some(t.into());
+        self
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(*t); self
+        self.theme = Some(*t);
+        self
     }
 
     /// Render with a closure that draws into the content buffer.
-    pub fn render_with<F>(self, area: Rect, buf: &mut Buffer, state: &mut ScrollViewState, mut draw_fn: F)
-    where F: FnMut(&mut Buffer, Rect)
+    pub fn render_with<F>(
+        self,
+        area: Rect,
+        buf: &mut Buffer,
+        state: &mut ScrollViewState,
+        mut draw_fn: F,
+    ) where
+        F: FnMut(&mut Buffer, Rect),
     {
         let th = self.theme.unwrap_or_else(theme::current);
 
         // Border
         let inner = if let Some(bord) = self.border {
             if let Some(title) = &self.title {
-                bord.draw_titled_with(buf, area, th.border_blurred, th.background, title, Alignment::Left, st(th.text, th.background).add_modifier(Modifier::BOLD));
+                bord.draw_titled_with(
+                    buf,
+                    area,
+                    th.border_blurred,
+                    th.background,
+                    title,
+                    Alignment::Left,
+                    st(th.text, th.background).add_modifier(Modifier::BOLD),
+                );
             } else {
                 bord.draw(buf, area, th.border, th.background);
             }
@@ -228,7 +278,9 @@ impl ScrollView {
             area
         };
 
-        if inner.width == 0 || inner.height == 0 { return; }
+        if inner.width == 0 || inner.height == 0 {
+            return;
+        }
 
         state.content = self.content;
 
@@ -261,11 +313,20 @@ impl ScrollView {
         state.step(Instant::now());
 
         // Clamp offsets
-        state.offset_x = state.offset_x.min(self.content.0.saturating_sub(viewport.width) as usize);
-        state.offset_y = state.offset_y.min(self.content.1.saturating_sub(viewport.height) as usize);
+        state.offset_x = state
+            .offset_x
+            .min(self.content.0.saturating_sub(viewport.width) as usize);
+        state.offset_y = state
+            .offset_y
+            .min(self.content.1.saturating_sub(viewport.height) as usize);
 
         // Render content into offscreen buffer
-        let content_area = Rect { x: 0, y: 0, width: self.content.0, height: self.content.1 };
+        let content_area = Rect {
+            x: 0,
+            y: 0,
+            width: self.content.0,
+            height: self.content.1,
+        };
         let mut content_buf = Buffer::empty(content_area);
         draw_fn(&mut content_buf, content_area);
 
@@ -280,38 +341,62 @@ impl ScrollView {
 
         // Scrollbars
         if show_vbar {
-            let vbar_area = Rect { x: inner.right().saturating_sub(1), y: inner.y, width: 1, height: inner.height.saturating_sub(hbar_h) };
+            let vbar_area = Rect {
+                x: inner.right().saturating_sub(1),
+                y: inner.y,
+                width: 1,
+                height: inner.height.saturating_sub(hbar_h),
+            };
             state.vbar.offset = state.offset_y;
-            Scrollbar::new(ScrollAxis::Vertical, self.content.1 as usize, viewport.height as usize)
-                .theme(&th)
-                .render(vbar_area, buf, &mut state.vbar);
+            Scrollbar::new(
+                ScrollAxis::Vertical,
+                self.content.1 as usize,
+                viewport.height as usize,
+            )
+            .theme(&th)
+            .render(vbar_area, buf, &mut state.vbar);
         }
 
         if show_hbar {
-            let hbar_area = Rect { x: inner.x, y: inner.bottom().saturating_sub(1), width: inner.width.saturating_sub(vbar_w), height: 1 };
+            let hbar_area = Rect {
+                x: inner.x,
+                y: inner.bottom().saturating_sub(1),
+                width: inner.width.saturating_sub(vbar_w),
+                height: 1,
+            };
             state.hbar.offset = state.offset_x;
-            Scrollbar::new(ScrollAxis::Horizontal, self.content.0 as usize, viewport.width as usize)
-                .theme(&th)
-                .render(hbar_area, buf, &mut state.hbar);
+            Scrollbar::new(
+                ScrollAxis::Horizontal,
+                self.content.0 as usize,
+                viewport.width as usize,
+            )
+            .theme(&th)
+            .render(hbar_area, buf, &mut state.hbar);
         }
     }
 }
 
 impl Default for ScrollView {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use ratatui::buffer::Buffer;
-    
 
     #[test]
     fn scroll_offset_clamp() {
         let mut state = ScrollViewState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 20, 10));
-        ScrollView::new().content_size(100, 50).render_with(buf.area, &mut buf, &mut state, |_, _| {});
+        ScrollView::new().content_size(100, 50).render_with(
+            buf.area,
+            &mut buf,
+            &mut state,
+            |_, _| {},
+        );
         state.scroll_to(200, 200, Instant::now(), Duration::ZERO);
         // the viewport shrinks by the scrollbar thickness, so clamp against the real viewport
         assert_eq!(state.offset_x, 100 - state.viewport.width as usize);
@@ -322,8 +407,13 @@ mod tests {
     fn scroll_into_view() {
         let mut state = ScrollViewState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 20, 10));
-        ScrollView::new().content_size(100, 50).render_with(buf.area, &mut buf, &mut state, |_, _| {});
-        
+        ScrollView::new().content_size(100, 50).render_with(
+            buf.area,
+            &mut buf,
+            &mut state,
+            |_, _| {},
+        );
+
         let rect = Rect::new(50, 25, 5, 5);
         state.scroll_into_view(rect, Instant::now(), Duration::ZERO);
         // Should scroll to make rect visible
@@ -335,7 +425,12 @@ mod tests {
     fn scroll_at_bottom() {
         let mut state = ScrollViewState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 20, 10));
-        ScrollView::new().content_size(100, 50).render_with(buf.area, &mut buf, &mut state, |_: &mut Buffer, _: Rect| {});
+        ScrollView::new().content_size(100, 50).render_with(
+            buf.area,
+            &mut buf,
+            &mut state,
+            |_: &mut Buffer, _: Rect| {},
+        );
 
         state.scroll_to(0, usize::MAX, Instant::now(), Duration::ZERO);
         assert!(state.at_bottom());

@@ -30,7 +30,6 @@ use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
 use std::time::Duration;
 
-
 // ───────────────────────────── check styles ─────────────────────────────
 
 /// Visual style for checkboxes.
@@ -127,25 +126,41 @@ impl StatefulWidget for Checkbox {
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
-        let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
+        let look = Look {
+            focused: self.focused,
+            hover: state.hit.hover,
+            enabled: self.enabled,
+        };
         let bg = th.background;
 
         let (mark_w, box_x, label_x) = match self.style {
             CheckStyle::Pill => {
                 let w = 3u16;
-                let bx = if self.label_first { area.x + self.label.width() as u16 + 1 } else { area.x };
+                let bx = if self.label_first {
+                    area.x + self.label.width() as u16 + 1
+                } else {
+                    area.x
+                };
                 let lx = if self.label_first { area.x } else { area.x + w };
                 (w, bx, lx)
             }
             CheckStyle::Bracket => {
                 let w = 3u16;
-                let bx = if self.label_first { area.x + self.label.width() as u16 + 1 } else { area.x };
+                let bx = if self.label_first {
+                    area.x + self.label.width() as u16 + 1
+                } else {
+                    area.x
+                };
                 let lx = if self.label_first { area.x } else { area.x + w };
                 (w, bx, lx)
             }
             CheckStyle::Box | CheckStyle::Circle | CheckStyle::Check | CheckStyle::Square => {
                 let w = 2u16;
-                let bx = if self.label_first { area.x + self.label.width() as u16 + 1 } else { area.x };
+                let bx = if self.label_first {
+                    area.x + self.label.width() as u16 + 1
+                } else {
+                    area.x
+                };
                 let lx = if self.label_first { area.x } else { area.x + w };
                 (w, bx, lx)
             }
@@ -159,7 +174,11 @@ impl StatefulWidget for Checkbox {
                     CheckState::Indeterminate => "-",
                 };
                 let btn_bg = th.panel;
-                let mut mark_fg = if state.value == CheckState::On { th.text_success } else { Theme::shade(th.panel, -2) };
+                let mut mark_fg = if state.value == CheckState::On {
+                    th.text_success
+                } else {
+                    Theme::shade(th.panel, -2)
+                };
                 if !look.enabled {
                     mark_fg = mark_fg.blend(bg, 0.5);
                 }
@@ -171,7 +190,14 @@ impl StatefulWidget for Checkbox {
                 };
 
                 put(buf, box_x, area.y, " ", 1, st(side_bg, side_fg));
-                put(buf, box_x + 1, area.y, mark, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
+                put(
+                    buf,
+                    box_x + 1,
+                    area.y,
+                    mark,
+                    1,
+                    st(mark_fg, btn).add_modifier(Modifier::BOLD),
+                );
                 put(buf, box_x + 2, area.y, " ", 1, st(side_bg, side_fg));
             }
             CheckStyle::Bracket => {
@@ -180,14 +206,22 @@ impl StatefulWidget for Checkbox {
                     CheckState::Off => "[ ]",
                     CheckState::Indeterminate => "[-]",
                 };
-                let mut fg = if state.value == CheckState::On { th.text_success } else { th.text };
+                let mut fg = if state.value == CheckState::On {
+                    th.text_success
+                } else {
+                    th.text
+                };
                 if look.focused && self.label.is_empty() {
                     fg = th.cursor_fg;
                 }
                 if !look.enabled {
                     fg = fg.blend(bg, 0.5);
                 }
-                let mark_bg = if look.focused && self.label.is_empty() { th.cursor_bg } else { bg };
+                let mark_bg = if look.focused && self.label.is_empty() {
+                    th.cursor_bg
+                } else {
+                    bg
+                };
                 let mark_style = if look.focused || state.value != CheckState::Off {
                     st(fg, mark_bg).add_modifier(Modifier::BOLD)
                 } else {
@@ -201,15 +235,30 @@ impl StatefulWidget for Checkbox {
                     CheckState::Off => "☐ ",
                     CheckState::Indeterminate => "☒ ",
                 };
-                let mut fg = if state.value == CheckState::On { th.text_success } else { th.text };
+                let mut fg = if state.value == CheckState::On {
+                    th.text_success
+                } else {
+                    th.text
+                };
                 if look.focused && self.label.is_empty() {
                     fg = th.cursor_fg;
                 }
                 if !look.enabled {
                     fg = fg.blend(bg, 0.5);
                 }
-                let mark_bg = if look.focused && self.label.is_empty() { th.cursor_bg } else { bg };
-                put(buf, box_x, area.y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+                let mark_bg = if look.focused && self.label.is_empty() {
+                    th.cursor_bg
+                } else {
+                    bg
+                };
+                put(
+                    buf,
+                    box_x,
+                    area.y,
+                    mark,
+                    2,
+                    st(fg, mark_bg).add_modifier(Modifier::BOLD),
+                );
             }
             CheckStyle::Circle => {
                 let mark = match state.value {
@@ -217,15 +266,30 @@ impl StatefulWidget for Checkbox {
                     CheckState::Off => "○ ",
                     CheckState::Indeterminate => "◐ ",
                 };
-                let mut fg = if state.value == CheckState::On { th.text_success } else { th.text };
+                let mut fg = if state.value == CheckState::On {
+                    th.text_success
+                } else {
+                    th.text
+                };
                 if look.focused && self.label.is_empty() {
                     fg = th.cursor_fg;
                 }
                 if !look.enabled {
                     fg = fg.blend(bg, 0.5);
                 }
-                let mark_bg = if look.focused && self.label.is_empty() { th.cursor_bg } else { bg };
-                put(buf, box_x, area.y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+                let mark_bg = if look.focused && self.label.is_empty() {
+                    th.cursor_bg
+                } else {
+                    bg
+                };
+                put(
+                    buf,
+                    box_x,
+                    area.y,
+                    mark,
+                    2,
+                    st(fg, mark_bg).add_modifier(Modifier::BOLD),
+                );
             }
             CheckStyle::Check => {
                 let mark = match state.value {
@@ -233,15 +297,30 @@ impl StatefulWidget for Checkbox {
                     CheckState::Off => "  ",
                     CheckState::Indeterminate => "− ",
                 };
-                let mut fg = if state.value != CheckState::Off { th.text_success } else { bg };
+                let mut fg = if state.value != CheckState::Off {
+                    th.text_success
+                } else {
+                    bg
+                };
                 if look.focused && self.label.is_empty() {
                     fg = th.cursor_fg;
                 }
                 if !look.enabled {
                     fg = fg.blend(bg, 0.5);
                 }
-                let mark_bg = if look.focused && self.label.is_empty() { th.cursor_bg } else { bg };
-                put(buf, box_x, area.y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+                let mark_bg = if look.focused && self.label.is_empty() {
+                    th.cursor_bg
+                } else {
+                    bg
+                };
+                put(
+                    buf,
+                    box_x,
+                    area.y,
+                    mark,
+                    2,
+                    st(fg, mark_bg).add_modifier(Modifier::BOLD),
+                );
             }
             CheckStyle::Square => {
                 let mark = match state.value {
@@ -249,15 +328,30 @@ impl StatefulWidget for Checkbox {
                     CheckState::Off => "□ ",
                     CheckState::Indeterminate => "▣ ",
                 };
-                let mut fg = if state.value == CheckState::On { th.text_success } else { th.text };
+                let mut fg = if state.value == CheckState::On {
+                    th.text_success
+                } else {
+                    th.text
+                };
                 if look.focused && self.label.is_empty() {
                     fg = th.cursor_fg;
                 }
                 if !look.enabled {
                     fg = fg.blend(bg, 0.5);
                 }
-                let mark_bg = if look.focused && self.label.is_empty() { th.cursor_bg } else { bg };
-                put(buf, box_x, area.y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+                let mark_bg = if look.focused && self.label.is_empty() {
+                    th.cursor_bg
+                } else {
+                    bg
+                };
+                put(
+                    buf,
+                    box_x,
+                    area.y,
+                    mark,
+                    2,
+                    st(fg, mark_bg).add_modifier(Modifier::BOLD),
+                );
             }
         }
 
@@ -271,7 +365,11 @@ impl StatefulWidget for Checkbox {
             } else {
                 st(th.text, bg)
             };
-            let max_w = area.width.saturating_sub(if self.label_first { box_x - area.x } else { mark_w });
+            let max_w = area.width.saturating_sub(if self.label_first {
+                box_x - area.x
+            } else {
+                mark_w
+            });
             let text = if self.label_first {
                 self.label.clone()
             } else {
@@ -292,13 +390,23 @@ pub struct CheckboxState {
 
 impl CheckboxState {
     pub fn new(value: CheckState) -> Self {
-        Self { value, hit: HitBox::default(), tri_state: false }
+        Self {
+            value,
+            hit: HitBox::default(),
+            tri_state: false,
+        }
     }
 
     pub fn toggle(&mut self) {
         self.value = match self.value {
             CheckState::Off => CheckState::On,
-            CheckState::On => if self.tri_state { CheckState::Indeterminate } else { CheckState::Off },
+            CheckState::On => {
+                if self.tri_state {
+                    CheckState::Indeterminate
+                } else {
+                    CheckState::Off
+                }
+            }
             CheckState::Indeterminate => CheckState::Off,
         };
     }
@@ -332,7 +440,6 @@ impl Interactive for CheckboxState {
         }
     }
 }
-
 
 // ───────────────────────────── switch styles ─────────────────────────────
 
@@ -437,7 +544,11 @@ impl StatefulWidget for Switch {
         state.duration = self.duration.unwrap_or(Duration::from_millis(200));
 
         let th = self.theme.unwrap_or_else(theme::current);
-        let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
+        let look = Look {
+            focused: self.focused,
+            hover: state.hit.hover,
+            enabled: self.enabled,
+        };
         let t = state.anim.value(self.now.unwrap_or_else(Instant::now));
 
         let (min_w, min_h) = match self.style {
@@ -459,21 +570,37 @@ impl StatefulWidget for Switch {
         } else {
             th.background
         };
-        
+
         if self.style == SwitchStyle::Pill {
             fill(buf, area, bg);
             if !self.compact {
-                let border = if look.focused { th.border } else { th.border_blurred };
+                let border = if look.focused {
+                    th.border
+                } else {
+                    th.border_blurred
+                };
                 Border::Tall.draw(buf, area, border, bg);
             }
         }
 
-        let track_y = if self.style == SwitchStyle::Pill && !self.compact { area.y + 1 } else { area.y };
-        let track_x = if self.style == SwitchStyle::Pill && !self.compact { area.x + 3 } else { area.x };
+        let track_y = if self.style == SwitchStyle::Pill && !self.compact {
+            area.y + 1
+        } else {
+            area.y
+        };
+        let track_x = if self.style == SwitchStyle::Pill && !self.compact {
+            area.x + 3
+        } else {
+            area.x
+        };
 
         match self.style {
             SwitchStyle::Pill => {
-                let track = if !self.compact && look.focused { Theme::shade(th.panel, -2) } else { Theme::shade(bg.blend(th.foreground, 0.1), -2) };
+                let track = if !self.compact && look.focused {
+                    Theme::shade(th.panel, -2)
+                } else {
+                    Theme::shade(bg.blend(th.foreground, 0.1), -2)
+                };
                 let mut thumb = if state.on { th.success } else { th.panel };
                 if look.hover && look.enabled {
                     thumb = Theme::shade(thumb, 1);
@@ -486,17 +613,23 @@ impl StatefulWidget for Switch {
                 let end = start + 4.0;
                 for i in 0..8u16 {
                     let (cl, cr) = (i as f32, i as f32 + 1.0);
-                    let Some(cell) = buf.cell_mut((track_x + i, track_y)) else { continue };
+                    let Some(cell) = buf.cell_mut((track_x + i, track_y)) else {
+                        continue;
+                    };
                     if end <= cl || start >= cr {
                         cell.set_symbol(" ").set_bg(track.color());
                     } else if start <= cl && end >= cr {
                         cell.set_symbol(" ").set_bg(thumb.color());
                     } else if start > cl {
                         let idx = ((start - cl) * 8.0).round() as usize;
-                        cell.set_symbol(LEFT_BLOCKS[idx.min(8)]).set_fg(track.color()).set_bg(thumb.color());
+                        cell.set_symbol(LEFT_BLOCKS[idx.min(8)])
+                            .set_fg(track.color())
+                            .set_bg(thumb.color());
                     } else {
                         let idx = ((end - cl) * 8.0).round() as usize;
-                        cell.set_symbol(LEFT_BLOCKS[idx.min(8)]).set_fg(thumb.color()).set_bg(track.color());
+                        cell.set_symbol(LEFT_BLOCKS[idx.min(8)])
+                            .set_fg(thumb.color())
+                            .set_bg(track.color());
                     }
                 }
             }
@@ -556,7 +689,14 @@ impl StatefulWidget for Switch {
                     pill_bg = pill_bg.blend(bg, 0.5);
                 }
                 let fg = pill_bg.text_on(0.9);
-                put(buf, track_x, track_y, text, 5, st(fg, pill_bg).add_modifier(Modifier::BOLD));
+                put(
+                    buf,
+                    track_x,
+                    track_y,
+                    text,
+                    5,
+                    st(fg, pill_bg).add_modifier(Modifier::BOLD),
+                );
             }
             SwitchStyle::Check => {
                 let (sym, mut fg) = if state.on {
@@ -567,21 +707,33 @@ impl StatefulWidget for Switch {
                 if !look.enabled {
                     fg = fg.blend(bg, 0.5);
                 }
-                put(buf, track_x, track_y, sym, 1, st(fg, bg).add_modifier(Modifier::BOLD));
+                put(
+                    buf,
+                    track_x,
+                    track_y,
+                    sym,
+                    1,
+                    st(fg, bg).add_modifier(Modifier::BOLD),
+                );
             }
         }
 
         if let Some(label) = &self.label {
-            let label_x = track_x + match self.style {
-                SwitchStyle::Pill => 9,
-                SwitchStyle::Slim => 4,
-                SwitchStyle::Line => 4,
-                SwitchStyle::Round => 6,
-                SwitchStyle::Text => 6,
-                SwitchStyle::Check => 2,
-            };
+            let label_x = track_x
+                + match self.style {
+                    SwitchStyle::Pill => 9,
+                    SwitchStyle::Slim => 4,
+                    SwitchStyle::Line => 4,
+                    SwitchStyle::Round => 6,
+                    SwitchStyle::Text => 6,
+                    SwitchStyle::Check => 2,
+                };
             let max_w = area.width.saturating_sub(label_x.saturating_sub(area.x));
-            let fg = if look.enabled { th.text } else { th.text_disabled };
+            let fg = if look.enabled {
+                th.text
+            } else {
+                th.text_disabled
+            };
             put(buf, label_x, track_y, label, max_w, st(fg, bg));
         }
     }
@@ -614,7 +766,8 @@ impl SwitchState {
     pub fn set(&mut self, on: bool, now: Instant, dur: Duration) {
         if self.on != on {
             self.on = on;
-            self.anim.go_with(if on { 1.0 } else { 0.0 }, now, dur, Easing::InOutCubic);
+            self.anim
+                .go_with(if on { 1.0 } else { 0.0 }, now, dur, Easing::InOutCubic);
         }
     }
 
@@ -741,17 +894,39 @@ impl StatefulWidget for RadioGroup {
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
-        let look = Look { focused: self.focused, hover: false, enabled: self.enabled };
+        let look = Look {
+            focused: self.focused,
+            hover: false,
+            enabled: self.enabled,
+        };
         let bg = th.background;
 
         let content = if self.bordered {
-            let border_color = if look.focused { th.border } else { th.border_blurred };
+            let border_color = if look.focused {
+                th.border
+            } else {
+                th.border_blurred
+            };
             if let Some(title) = &self.title {
-                let title_style = st(if look.focused { th.text } else { th.text_muted }, bg).add_modifier(Modifier::BOLD);
-                Border::Tall.draw_titled_with(buf, area, border_color, bg, title, ratatui::layout::Alignment::Left, title_style)
+                let title_style = st(if look.focused { th.text } else { th.text_muted }, bg)
+                    .add_modifier(Modifier::BOLD);
+                Border::Tall.draw_titled_with(
+                    buf,
+                    area,
+                    border_color,
+                    bg,
+                    title,
+                    ratatui::layout::Alignment::Left,
+                    title_style,
+                )
             } else {
                 Border::Tall.draw(buf, area, border_color, bg);
-                Rect { x: area.x + 1, y: area.y + 1, width: area.width.saturating_sub(2), height: area.height.saturating_sub(2) }
+                Rect {
+                    x: area.x + 1,
+                    y: area.y + 1,
+                    width: area.width.saturating_sub(2),
+                    height: area.height.saturating_sub(2),
+                }
             }
         } else {
             area
@@ -764,7 +939,12 @@ impl StatefulWidget for RadioGroup {
                 if x + w > content.right() {
                     break;
                 }
-                let r = Rect { x, y: content.y, width: w, height: 1 };
+                let r = Rect {
+                    x,
+                    y: content.y,
+                    width: w,
+                    height: 1,
+                };
                 state.hits.push(r);
                 self.render_option(buf, r, idx, opt, state, &th, &look);
                 x += w + 1;
@@ -774,7 +954,12 @@ impl StatefulWidget for RadioGroup {
                 if y >= content.bottom() {
                     break;
                 }
-                let r = Rect { x: content.x, y, width: content.width, height: 1 };
+                let r = Rect {
+                    x: content.x,
+                    y,
+                    width: content.width,
+                    height: 1,
+                };
                 state.hits.push(r);
                 self.render_option(buf, r, idx, opt, state, &th, &look);
             }
@@ -783,7 +968,16 @@ impl StatefulWidget for RadioGroup {
 }
 
 impl RadioGroup {
-    fn render_option(&self, buf: &mut Buffer, area: Rect, idx: usize, label: &str, state: &RadioState, th: &Theme, look: &Look) {
+    fn render_option(
+        &self,
+        buf: &mut Buffer,
+        area: Rect,
+        idx: usize,
+        label: &str,
+        state: &RadioState,
+        th: &Theme,
+        look: &Look,
+    ) {
         let bg = th.background;
         let selected = state.selected == Some(idx);
         let is_cursor = state.cursor == idx;
@@ -792,7 +986,11 @@ impl RadioGroup {
             RadioStyle::Dot => {
                 let mark = if selected { "●" } else { " " };
                 let btn_bg = th.panel;
-                let mut mark_fg = if selected { th.text_success } else { Theme::shade(th.panel, -2) };
+                let mut mark_fg = if selected {
+                    th.text_success
+                } else {
+                    Theme::shade(th.panel, -2)
+                };
                 if !look.enabled {
                     mark_fg = mark_fg.blend(bg, 0.5);
                 }
@@ -804,7 +1002,14 @@ impl RadioGroup {
                 };
 
                 put(buf, area.x, area.y, " ", 1, st(side_bg, side_fg));
-                put(buf, area.x + 1, area.y, mark, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
+                put(
+                    buf,
+                    area.x + 1,
+                    area.y,
+                    mark,
+                    1,
+                    st(mark_fg, btn).add_modifier(Modifier::BOLD),
+                );
                 put(buf, area.x + 2, area.y, " ", 1, st(side_bg, side_fg));
             }
             RadioStyle::Bracket => {
@@ -816,7 +1021,11 @@ impl RadioGroup {
                 if !look.enabled {
                     fg = fg.blend(bg, 0.5);
                 }
-                let mark_bg = if is_cursor && look.focused { th.cursor_bg } else { bg };
+                let mark_bg = if is_cursor && look.focused {
+                    th.cursor_bg
+                } else {
+                    bg
+                };
                 let mark_style = if look.focused || selected {
                     st(fg, mark_bg).add_modifier(Modifier::BOLD)
                 } else {
@@ -833,8 +1042,19 @@ impl RadioGroup {
                 if !look.enabled {
                     fg = fg.blend(bg, 0.5);
                 }
-                let mark_bg = if is_cursor && look.focused { th.cursor_bg } else { bg };
-                put(buf, area.x, area.y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+                let mark_bg = if is_cursor && look.focused {
+                    th.cursor_bg
+                } else {
+                    bg
+                };
+                put(
+                    buf,
+                    area.x,
+                    area.y,
+                    mark,
+                    2,
+                    st(fg, mark_bg).add_modifier(Modifier::BOLD),
+                );
             }
             RadioStyle::Arrow => {
                 let mark = if selected { "❯ " } else { "  " };
@@ -845,8 +1065,19 @@ impl RadioGroup {
                 if !look.enabled {
                     fg = fg.blend(bg, 0.5);
                 }
-                let mark_bg = if is_cursor && look.focused { th.cursor_bg } else { bg };
-                put(buf, area.x, area.y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+                let mark_bg = if is_cursor && look.focused {
+                    th.cursor_bg
+                } else {
+                    bg
+                };
+                put(
+                    buf,
+                    area.x,
+                    area.y,
+                    mark,
+                    2,
+                    st(fg, mark_bg).add_modifier(Modifier::BOLD),
+                );
             }
         }
 
@@ -862,7 +1093,14 @@ impl RadioGroup {
             _ => 2,
         };
         let max_w = area.width.saturating_sub(spacing);
-        put(buf, area.x + spacing, area.y, &format!(" {}", label), max_w, style);
+        put(
+            buf,
+            area.x + spacing,
+            area.y,
+            &format!(" {}", label),
+            max_w,
+            style,
+        );
     }
 }
 
@@ -876,7 +1114,11 @@ pub struct RadioState {
 
 impl RadioState {
     pub fn new(selected: Option<usize>) -> Self {
-        Self { selected, cursor: selected.unwrap_or(0), hits: vec![] }
+        Self {
+            selected,
+            cursor: selected.unwrap_or(0),
+            hits: vec![],
+        }
     }
 
     pub fn select(&mut self, idx: usize) {
@@ -896,7 +1138,11 @@ impl Interactive for RadioState {
         }
         match key.code {
             KeyCode::Up | KeyCode::Left => {
-                self.cursor = if self.cursor == 0 { total - 1 } else { self.cursor - 1 };
+                self.cursor = if self.cursor == 0 {
+                    total - 1
+                } else {
+                    self.cursor - 1
+                };
                 Outcome::Consumed
             }
             KeyCode::Down | KeyCode::Right => {
@@ -916,7 +1162,10 @@ impl Interactive for RadioState {
     }
 
     fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
-        let pos = Position { x: m.column, y: m.row };
+        let pos = Position {
+            x: m.column,
+            y: m.row,
+        };
         if let Some(idx) = self.hits.iter().position(|r| r.contains(pos)) {
             match m.kind {
                 ratatui::crossterm::event::MouseEventKind::Down(_) => {
@@ -997,13 +1246,26 @@ impl StatefulWidget for CheckList {
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
-        let look = Look { focused: self.focused, hover: false, enabled: self.enabled };
+        let look = Look {
+            focused: self.focused,
+            hover: false,
+            enabled: self.enabled,
+        };
         let bg = th.background;
 
-        let border_color = if look.focused { th.border } else { th.border_blurred };
+        let border_color = if look.focused {
+            th.border
+        } else {
+            th.border_blurred
+        };
         Border::Tall.draw(buf, area, border_color, bg);
 
-        let content = Rect { x: area.x + 1, y: area.y + 1, width: area.width.saturating_sub(3), height: area.height.saturating_sub(2) };
+        let content = Rect {
+            x: area.x + 1,
+            y: area.y + 1,
+            width: area.width.saturating_sub(3),
+            height: area.height.saturating_sub(2),
+        };
         let viewport = content.height as usize;
         state.scroll = keep_visible(state.scroll, state.cursor, viewport);
 
@@ -1012,7 +1274,12 @@ impl StatefulWidget for CheckList {
                 break;
             }
             let y = content.y + i as u16;
-            let r = Rect { x: content.x, y, width: content.width, height: 1 };
+            let r = Rect {
+                x: content.x,
+                y,
+                width: content.width,
+                height: 1,
+            };
             state.hits.push((r, idx));
 
             let checked = state.checked.get(idx).copied().unwrap_or(false);
@@ -1022,7 +1289,11 @@ impl StatefulWidget for CheckList {
                 CheckStyle::Pill => {
                     let mark = if checked { "X" } else { " " };
                     let btn_bg = th.panel;
-                    let mut mark_fg = if checked { th.text_success } else { Theme::shade(th.panel, -2) };
+                    let mut mark_fg = if checked {
+                        th.text_success
+                    } else {
+                        Theme::shade(th.panel, -2)
+                    };
                     if !look.enabled {
                         mark_fg = mark_fg.blend(bg, 0.5);
                     }
@@ -1034,7 +1305,14 @@ impl StatefulWidget for CheckList {
                     };
 
                     put(buf, r.x, y, " ", 1, st(side_bg, side_fg));
-                    put(buf, r.x + 1, y, mark, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
+                    put(
+                        buf,
+                        r.x + 1,
+                        y,
+                        mark,
+                        1,
+                        st(mark_fg, btn).add_modifier(Modifier::BOLD),
+                    );
                     put(buf, r.x + 2, y, " ", 1, st(side_bg, side_fg));
                 }
                 CheckStyle::Bracket => {
@@ -1046,7 +1324,11 @@ impl StatefulWidget for CheckList {
                     if !look.enabled {
                         fg = fg.blend(bg, 0.5);
                     }
-                    let mark_bg = if is_cursor && look.focused { th.cursor_bg } else { bg };
+                    let mark_bg = if is_cursor && look.focused {
+                        th.cursor_bg
+                    } else {
+                        bg
+                    };
                     let mark_style = if look.focused || checked {
                         st(fg, mark_bg).add_modifier(Modifier::BOLD)
                     } else {
@@ -1056,10 +1338,34 @@ impl StatefulWidget for CheckList {
                 }
                 CheckStyle::Box | CheckStyle::Circle | CheckStyle::Check | CheckStyle::Square => {
                     let mark = match self.style {
-                        CheckStyle::Box => if checked { "☑ " } else { "☐ " },
-                        CheckStyle::Circle => if checked { "● " } else { "○ " },
-                        CheckStyle::Check => if checked { "✓ " } else { "  " },
-                        CheckStyle::Square => if checked { "■ " } else { "□ " },
+                        CheckStyle::Box => {
+                            if checked {
+                                "☑ "
+                            } else {
+                                "☐ "
+                            }
+                        }
+                        CheckStyle::Circle => {
+                            if checked {
+                                "● "
+                            } else {
+                                "○ "
+                            }
+                        }
+                        CheckStyle::Check => {
+                            if checked {
+                                "✓ "
+                            } else {
+                                "  "
+                            }
+                        }
+                        CheckStyle::Square => {
+                            if checked {
+                                "■ "
+                            } else {
+                                "□ "
+                            }
+                        }
                         _ => unreachable!(),
                     };
                     let mut fg = if checked { th.text_success } else { th.text };
@@ -1069,8 +1375,19 @@ impl StatefulWidget for CheckList {
                     if !look.enabled {
                         fg = fg.blend(bg, 0.5);
                     }
-                    let mark_bg = if is_cursor && look.focused { th.cursor_bg } else { bg };
-                    put(buf, r.x, y, mark, 2, st(fg, mark_bg).add_modifier(Modifier::BOLD));
+                    let mark_bg = if is_cursor && look.focused {
+                        th.cursor_bg
+                    } else {
+                        bg
+                    };
+                    put(
+                        buf,
+                        r.x,
+                        y,
+                        mark,
+                        2,
+                        st(fg, mark_bg).add_modifier(Modifier::BOLD),
+                    );
                 }
             }
 
@@ -1086,12 +1403,26 @@ impl StatefulWidget for CheckList {
                 _ => 2,
             };
             let max_w = r.width.saturating_sub(spacing);
-            put(buf, r.x + spacing, y, &format!(" {}", self.options[idx]), max_w, style);
+            put(
+                buf,
+                r.x + spacing,
+                y,
+                &format!(" {}", self.options[idx]),
+                max_w,
+                style,
+            );
         }
 
         if self.options.len() > viewport {
-            let sb_area = Rect { x: area.right() - 1, y: area.y + 1, width: 1, height: area.height.saturating_sub(2) };
-            Scrollbar::vertical(self.options.len(), viewport).offset(state.scroll).render(sb_area, buf, &mut state.sb);
+            let sb_area = Rect {
+                x: area.right() - 1,
+                y: area.y + 1,
+                width: 1,
+                height: area.height.saturating_sub(2),
+            };
+            Scrollbar::vertical(self.options.len(), viewport)
+                .offset(state.scroll)
+                .render(sb_area, buf, &mut state.sb);
         }
     }
 }
@@ -1140,7 +1471,11 @@ impl Interactive for CheckListState {
         }
         match key.code {
             KeyCode::Up => {
-                self.cursor = if self.cursor == 0 { total - 1 } else { self.cursor - 1 };
+                self.cursor = if self.cursor == 0 {
+                    total - 1
+                } else {
+                    self.cursor - 1
+                };
                 Outcome::Consumed
             }
             KeyCode::Down => {
@@ -1166,7 +1501,10 @@ impl Interactive for CheckListState {
             return sb_out;
         }
 
-        let pos = Position { x: m.column, y: m.row };
+        let pos = Position {
+            x: m.column,
+            y: m.row,
+        };
         if let Some(&(_, idx)) = self.hits.iter().find(|(r, _)| r.contains(pos)) {
             match m.kind {
                 ratatui::crossterm::event::MouseEventKind::Down(_) => {
@@ -1185,7 +1523,6 @@ impl Interactive for CheckListState {
         }
     }
 }
-
 
 // ───────────────────────────── segmented styles ─────────────────────────────
 
@@ -1256,7 +1593,11 @@ impl StatefulWidget for Segmented {
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
-        let look = Look { focused: self.focused, hover: false, enabled: self.enabled };
+        let look = Look {
+            focused: self.focused,
+            hover: false,
+            enabled: self.enabled,
+        };
         let bg = th.background;
 
         let effective_style = if self.style == SegmentedStyle::Underline && area.height < 2 {
@@ -1274,7 +1615,12 @@ impl StatefulWidget for Segmented {
                     if x + w > area.right() {
                         break;
                     }
-                    let r = Rect { x, y: area.y, width: w, height: 1 };
+                    let r = Rect {
+                        x,
+                        y: area.y,
+                        width: w,
+                        height: 1,
+                    };
                     state.hits.push(r);
 
                     let selected = state.selected == idx;
@@ -1287,7 +1633,14 @@ impl StatefulWidget for Segmented {
                     } else {
                         (th.text, seg_bg)
                     };
-                    put(buf, x, area.y, &format!(" {} ", opt), w, st(fg, item_bg).add_modifier(Modifier::BOLD));
+                    put(
+                        buf,
+                        x,
+                        area.y,
+                        &format!(" {} ", opt),
+                        w,
+                        st(fg, item_bg).add_modifier(Modifier::BOLD),
+                    );
 
                     x += w;
                     if idx + 1 < self.options.len() {
@@ -1303,7 +1656,12 @@ impl StatefulWidget for Segmented {
                     if x + w > area.right() {
                         break;
                     }
-                    let r = Rect { x, y: area.y, width: w, height: 1 };
+                    let r = Rect {
+                        x,
+                        y: area.y,
+                        width: w,
+                        height: 1,
+                    };
                     state.hits.push(r);
 
                     let selected = state.selected == idx;
@@ -1333,7 +1691,12 @@ impl StatefulWidget for Segmented {
                     if x + w > area.right() {
                         break;
                     }
-                    let r = Rect { x, y: area.y, width: w, height: 2 };
+                    let r = Rect {
+                        x,
+                        y: area.y,
+                        width: w,
+                        height: 2,
+                    };
                     state.hits.push(r);
 
                     let selected = state.selected == idx;
@@ -1368,7 +1731,12 @@ impl StatefulWidget for Segmented {
                     if x + w > area.right() {
                         break;
                     }
-                    let r = Rect { x, y: area.y, width: w, height: 1 };
+                    let r = Rect {
+                        x,
+                        y: area.y,
+                        width: w,
+                        height: 1,
+                    };
                     state.hits.push(r);
 
                     let selected = state.selected == idx;
@@ -1403,7 +1771,10 @@ pub struct SegmentedState {
 
 impl SegmentedState {
     pub fn new(selected: usize) -> Self {
-        Self { selected, hits: vec![] }
+        Self {
+            selected,
+            hits: vec![],
+        }
     }
 }
 
@@ -1438,7 +1809,10 @@ impl Interactive for SegmentedState {
     }
 
     fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
-        let pos = Position { x: m.column, y: m.row };
+        let pos = Position {
+            x: m.column,
+            y: m.row,
+        };
         if let Some(idx) = self.hits.iter().position(|r| r.contains(pos)) {
             match m.kind {
                 ratatui::crossterm::event::MouseEventKind::Down(_) => {
@@ -1524,9 +1898,18 @@ mod tests {
         let area = Rect::new(0, 0, 20, 2);
         let mut buf = Buffer::empty(area);
 
-        for style in [CheckStyle::Pill, CheckStyle::Bracket, CheckStyle::Box, CheckStyle::Circle, CheckStyle::Check, CheckStyle::Square] {
+        for style in [
+            CheckStyle::Pill,
+            CheckStyle::Bracket,
+            CheckStyle::Box,
+            CheckStyle::Circle,
+            CheckStyle::Check,
+            CheckStyle::Square,
+        ] {
             buf.reset();
-            Checkbox::new("Test").style(style).render(area, &mut buf, &mut state);
+            Checkbox::new("Test")
+                .style(style)
+                .render(area, &mut buf, &mut state);
         }
     }
 
@@ -1536,14 +1919,18 @@ mod tests {
         let mut buf = Buffer::empty(area);
 
         let mut state = CheckboxState::new(CheckState::On);
-        Checkbox::new("").style(CheckStyle::Bracket).render(area, &mut buf, &mut state);
+        Checkbox::new("")
+            .style(CheckStyle::Bracket)
+            .render(area, &mut buf, &mut state);
         assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "[");
         assert_eq!(buf.cell((1, 0)).unwrap().symbol(), "x");
         assert_eq!(buf.cell((2, 0)).unwrap().symbol(), "]");
 
         buf.reset();
         state.value = CheckState::Indeterminate;
-        Checkbox::new("").style(CheckStyle::Bracket).render(area, &mut buf, &mut state);
+        Checkbox::new("")
+            .style(CheckStyle::Bracket)
+            .render(area, &mut buf, &mut state);
         assert_eq!(buf.cell((1, 0)).unwrap().symbol(), "-");
     }
 
@@ -1553,9 +1940,19 @@ mod tests {
         let area = Rect::new(0, 0, 20, 1);
         let mut buf = Buffer::empty(area);
 
-        for style in [SwitchStyle::Pill, SwitchStyle::Slim, SwitchStyle::Line, SwitchStyle::Round, SwitchStyle::Text, SwitchStyle::Check] {
+        for style in [
+            SwitchStyle::Pill,
+            SwitchStyle::Slim,
+            SwitchStyle::Line,
+            SwitchStyle::Round,
+            SwitchStyle::Text,
+            SwitchStyle::Check,
+        ] {
             buf.reset();
-            Switch::new().style(style).compact(true).render(area, &mut buf, &mut state);
+            Switch::new()
+                .style(style)
+                .compact(true)
+                .render(area, &mut buf, &mut state);
         }
     }
 
@@ -1565,13 +1962,17 @@ mod tests {
         let mut buf = Buffer::empty(area);
 
         let mut state = SwitchState::new(true);
-        Switch::new().style(SwitchStyle::Text).render(area, &mut buf, &mut state);
+        Switch::new()
+            .style(SwitchStyle::Text)
+            .render(area, &mut buf, &mut state);
         let text: String = (0..5).map(|x| buf.cell((x, 0)).unwrap().symbol()).collect();
         assert!(text.contains("ON"));
 
         buf.reset();
         state.on = false;
-        Switch::new().style(SwitchStyle::Text).render(area, &mut buf, &mut state);
+        Switch::new()
+            .style(SwitchStyle::Text)
+            .render(area, &mut buf, &mut state);
         let text: String = (0..5).map(|x| buf.cell((x, 0)).unwrap().symbol()).collect();
         assert!(text.contains("OFF"));
     }
@@ -1582,9 +1983,16 @@ mod tests {
         let area = Rect::new(0, 0, 20, 3);
         let mut buf = Buffer::empty(area);
 
-        for style in [RadioStyle::Dot, RadioStyle::Bracket, RadioStyle::Check, RadioStyle::Arrow] {
+        for style in [
+            RadioStyle::Dot,
+            RadioStyle::Bracket,
+            RadioStyle::Check,
+            RadioStyle::Arrow,
+        ] {
             buf.reset();
-            RadioGroup::new(vec!["A".into(), "B".into(), "C".into()]).style(style).render(area, &mut buf, &mut state);
+            RadioGroup::new(vec!["A".into(), "B".into(), "C".into()])
+                .style(style)
+                .render(area, &mut buf, &mut state);
         }
     }
 
@@ -1594,9 +2002,16 @@ mod tests {
         let area = Rect::new(0, 0, 30, 2);
         let mut buf = Buffer::empty(area);
 
-        for style in [SegmentedStyle::Filled, SegmentedStyle::Outline, SegmentedStyle::Underline, SegmentedStyle::Text] {
+        for style in [
+            SegmentedStyle::Filled,
+            SegmentedStyle::Outline,
+            SegmentedStyle::Underline,
+            SegmentedStyle::Text,
+        ] {
             buf.reset();
-            Segmented::new(vec!["Day".into(), "Week".into(), "Month".into()]).style(style).render(area, &mut buf, &mut state);
+            Segmented::new(vec!["Day".into(), "Week".into(), "Month".into()])
+                .style(style)
+                .render(area, &mut buf, &mut state);
         }
     }
 }

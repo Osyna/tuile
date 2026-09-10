@@ -20,8 +20,10 @@ use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::StatefulWidget;
 
-use crate::core::{HitBox, Hit, Outcome, Interactive, is_press, is_left_down, mouse_pos, wheel_delta};
-use crate::draw::{fill, put, hline, truncate, Border, st, bold, blend_area};
+use crate::core::{
+    Hit, HitBox, Interactive, Outcome, is_left_down, is_press, mouse_pos, wheel_delta,
+};
+use crate::draw::{Border, blend_area, bold, fill, hline, put, st, truncate};
 use crate::fuzzy;
 use crate::theme::{self, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
@@ -39,7 +41,13 @@ pub struct PaletteItem {
 
 impl PaletteItem {
     pub fn new(title: impl Into<String>) -> Self {
-        Self { title: title.into(), hint: None, group: None, shortcut: None, icon: None }
+        Self {
+            title: title.into(),
+            hint: None,
+            group: None,
+            shortcut: None,
+            icon: None,
+        }
     }
 
     pub fn hint(mut self, h: impl Into<String>) -> Self {
@@ -64,8 +72,7 @@ impl PaletteItem {
 }
 
 /// State for the command palette: query, results, selection.
-#[derive(Clone, Debug)]
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub struct CommandPaletteState {
     pub open: bool,
     items: Vec<PaletteItem>,
@@ -83,7 +90,6 @@ pub struct CommandPaletteState {
     pub selected: Option<usize>,
     last_query: String,
 }
-
 
 impl CommandPaletteState {
     pub fn new() -> Self {
@@ -160,7 +166,10 @@ impl CommandPaletteState {
 
     /// Byte offset of char index `ci` in the query (cursor is a char index).
     fn byte_at(&self, ci: usize) -> usize {
-        self.query.char_indices().nth(ci).map_or(self.query.len(), |(b, _)| b)
+        self.query
+            .char_indices()
+            .nth(ci)
+            .map_or(self.query.len(), |(b, _)| b)
     }
 }
 impl Interactive for CommandPaletteState {
@@ -268,7 +277,6 @@ impl Interactive for CommandPaletteState {
     }
 }
 
-
 /// Command palette overlay widget.
 pub struct CommandPalette {
     theme: Option<Theme>,
@@ -277,7 +285,10 @@ pub struct CommandPalette {
 
 impl CommandPalette {
     pub fn new() -> Self {
-        Self { theme: None, now: None }
+        Self {
+            theme: None,
+            now: None,
+        }
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
@@ -350,7 +361,8 @@ impl StatefulWidget for CommandPalette {
             state.scroll = state.highlight;
         }
         let mut shown = fit(state.scroll);
-        while shown > 0 && state.highlight >= state.scroll + shown && state.scroll < state.highlight {
+        while shown > 0 && state.highlight >= state.scroll + shown && state.scroll < state.highlight
+        {
             state.scroll += 1;
             shown = fit(state.scroll);
         }
@@ -370,7 +382,12 @@ impl StatefulWidget for CommandPalette {
         }
         let body_h = body_h.max(1);
 
-        let panel = Rect { x, y, width: w, height: body_h + CHROME };
+        let panel = Rect {
+            x,
+            y,
+            width: w,
+            height: body_h + CHROME,
+        };
         state.panel = panel;
         fill(buf, panel, th.surface);
         Border::Tall.draw(buf, panel, th.border, th.surface);
@@ -379,33 +396,95 @@ impl StatefulWidget for CommandPalette {
 
         // Input strip
         let input_bg = th.surface.blend(th.foreground, 0.05);
-        fill(buf, Rect { x: inner_x, y: y + 1, width: inner_w, height: 1 }, input_bg);
-        put(buf, inner_x + 1, y + 1, ">", 1, bold(st(th.primary, input_bg)));
+        fill(
+            buf,
+            Rect {
+                x: inner_x,
+                y: y + 1,
+                width: inner_w,
+                height: 1,
+            },
+            input_bg,
+        );
+        put(
+            buf,
+            inner_x + 1,
+            y + 1,
+            ">",
+            1,
+            bold(st(th.primary, input_bg)),
+        );
         let text_x = inner_x + 3;
         let text_w = inner_w.saturating_sub(4);
         if state.query.is_empty() {
-            put(buf, text_x, y + 1, "Search for commands…", text_w, st(th.text_muted, input_bg));
+            put(
+                buf,
+                text_x,
+                y + 1,
+                "Search for commands…",
+                text_w,
+                st(th.text_muted, input_bg),
+            );
         } else {
-            put(buf, text_x, y + 1, &state.query, text_w, st(th.text, input_bg));
+            put(
+                buf,
+                text_x,
+                y + 1,
+                &state.query,
+                text_w,
+                st(th.text, input_bg),
+            );
         }
         let cursor_x = text_x + state.query[..state.byte_at(state.cursor)].width() as u16;
         if cursor_x < text_x + text_w {
-            let under = state.query.chars().nth(state.cursor).map_or(" ".to_string(), |c| c.to_string());
-            put(buf, cursor_x, y + 1, &under, 1, st(th.cursor_fg, th.cursor_bg));
+            let under = state
+                .query
+                .chars()
+                .nth(state.cursor)
+                .map_or(" ".to_string(), |c| c.to_string());
+            put(
+                buf,
+                cursor_x,
+                y + 1,
+                &under,
+                1,
+                st(th.cursor_fg, th.cursor_bg),
+            );
         }
-        hline(buf, inner_x, y + 2, inner_w, "─", st(th.border_blurred, th.surface));
+        hline(
+            buf,
+            inner_x,
+            y + 2,
+            inner_w,
+            "─",
+            st(th.border_blurred, th.surface),
+        );
 
         // Footer
         let footer_y = panel.bottom() - 2;
         let hint = "↑↓ navigate • enter run • esc close";
         let hint = truncate(hint, inner_w as usize);
-        put(buf, inner_x + (inner_w.saturating_sub(hint.width() as u16)) / 2, footer_y, &hint, inner_w, st(th.text_muted, th.surface).add_modifier(Modifier::DIM));
+        put(
+            buf,
+            inner_x + (inner_w.saturating_sub(hint.width() as u16)) / 2,
+            footer_y,
+            &hint,
+            inner_w,
+            st(th.text_muted, th.surface).add_modifier(Modifier::DIM),
+        );
 
         // Body
         let body_y = y + 3;
         state.row_hits.clear();
         if shown == 0 {
-            put(buf, inner_x + 2, body_y, "No matches", inner_w.saturating_sub(2), st(th.text_muted, th.surface));
+            put(
+                buf,
+                inner_x + 2,
+                body_y,
+                "No matches",
+                inner_w.saturating_sub(2),
+                st(th.text_muted, th.surface),
+            );
             return;
         }
         let has_sb = state.results.len() > shown;
@@ -413,7 +492,9 @@ impl StatefulWidget for CommandPalette {
 
         let mut row_y = body_y;
         let mut last_group: Option<&str> = None;
-        for (row, &(item_idx, _score, ref positions)) in state.results.iter().enumerate().skip(start).take(shown) {
+        for (row, &(item_idx, _score, ref positions)) in
+            state.results.iter().enumerate().skip(start).take(shown)
+        {
             let item = &state.items[item_idx];
 
             if item.group.is_some() && item.group.as_deref() != last_group {
@@ -421,17 +502,37 @@ impl StatefulWidget for CommandPalette {
                     row_y += 1;
                 }
                 if let Some(g) = &item.group {
-                    put(buf, inner_x + 2, row_y, g, row_w.saturating_sub(2), st(th.text_muted, th.surface).add_modifier(Modifier::DIM));
+                    put(
+                        buf,
+                        inner_x + 2,
+                        row_y,
+                        g,
+                        row_w.saturating_sub(2),
+                        st(th.text_muted, th.surface).add_modifier(Modifier::DIM),
+                    );
                     row_y += 1;
                 }
                 last_group = item.group.as_deref();
             }
 
             let per = if item.hint.is_some() { 2 } else { 1 };
-            let row_area = Rect { x: inner_x, y: row_y, width: row_w, height: per };
+            let row_area = Rect {
+                x: inner_x,
+                y: row_y,
+                width: row_w,
+                height: per,
+            };
             let selected = row == state.highlight;
-            let (fg, bg) = if selected { (th.cursor_fg, th.cursor_bg) } else { (th.foreground, th.surface) };
-            let muted = if selected { fg.blend(bg, 0.3) } else { th.text_muted };
+            let (fg, bg) = if selected {
+                (th.cursor_fg, th.cursor_bg)
+            } else {
+                (th.foreground, th.surface)
+            };
+            let muted = if selected {
+                fg.blend(bg, 0.3)
+            } else {
+                th.text_muted
+            };
             fill(buf, row_area, bg);
 
             let mut title_x = inner_x + 2;
@@ -445,7 +546,14 @@ impl StatefulWidget for CommandPalette {
             let mut title_end = right;
             if let Some(sc) = &item.shortcut {
                 let sc_w = sc.width() as u16;
-                put(buf, right.saturating_sub(sc_w), row_y, sc, sc_w, st(muted, bg));
+                put(
+                    buf,
+                    right.saturating_sub(sc_w),
+                    row_y,
+                    sc,
+                    sc_w,
+                    st(muted, bg),
+                );
                 title_end = right.saturating_sub(sc_w + 1);
             }
             let title = truncate(&item.title, title_end.saturating_sub(title_x) as usize);
@@ -454,18 +562,38 @@ impl StatefulWidget for CommandPalette {
                 .enumerate()
                 .map(|(ci, ch)| {
                     let style = if positions.contains(&ci) {
-                        bold(st(if selected { th.accent.lighten(0.3) } else { th.accent }, bg)).add_modifier(Modifier::UNDERLINED)
+                        bold(st(
+                            if selected {
+                                th.accent.lighten(0.3)
+                            } else {
+                                th.accent
+                            },
+                            bg,
+                        ))
+                        .add_modifier(Modifier::UNDERLINED)
                     } else {
                         st(fg, bg)
                     };
                     Span::styled(ch.to_string(), style)
                 })
                 .collect();
-            buf.set_line(title_x, row_y, &Line::from(spans), title_end.saturating_sub(title_x));
+            buf.set_line(
+                title_x,
+                row_y,
+                &Line::from(spans),
+                title_end.saturating_sub(title_x),
+            );
 
             if let Some(h) = &item.hint {
                 let hw = right.saturating_sub(title_x);
-                put(buf, title_x, row_y + 1, &truncate(h, hw as usize), hw, st(muted, bg));
+                put(
+                    buf,
+                    title_x,
+                    row_y + 1,
+                    &truncate(h, hw as usize),
+                    hw,
+                    st(muted, bg),
+                );
             }
 
             let mut hit = HitBox::default();
@@ -475,8 +603,16 @@ impl StatefulWidget for CommandPalette {
         }
 
         if has_sb {
-            let sb_area = Rect { x: panel.right() - 2, y: body_y, width: 1, height: body_h };
-            Scrollbar::vertical(state.results.len(), shown).offset(state.scroll).theme(&th).render(sb_area, buf, &mut state.scrollbar_state);
+            let sb_area = Rect {
+                x: panel.right() - 2,
+                y: body_y,
+                width: 1,
+                height: body_h,
+            };
+            Scrollbar::vertical(state.results.len(), shown)
+                .offset(state.scroll)
+                .theme(&th)
+                .render(sb_area, buf, &mut state.scrollbar_state);
         }
     }
 }
@@ -502,7 +638,11 @@ mod tests {
     #[test]
     fn palette_navigation() {
         let mut state = CommandPaletteState::new();
-        state.set_items(&[PaletteItem::new("A"), PaletteItem::new("B"), PaletteItem::new("C")]);
+        state.set_items(&[
+            PaletteItem::new("A"),
+            PaletteItem::new("B"),
+            PaletteItem::new("C"),
+        ]);
         state.recompute_results();
         assert_eq!(state.highlight, 0);
         state.move_down();
@@ -524,13 +664,23 @@ mod tests {
         let mut buf = Buffer::empty(Rect::new(0, 0, 60, 20));
         CommandPalette::new().render(buf.area, &mut buf, &mut state);
         let row = state.row_hits[1].area;
-        let press = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: row.x + 2, row: row.y, modifiers: KeyModifiers::NONE };
+        let press = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: row.x + 2,
+            row: row.y,
+            modifiers: KeyModifiers::NONE,
+        };
         assert_eq!(state.handle_mouse(press), Outcome::Changed);
         assert_eq!(state.take_selected(), Some(1));
         // a press on the dimmed backdrop closes without selecting
         state.open();
         CommandPalette::new().render(buf.area, &mut buf, &mut state);
-        let outside = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: 0, row: 19, modifiers: KeyModifiers::NONE };
+        let outside = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 0,
+            row: 19,
+            modifiers: KeyModifiers::NONE,
+        };
         state.handle_mouse(outside);
         assert!(!state.open);
         assert_eq!(state.take_selected(), None);

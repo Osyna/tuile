@@ -47,8 +47,16 @@ pub struct SpinnerDef {
 }
 
 impl SpinnerDef {
-    pub const fn new(name: &'static str, interval_ms: u16, frames: &'static [&'static str]) -> Self {
-        Self { name, interval_ms, frames }
+    pub const fn new(
+        name: &'static str,
+        interval_ms: u16,
+        frames: &'static [&'static str],
+    ) -> Self {
+        Self {
+            name,
+            interval_ms,
+            frames,
+        }
     }
 
     /// The frame showing `elapsed` seconds into the loop.
@@ -104,7 +112,15 @@ impl<'a> Spinner<'a> {
 
     /// Custom frames shown `interval_ms` apart.
     pub fn frames(frames: &'a [&'a str], interval_ms: u16) -> Self {
-        Self { frames, interval_ms, label: None, color: None, now: None, elapsed: None, theme: None }
+        Self {
+            frames,
+            interval_ms,
+            label: None,
+            color: None,
+            now: None,
+            elapsed: None,
+            theme: None,
+        }
     }
 
     pub fn label(mut self, s: &str) -> Self {
@@ -175,7 +191,14 @@ pub struct LoadingIndicator {
 
 impl LoadingIndicator {
     pub fn new() -> Self {
-        Self { dots: 5, color_a: None, color_b: None, now: None, elapsed: None, theme: None }
+        Self {
+            dots: 5,
+            color_a: None,
+            color_b: None,
+            now: None,
+            elapsed: None,
+            theme: None,
+        }
     }
 
     pub fn dots(mut self, n: usize) -> Self {
@@ -228,7 +251,9 @@ impl Widget for LoadingIndicator {
         for i in 0..self.dots {
             let blend = (el * 0.8 - i as f32 / 8.0).rem_euclid(1.0);
             let t = 1.0 - (blend - 0.5).abs() * 2.0;
-            let c = bg.blend(color, 0.1 * (1.0 - t)).blend(color_hi, t.powf(2.0));
+            let c = bg
+                .blend(color, 0.1 * (1.0 - t))
+                .blend(color_hi, t.powf(2.0));
             put(buf, x0 + i as u16 * 2, area.y, "●", 1, st(c, bg));
         }
     }
@@ -246,7 +271,14 @@ pub struct Marquee {
 
 impl Marquee {
     pub fn new(text: &str) -> Self {
-        Self { text: text.to_string(), speed: 10.0, gap: 3, now: None, elapsed: None, theme: None }
+        Self {
+            text: text.to_string(),
+            speed: 10.0,
+            gap: 3,
+            now: None,
+            elapsed: None,
+            theme: None,
+        }
     }
 
     pub fn speed(mut self, cells_per_sec: f32) -> Self {
@@ -289,7 +321,12 @@ impl Widget for Marquee {
         let len = padded.chars().count();
         let offset = ((el * self.speed) as usize) % len;
 
-        let displayed: String = padded.chars().cycle().skip(offset).take(area.width as usize).collect();
+        let displayed: String = padded
+            .chars()
+            .cycle()
+            .skip(offset)
+            .take(area.width as usize)
+            .collect();
         put(buf, area.x, area.y, &displayed, area.width, st(fg, bg));
     }
 }
@@ -305,7 +342,13 @@ pub struct Blinker {
 
 impl Blinker {
     pub fn new() -> Self {
-        Self { glyph: "●", period: 1.0, now: None, elapsed: None, theme: None }
+        Self {
+            glyph: "●",
+            period: 1.0,
+            now: None,
+            elapsed: None,
+            theme: None,
+        }
     }
 
     pub fn glyph(mut self, g: &'static str) -> Self {
@@ -361,14 +404,20 @@ mod tests {
     #[test]
     fn catalog_is_complete_and_well_formed() {
         assert_eq!(spinners::YASPIN.len(), 90);
-        assert_eq!(spinners::ALL.len(), spinners::YASPIN.len() + spinners::ORIGINALS.len());
+        assert_eq!(
+            spinners::ALL.len(),
+            spinners::YASPIN.len() + spinners::ORIGINALS.len()
+        );
         let mut names = std::collections::HashSet::new();
         for d in spinners::ALL {
             assert!(!d.frames.is_empty(), "{} has no frames", d.name);
             assert!(d.interval_ms > 0, "{} has no interval", d.name);
             assert!(names.insert(d.name), "duplicate spinner name {}", d.name);
         }
-        assert_eq!(SpinnerDef::by_name("bouncingBar").map(|d| d.frames.len()), Some(spinners::BOUNCING_BAR.frames.len()));
+        assert_eq!(
+            SpinnerDef::by_name("bouncingBar").map(|d| d.frames.len()),
+            Some(spinners::BOUNCING_BAR.frames.len())
+        );
         assert!(SpinnerDef::by_name("nope").is_none());
     }
 
@@ -384,29 +433,38 @@ mod tests {
     fn label_starts_after_the_widest_frame() {
         // bouncingBar frames are 6 cells wide; the label must not overlap any of them
         let mut buf = Buffer::empty(Rect::new(0, 0, 30, 1));
-        Spinner::new(&spinners::BOUNCING_BAR).label("Load").elapsed(0.0).render(buf.area, &mut buf);
+        Spinner::new(&spinners::BOUNCING_BAR)
+            .label("Load")
+            .elapsed(0.0)
+            .render(buf.area, &mut buf);
         assert_eq!(buf[(7, 0)].symbol(), "L");
         // emoji frames are two cells (+ cli-spinners' trailing pad space): the label follows the measured width
         let mut buf = Buffer::empty(Rect::new(0, 0, 30, 1));
-        Spinner::new(&spinners::MOON).label("Load").elapsed(0.0).render(buf.area, &mut buf);
+        Spinner::new(&spinners::MOON)
+            .label("Load")
+            .elapsed(0.0)
+            .render(buf.area, &mut buf);
         assert_eq!(spinners::MOON.width(), 3);
         assert_eq!(buf[(4, 0)].symbol(), "L");
     }
-
 
     #[test]
     fn custom_frames_render() {
         let frames = ["a".to_string(), "b".to_string()];
         let borrowed: Vec<&str> = frames.iter().map(String::as_str).collect();
         let mut buf = Buffer::empty(Rect::new(0, 0, 5, 1));
-        Spinner::frames(&borrowed, 100).elapsed(0.1).render(buf.area, &mut buf);
+        Spinner::frames(&borrowed, 100)
+            .elapsed(0.1)
+            .render(buf.area, &mut buf);
         assert_eq!(buf[(0, 0)].symbol(), "b");
     }
 
     #[test]
     fn loading_indicator_renders() {
         let mut buf = Buffer::empty(Rect::new(0, 0, 20, 1));
-        LoadingIndicator::new().elapsed(0.5).render(buf.area, &mut buf);
+        LoadingIndicator::new()
+            .elapsed(0.5)
+            .render(buf.area, &mut buf);
         assert_ne!(buf[(5, 0)].symbol(), " ");
     }
 }

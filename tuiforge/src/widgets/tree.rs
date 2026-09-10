@@ -15,17 +15,17 @@ use std::collections::HashSet;
 use std::time::Instant;
 
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind, MouseButton};
+use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::Modifier;
 use ratatui::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
-use crate::core::{is_press, mouse_in, mouse_pos, wheel_delta, Interactive, Outcome};
+use crate::core::{Interactive, Outcome, is_press, mouse_in, mouse_pos, wheel_delta};
 use crate::draw::{Border, fill, put, put_right, st};
 use crate::layout::pad;
 use crate::theme::{self, Theme};
-use crate::widgets::scrollbar::{keep_visible, Scrollbar, ScrollbarState};
+use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
 // ───────────────────────────── types ─────────────────────────────
 
@@ -106,7 +106,13 @@ pub struct TreeRow {
 /// Flatten visible tree rows (respecting expanded set).
 pub fn visible_rows(roots: &[TreeNode], expanded: &HashSet<TreeId>) -> Vec<TreeRow> {
     let mut out = Vec::new();
-    fn go(node: &TreeNode, depth: usize, is_last: &mut Vec<bool>, expanded: &HashSet<TreeId>, out: &mut Vec<TreeRow>) {
+    fn go(
+        node: &TreeNode,
+        depth: usize,
+        is_last: &mut Vec<bool>,
+        expanded: &HashSet<TreeId>,
+        out: &mut Vec<TreeRow>,
+    ) {
         out.push(TreeRow {
             id: node.id,
             depth,
@@ -418,11 +424,13 @@ impl Interactive for TreeViewState {
 
             // click marker
             if matches!(m.kind, MouseEventKind::Down(MouseButton::Left)) {
-                if row < self.marker_hits.len() && self.marker_hits[row].contains(pos)
-                    && let Some(id) = self.row_ids.get(row) {
-                        self.toggle(*id);
-                        return Outcome::Changed;
-                    }
+                if row < self.marker_hits.len()
+                    && self.marker_hits[row].contains(pos)
+                    && let Some(id) = self.row_ids.get(row)
+                {
+                    self.toggle(*id);
+                    return Outcome::Changed;
+                }
 
                 // click row
                 if row < self.row_ids.len() {
@@ -439,14 +447,15 @@ impl Interactive for TreeViewState {
 
         // wheel
         if let Some(delta) = wheel_delta(&m)
-            && mouse_in(self.body, &m) {
-                if delta > 0 {
-                    self.scroll = self.scroll.saturating_add(1);
-                } else {
-                    self.scroll = self.scroll.saturating_sub(1);
-                }
-                return Outcome::Consumed;
+            && mouse_in(self.body, &m)
+        {
+            if delta > 0 {
+                self.scroll = self.scroll.saturating_add(1);
+            } else {
+                self.scroll = self.scroll.saturating_sub(1);
             }
+            return Outcome::Consumed;
+        }
 
         out
     }
@@ -469,7 +478,11 @@ impl StatefulWidget for TreeView {
         // border
         let mut inner = area;
         if let Some(border) = self.border {
-            let border_color = if self.focused { th.border } else { th.border_blurred };
+            let border_color = if self.focused {
+                th.border
+            } else {
+                th.border_blurred
+            };
             if !self.title.is_empty() {
                 border.draw_titled(buf, area, border_color, bg, &self.title, Alignment::Left);
             } else {
@@ -495,7 +508,12 @@ impl StatefulWidget for TreeView {
 
         // scrollbar area
         let sb_area = Rect::new(inner.right().saturating_sub(1), inner.y, 1, inner.height);
-        let body = Rect::new(inner.x, inner.y, inner.width.saturating_sub(1), inner.height);
+        let body = Rect::new(
+            inner.x,
+            inner.y,
+            inner.width.saturating_sub(1),
+            inner.height,
+        );
         state.body = body;
 
         // scroll to cursor
@@ -596,9 +614,21 @@ impl StatefulWidget for TreeView {
                 let after = x + used + 2;
                 let free = body.right().saturating_sub(after);
                 if (detail.width() as u16) < free {
-                    put_right(buf, Rect::new(after, y, free, 1), detail, st(th.text_muted, row_bg));
+                    put_right(
+                        buf,
+                        Rect::new(after, y, free, 1),
+                        detail,
+                        st(th.text_muted, row_bg),
+                    );
                 } else if free > 3 {
-                    put(buf, after, y, &crate::draw::truncate(detail, free as usize), free, st(th.text_muted, row_bg));
+                    put(
+                        buf,
+                        after,
+                        y,
+                        &crate::draw::truncate(detail, free as usize),
+                        free,
+                        st(th.text_muted, row_bg),
+                    );
                 }
             }
         }

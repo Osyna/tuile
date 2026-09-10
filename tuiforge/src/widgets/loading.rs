@@ -155,12 +155,18 @@ impl LoaderStyle {
 
     /// Draws into every row of its area; the others use one row, vertically centred.
     pub fn multi_row(self) -> bool {
-        matches!(self, LoaderStyle::Equalizer | LoaderStyle::Rain | LoaderStyle::Radar)
+        matches!(
+            self,
+            LoaderStyle::Equalizer | LoaderStyle::Rain | LoaderStyle::Radar
+        )
     }
 
     /// The label *is* the animated text (no bar).
     pub fn textual(self) -> bool {
-        matches!(self, LoaderStyle::Ellipsis | LoaderStyle::Shimmer | LoaderStyle::Typewriter)
+        matches!(
+            self,
+            LoaderStyle::Ellipsis | LoaderStyle::Shimmer | LoaderStyle::Typewriter
+        )
     }
 }
 
@@ -179,7 +185,16 @@ pub struct Loader {
 
 impl Loader {
     pub fn new(style: LoaderStyle) -> Self {
-        Self { style, label: None, color: None, color2: None, speed: 1.0, now: None, elapsed: None, theme: None }
+        Self {
+            style,
+            label: None,
+            color: None,
+            color2: None,
+            speed: 1.0,
+            now: None,
+            elapsed: None,
+            theme: None,
+        }
     }
 
     /// Text left of the bar; for textual styles the text being animated.
@@ -253,7 +268,11 @@ impl Widget for Loader {
 
         if self.style.textual() {
             let text = self.label.as_deref().unwrap_or("Loading");
-            let row = Rect { y: area.y + area.height / 2, height: 1, ..area };
+            let row = Rect {
+                y: area.y + area.height / 2,
+                height: 1,
+                ..area
+            };
             match self.style {
                 LoaderStyle::Ellipsis => ellipsis(buf, row, text, el, &p),
                 LoaderStyle::Shimmer => shimmer(buf, row, text, el, &p),
@@ -265,12 +284,24 @@ impl Widget for Loader {
         let mut r = area;
         if let Some(label) = self.label.as_deref().filter(|l| !l.is_empty()) {
             let lw = (label.width() as u16 + 1).min(area.width.saturating_sub(4));
-            let y = if self.style.multi_row() { area.y } else { area.y + area.height / 2 };
+            let y = if self.style.multi_row() {
+                area.y
+            } else {
+                area.y + area.height / 2
+            };
             put(buf, area.x, y, label, lw, st(p.text, p.bg));
-            r = Rect { x: area.x + lw, width: area.width - lw, ..area };
+            r = Rect {
+                x: area.x + lw,
+                width: area.width - lw,
+                ..area
+            };
         }
         if !self.style.multi_row() {
-            r = Rect { y: r.y + r.height / 2, height: 1, ..r };
+            r = Rect {
+                y: r.y + r.height / 2,
+                height: 1,
+                ..r
+            };
         }
         if r.width < 3 {
             return;
@@ -294,7 +325,9 @@ impl Widget for Loader {
             LoaderStyle::Heartbeat => heartbeat(buf, r, el, &p),
             LoaderStyle::Rain => rain(buf, r, el, &p),
             LoaderStyle::Radar => radar(buf, r, el, &p),
-            LoaderStyle::Ellipsis | LoaderStyle::Shimmer | LoaderStyle::Typewriter => unreachable!("textual styles handled above"),
+            LoaderStyle::Ellipsis | LoaderStyle::Shimmer | LoaderStyle::Typewriter => {
+                unreachable!("textual styles handled above")
+            }
         }
     }
 }
@@ -314,7 +347,11 @@ fn scanner(buf: &mut Buffer, r: Rect, el: f32, p: &Palette, wrap: bool) {
             (x - head).abs()
         };
         let a = (1.0 - d / tail).max(0.0).powf(1.6);
-        let c = if a > 0.92 { p.color.lighten(0.12) } else { p.track.blend(p.color, a) };
+        let c = if a > 0.92 {
+            p.color.lighten(0.12)
+        } else {
+            p.track.blend(p.color, a)
+        };
         cell(buf, r.x + i, r.y, c);
     }
 }
@@ -326,18 +363,36 @@ fn sweep(buf: &mut Buffer, r: Rect, el: f32, p: &Palette) {
     let start = (t * (w + seg) as f32).round() as i32 - seg;
     for i in 0..w {
         let lit = i >= start && i < start + seg;
-        cell(buf, r.x + i as u16, r.y, if lit { p.color } else { p.track });
+        cell(
+            buf,
+            r.x + i as u16,
+            r.y,
+            if lit { p.color } else { p.track },
+        );
     }
 }
 
 fn fill_drain(buf: &mut Buffer, r: Rect, el: f32, p: &Palette) {
     let t = (el * 0.45).rem_euclid(1.0);
     if t < 0.5 {
-        hbar(buf, r.x, r.y, r.width, ease_in_out_cubic(t * 2.0), p.color, p.track);
+        hbar(
+            buf,
+            r.x,
+            r.y,
+            r.width,
+            ease_in_out_cubic(t * 2.0),
+            p.color,
+            p.track,
+        );
     } else {
         let drained = (ease_in_out_cubic((t - 0.5) * 2.0) * r.width as f32).round() as u16;
         for i in 0..r.width {
-            cell(buf, r.x + i, r.y, if i < drained { p.track } else { p.color });
+            cell(
+                buf,
+                r.x + i,
+                r.y,
+                if i < drained { p.track } else { p.color },
+            );
         }
     }
 }
@@ -436,7 +491,14 @@ fn bounce(buf: &mut Buffer, r: Rect, el: f32, p: &Palette) {
     // ghost one cell behind
     let ghost = pos as i32 - dir;
     if ghost >= 0 && (ghost as u16) < inner {
-        put(buf, r.x + 1 + ghost as u16, r.y, "∙", 1, st(p.color.blend(p.bg, 0.55), p.bg));
+        put(
+            buf,
+            r.x + 1 + ghost as u16,
+            r.y,
+            "∙",
+            1,
+            st(p.color.blend(p.bg, 0.55), p.bg),
+        );
     }
     put(buf, r.x + 1 + pos, r.y, "●", 1, st(p.color, p.bg));
 }
@@ -463,7 +525,9 @@ fn ping(buf: &mut Buffer, r: Rect, el: f32, p: &Palette) {
 
 fn heartbeat(buf: &mut Buffer, r: Rect, el: f32, p: &Palette) {
     // eighth-block heights of one beat: flat, P wave, QRS spike, dip, flat
-    const BEAT: [u8; 22] = [1, 1, 1, 1, 1, 2, 1, 1, 3, 8, 2, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+    const BEAT: [u8; 22] = [
+        1, 1, 1, 1, 1, 2, 1, 1, 3, 8, 2, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    ];
     let offset = (el * 14.0) as usize;
     let dim = p.color.blend(p.bg, 0.45);
     for i in 0..r.width {
@@ -477,9 +541,23 @@ fn heartbeat(buf: &mut Buffer, r: Rect, el: f32, p: &Palette) {
 
 fn ellipsis(buf: &mut Buffer, r: Rect, text: &str, el: f32, p: &Palette) {
     let n = ((el * 2.5) as usize) % 4;
-    let used = put(buf, r.x, r.y, text, r.width.saturating_sub(3), st(p.text, p.bg));
+    let used = put(
+        buf,
+        r.x,
+        r.y,
+        text,
+        r.width.saturating_sub(3),
+        st(p.text, p.bg),
+    );
     let dots = ".".repeat(n);
-    put(buf, r.x + used, r.y, &dots, 3, st(p.color, p.bg).add_modifier(Modifier::BOLD));
+    put(
+        buf,
+        r.x + used,
+        r.y,
+        &dots,
+        3,
+        st(p.color, p.bg).add_modifier(Modifier::BOLD),
+    );
 }
 
 fn shimmer(buf: &mut Buffer, r: Rect, text: &str, el: f32, p: &Palette) {
@@ -517,7 +595,14 @@ fn typewriter(buf: &mut Buffer, r: Rect, text: &str, el: f32, p: &Palette) {
         0
     };
     let visible: String = chars[..shown.min(n)].iter().collect();
-    let used = put(buf, r.x, r.y, &visible, r.width.saturating_sub(1), st(p.text, p.bg));
+    let used = put(
+        buf,
+        r.x,
+        r.y,
+        &visible,
+        r.width.saturating_sub(1),
+        st(p.text, p.bg),
+    );
     if blink(el, 0.8) {
         put(buf, r.x + used, r.y, "▎", 1, st(p.color, p.bg));
     }
@@ -533,7 +618,8 @@ fn equalizer(buf: &mut Buffer, r: Rect, el: f32, p: &Palette) {
     let rows = r.height as f32;
     for k in 0..n {
         let kf = k as f32;
-        let level = ((el * (2.2 + (k % 5) as f32 * 0.5) + kf * 1.3).sin() * 0.5 + 0.5) * 0.6 + ((el * 3.7 + kf * 0.7).sin() * 0.5 + 0.5) * 0.4;
+        let level = ((el * (2.2 + (k % 5) as f32 * 0.5) + kf * 1.3).sin() * 0.5 + 0.5) * 0.6
+            + ((el * 3.7 + kf * 0.7).sin() * 0.5 + 0.5) * 0.4;
         let eighths = (level.clamp(0.05, 1.0) * rows * 8.0).round() as u16;
         for row in 0..r.height {
             let y = r.bottom() - 1 - row;
@@ -551,7 +637,14 @@ fn equalizer(buf: &mut Buffer, r: Rect, el: f32, p: &Palette) {
                 if cell_eighths == 8 {
                     cell(buf, x, y, c);
                 } else {
-                    put(buf, x, y, LOWER_BLOCKS[cell_eighths as usize], 1, st(c, p.bg));
+                    put(
+                        buf,
+                        x,
+                        y,
+                        LOWER_BLOCKS[cell_eighths as usize],
+                        1,
+                        st(c, p.bg),
+                    );
                 }
             }
         }
@@ -561,7 +654,8 @@ fn equalizer(buf: &mut Buffer, r: Rect, el: f32, p: &Palette) {
 fn rain(buf: &mut Buffer, r: Rect, el: f32, p: &Palette) {
     // ASCII + Latin-1 only: half-width katakana is tofu in most terminal fonts
     const GLYPHS: &[char] = &[
-        '0', '1', '2', '3', '4', '5', '7', '8', '9', 'A', 'C', 'E', 'F', 'H', 'K', 'N', 'P', 'R', 'T', 'V', 'X', 'Z', ':', '·', '=', '*', '+', '-', '¦', '|', '_', '<', '>', '%', '#', '@',
+        '0', '1', '2', '3', '4', '5', '7', '8', '9', 'A', 'C', 'E', 'F', 'H', 'K', 'N', 'P', 'R',
+        'T', 'V', 'X', 'Z', ':', '·', '=', '*', '+', '-', '¦', '|', '_', '<', '>', '%', '#', '@',
     ];
     fill(buf, r, p.bg);
     if r.height < 2 {
@@ -585,10 +679,23 @@ fn rain(buf: &mut Buffer, r: Rect, el: f32, p: &Palette) {
             if !(0.0..tail).contains(&d) {
                 continue;
             }
-            let g = GLYPHS[(hash(col.wrapping_mul(31) ^ (row as u32).wrapping_mul(17) ^ tick.wrapping_mul(7)) % GLYPHS.len() as u32) as usize];
-            let c = if d < 1.0 { head_c } else { p.bg.blend(p.color, (1.0 - d / tail).powf(1.3)) };
+            let g = GLYPHS[(hash(
+                col.wrapping_mul(31) ^ (row as u32).wrapping_mul(17) ^ tick.wrapping_mul(7),
+            ) % GLYPHS.len() as u32) as usize];
+            let c = if d < 1.0 {
+                head_c
+            } else {
+                p.bg.blend(p.color, (1.0 - d / tail).powf(1.3))
+            };
             let mut s = [0u8; 4];
-            put(buf, r.x + i, r.y + row, g.encode_utf8(&mut s), 1, st(c, p.bg));
+            put(
+                buf,
+                r.x + i,
+                r.y + row,
+                g.encode_utf8(&mut s),
+                1,
+                st(c, p.bg),
+            );
         }
     }
 }
@@ -669,7 +776,13 @@ pub enum SkeletonShape {
 
 impl Skeleton {
     pub fn new() -> Self {
-        Self { lines: vec![60, 45, 50], shape: SkeletonShape::Text, now: None, elapsed: None, theme: None }
+        Self {
+            lines: vec![60, 45, 50],
+            shape: SkeletonShape::Text,
+            now: None,
+            elapsed: None,
+            theme: None,
+        }
     }
 
     /// Bar widths in cells (clamped to the area).
@@ -715,7 +828,8 @@ struct Shimmer {
 impl Shimmer {
     fn color_at(&self, x: u16, y: u16) -> Rgb {
         // a wide, smooth light sweeping left→right with a gentle lean (half a cell per row)
-        let rel = (x as f32 - self.area.x as f32 + (y as f32 - self.area.y as f32) * 0.5) / self.area.width.max(1) as f32;
+        let rel = (x as f32 - self.area.x as f32 + (y as f32 - self.area.y as f32) * 0.5)
+            / self.area.width.max(1) as f32;
         let d = (rel - self.band).abs();
         const HALF: f32 = 0.28;
         if d >= HALF {
@@ -739,7 +853,11 @@ impl Shimmer {
 
     /// Rows of bars with `widths` in cells, one blank row between when the height allows.
     fn lines(&self, buf: &mut Buffer, r: Rect, widths: &[u16]) {
-        let step = if r.height as usize >= widths.len() * 2 - 1 { 2 } else { 1 };
+        let step = if r.height as usize >= widths.len() * 2 - 1 {
+            2
+        } else {
+            1
+        };
         for (i, &w) in widths.iter().enumerate() {
             let y = r.y + i as u16 * step;
             if y >= r.bottom() {
@@ -770,7 +888,12 @@ impl Widget for Skeleton {
         let el = phase(self.elapsed, self.now);
         // bars two shades above the surface, the sweep two more: visible without shouting
         let base = th.surface.blend(th.text_muted, 0.22);
-        let sh = Shimmer { base, hl: base.blend(th.text_muted, 0.45), band: (el * 0.45).rem_euclid(1.0) * 1.8 - 0.4, area };
+        let sh = Shimmer {
+            base,
+            hl: base.blend(th.text_muted, 0.45),
+            band: (el * 0.45).rem_euclid(1.0) * 1.8 - 0.4,
+            area,
+        };
         let pct = |p: u16, of: u16| (of as u32 * p as u32 / 100) as u16;
 
         match self.shape {
@@ -778,13 +901,23 @@ impl Widget for Skeleton {
             SkeletonShape::Card => {
                 // hero block ≈ 40% of the height (min 2 rows), a title, a blank, then body lines
                 let hero_h = (area.height * 40 / 100).clamp(2, area.height);
-                sh.block(buf, Rect { height: hero_h, ..area });
+                sh.block(
+                    buf,
+                    Rect {
+                        height: hero_h,
+                        ..area
+                    },
+                );
                 let w = area.width;
                 let title_y = area.y + hero_h + 1;
                 if title_y < area.bottom() {
                     sh.bar(buf, area.x, title_y, pct(60, w));
                 }
-                let body = Rect { y: title_y + 2, height: area.bottom().saturating_sub(title_y + 2), ..area };
+                let body = Rect {
+                    y: title_y + 2,
+                    height: area.bottom().saturating_sub(title_y + 2),
+                    ..area
+                };
                 if !body.is_empty() {
                     sh.lines(buf, body, &[pct(100, w), pct(75, w)]);
                 }
@@ -793,15 +926,32 @@ impl Widget for Skeleton {
                 let av_w = 4u16.min(area.width);
                 let tx = area.x + av_w + 1;
                 let rest = area.right().saturating_sub(tx);
-                let item_h = if self.shape == SkeletonShape::List { 3 } else { area.height.min(2) };
+                let item_h = if self.shape == SkeletonShape::List {
+                    3
+                } else {
+                    area.height.min(2)
+                };
                 let mut y = area.y;
                 while y + 2 <= area.bottom() {
-                    sh.block(buf, Rect { x: area.x, y, width: av_w, height: 2 });
+                    sh.block(
+                        buf,
+                        Rect {
+                            x: area.x,
+                            y,
+                            width: av_w,
+                            height: 2,
+                        },
+                    );
                     if rest > 0 {
                         // name and handle, widths nudged per item so the list isn't a grid
                         let seed = (y - area.y) as u32;
                         sh.bar(buf, tx, y, pct(55 + (noise(seed, 1) * 25.0) as u16, rest));
-                        sh.bar(buf, tx, y + 1, pct(30 + (noise(seed, 2) * 15.0) as u16, rest));
+                        sh.bar(
+                            buf,
+                            tx,
+                            y + 1,
+                            pct(30 + (noise(seed, 2) * 15.0) as u16, rest),
+                        );
                     }
                     if self.shape == SkeletonShape::Avatar {
                         break;
@@ -812,7 +962,10 @@ impl Widget for Skeleton {
             SkeletonShape::Table => {
                 let cols = table_columns(area.width);
                 let total: u16 = cols.iter().sum();
-                let header = Shimmer { base: base.blend(th.text_muted, 0.25), ..sh };
+                let header = Shimmer {
+                    base: base.blend(th.text_muted, 0.25),
+                    ..sh
+                };
                 let step = if area.height >= 6 { 2 } else { 1 };
                 let mut y = area.y;
                 let mut row = 0u32;
@@ -824,7 +977,11 @@ impl Widget for Skeleton {
                             col_w.saturating_sub(1)
                         } else {
                             // data cells vary a little; the last column is a short status/number
-                            let jitter = if col_w >= 6 { (noise(row, ci as u32) * 3.0) as u16 } else { 0 };
+                            let jitter = if col_w >= 6 {
+                                (noise(row, ci as u32) * 3.0) as u16
+                            } else {
+                                0
+                            };
                             col_w.saturating_sub(1 + jitter).max(1)
                         };
                         let painter = if row == 0 { &header } else { &sh };
@@ -852,10 +1009,22 @@ impl Widget for Skeleton {
                     let h = ((level * plot_h as f32).round() as u16).clamp(1, plot_h);
                     let x = area.x + k * pitch;
                     let w = bar_w.min(area.right().saturating_sub(x));
-                    sh.block(buf, Rect { x, y: area.y + plot_h - h, width: w, height: h });
+                    sh.block(
+                        buf,
+                        Rect {
+                            x,
+                            y: area.y + plot_h - h,
+                            width: w,
+                            height: h,
+                        },
+                    );
                 }
                 // baseline
-                let axis = Shimmer { base: base.blend(th.background, 0.5), hl: base, ..sh };
+                let axis = Shimmer {
+                    base: base.blend(th.background, 0.5),
+                    hl: base,
+                    ..sh
+                };
                 axis.bar(buf, area.x, area.bottom() - 1, area.width);
             }
         }
@@ -879,7 +1048,15 @@ pub struct LoadingOverlay {
 
 impl LoadingOverlay {
     pub fn new(loader: Loader) -> Self {
-        Self { loader, message: None, dim: 0.65, width: 24, now: None, elapsed: None, theme: None }
+        Self {
+            loader,
+            message: None,
+            dim: 0.65,
+            width: 24,
+            now: None,
+            elapsed: None,
+            theme: None,
+        }
     }
 
     /// Text under the loader.
@@ -942,18 +1119,54 @@ impl Widget for LoadingOverlay {
         let multi = loader.style.multi_row();
         let block_h = if has_msg { 3 } else { 1 };
         let top = area.y + area.height.saturating_sub(block_h) / 2;
-        let w = if multi { area.width.saturating_sub(4) } else { self.width.min(area.width.saturating_sub(2)) };
+        let w = if multi {
+            area.width.saturating_sub(4)
+        } else {
+            self.width.min(area.width.saturating_sub(2))
+        };
         let x = area.x + (area.width - w) / 2;
-        let loader_h = if multi { area.height.saturating_sub(if has_msg { 4 } else { 2 }).max(1) } else { 1 };
+        let loader_h = if multi {
+            area.height
+                .saturating_sub(if has_msg { 4 } else { 2 })
+                .max(1)
+        } else {
+            1
+        };
         let ly = if multi { area.y + 1 } else { top };
-        loader.render(Rect { x, y: ly, width: w, height: loader_h }, buf);
+        loader.render(
+            Rect {
+                x,
+                y: ly,
+                width: w,
+                height: loader_h,
+            },
+            buf,
+        );
 
         if has_msg && let Some(m) = &self.message {
             let my = if multi { area.bottom() - 2 } else { top + 2 };
             // clear a pad behind the message so dimmed content doesn't show through the text
             let mw = (m.width() as u16 + 4).min(area.width);
-            fill(buf, Rect { x: area.x + (area.width - mw) / 2, y: my, width: mw, height: 1 }, th.background);
-            put_centered(buf, Rect { y: my, height: 1, ..area }, m, st(th.text, th.background));
+            fill(
+                buf,
+                Rect {
+                    x: area.x + (area.width - mw) / 2,
+                    y: my,
+                    width: mw,
+                    height: 1,
+                },
+                th.background,
+            );
+            put_centered(
+                buf,
+                Rect {
+                    y: my,
+                    height: 1,
+                    ..area
+                },
+                m,
+                st(th.text, th.background),
+            );
         }
     }
 }
@@ -968,7 +1181,10 @@ mod tests {
             for (w, h) in [(3u16, 1u16), (12, 1), (40, 1), (40, 6), (7, 3)] {
                 let area = Rect::new(0, 0, w, h);
                 let mut buf = Buffer::empty(area);
-                Loader::new(style).label("Loading").elapsed(0.37).render(area, &mut buf);
+                Loader::new(style)
+                    .label("Loading")
+                    .elapsed(0.37)
+                    .render(area, &mut buf);
                 Loader::new(style).elapsed(3.91).render(area, &mut buf);
             }
         }
@@ -980,8 +1196,15 @@ mod tests {
         let area = Rect::new(0, 0, 20, 1);
         let mut buf = Buffer::empty(area);
         let th = Theme::default();
-        Loader::new(LoaderStyle::Scanner).elapsed(0.0).theme(&th).render(area, &mut buf);
-        assert_eq!(buf[(0, 0)].symbol(), " ", "solid cells are painted, not glyphs");
+        Loader::new(LoaderStyle::Scanner)
+            .elapsed(0.0)
+            .theme(&th)
+            .render(area, &mut buf);
+        assert_eq!(
+            buf[(0, 0)].symbol(),
+            " ",
+            "solid cells are painted, not glyphs"
+        );
         assert_eq!(buf[(0, 0)].bg, th.primary.lighten(0.12).color());
         assert_eq!(buf[(19, 0)].bg, th.panel.color());
     }
@@ -992,25 +1215,48 @@ mod tests {
         let text = "Hello";
         let row = |el: f32| {
             let mut buf = Buffer::empty(area);
-            Loader::new(LoaderStyle::Typewriter).label(text).elapsed(el).render(area, &mut buf);
-            (0..6).map(|x| buf[(x, 0)].symbol().to_string()).collect::<String>()
+            Loader::new(LoaderStyle::Typewriter)
+                .label(text)
+                .elapsed(el)
+                .render(area, &mut buf);
+            (0..6)
+                .map(|x| buf[(x, 0)].symbol().to_string())
+                .collect::<String>()
         };
         assert!(row(0.15).starts_with("He"), "{}", row(0.15)); // 14 cps
         assert!(row(0.5).starts_with("Hello"), "{}", row(0.5));
-        assert!(row(1.8).starts_with(' ') || row(1.8).starts_with('▎'), "{}", row(1.8)); // cleared phase
+        assert!(
+            row(1.8).starts_with(' ') || row(1.8).starts_with('▎'),
+            "{}",
+            row(1.8)
+        ); // cleared phase
     }
 
     #[test]
     fn skeleton_shapes_paint_inside_the_area() {
         let th = Theme::default();
-        for shape in [SkeletonShape::Text, SkeletonShape::Card, SkeletonShape::Avatar, SkeletonShape::List, SkeletonShape::Table, SkeletonShape::Chart] {
+        for shape in [
+            SkeletonShape::Text,
+            SkeletonShape::Card,
+            SkeletonShape::Avatar,
+            SkeletonShape::List,
+            SkeletonShape::Table,
+            SkeletonShape::Chart,
+        ] {
             let area = Rect::new(2, 1, 30, 6);
             let mut buf = Buffer::empty(Rect::new(0, 0, 40, 10));
-            Skeleton::new().shape(shape).elapsed(0.2).theme(&th).render(area, &mut buf);
+            Skeleton::new()
+                .shape(shape)
+                .elapsed(0.2)
+                .theme(&th)
+                .render(area, &mut buf);
             // the row above the area is untouched
             assert_eq!(buf[(2, 0)].bg, ratatui::style::Color::Reset, "{shape:?}");
             // something got painted in the area
-            let painted = (area.top()..area.bottom()).flat_map(|y| (area.left()..area.right()).map(move |x| (x, y))).filter(|&(x, y)| buf[(x, y)].bg != ratatui::style::Color::Reset).count();
+            let painted = (area.top()..area.bottom())
+                .flat_map(|y| (area.left()..area.right()).map(move |x| (x, y)))
+                .filter(|&(x, y)| buf[(x, y)].bg != ratatui::style::Color::Reset)
+                .count();
             assert!(painted > 0, "{shape:?}");
         }
     }
@@ -1021,7 +1267,11 @@ mod tests {
         let area = Rect::new(0, 0, 40, 7);
         let mut buf = Buffer::empty(area);
         fill(&mut buf, area, th.primary);
-        LoadingOverlay::new(Loader::new(LoaderStyle::Sweep)).message("Busy").elapsed(0.0).theme(&th).render(area, &mut buf);
+        LoadingOverlay::new(Loader::new(LoaderStyle::Sweep))
+            .message("Busy")
+            .elapsed(0.0)
+            .theme(&th)
+            .render(area, &mut buf);
         // corner dimmed towards the background
         assert_ne!(buf[(0, 0)].bg, th.primary.color());
         // message centred on row 4 (block of 3 rows centred in 7: rows 2..5, message at 4)

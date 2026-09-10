@@ -105,7 +105,10 @@ pub struct Markdown {
 
 impl Markdown {
     pub fn new(src: impl Into<String>) -> Self {
-        Self { src: src.into(), theme: None }
+        Self {
+            src: src.into(),
+            theme: None,
+        }
     }
 
     pub fn theme(mut self, th: &Theme) -> Self {
@@ -156,8 +159,16 @@ impl StatefulWidget for Markdown {
         }
 
         // Scrollbar
-        let sb_area = Rect { x: area.x + content_w, y: area.y, width: 1, height: area.height };
-        Scrollbar::vertical(total, viewport).offset(state.scroll).theme(&th).render(sb_area, buf, &mut state.vbar);
+        let sb_area = Rect {
+            x: area.x + content_w,
+            y: area.y,
+            width: 1,
+            height: area.height,
+        };
+        Scrollbar::vertical(total, viewport)
+            .offset(state.scroll)
+            .theme(&th)
+            .render(sb_area, buf, &mut state.vbar);
     }
 }
 
@@ -207,7 +218,11 @@ impl<'a> MdParser<'a> {
                         let label = format!(" {} ", self.code_lang);
                         self.lines.push(Line::from(vec![
                             Span::raw(" ".repeat(self.width.saturating_sub(label.len()))),
-                            Span::styled(label, st(self.th.text_muted, self.th.markdown_code_bg).add_modifier(Modifier::DIM)),
+                            Span::styled(
+                                label,
+                                st(self.th.text_muted, self.th.markdown_code_bg)
+                                    .add_modifier(Modifier::DIM),
+                            ),
                         ]));
                     }
                 }
@@ -218,7 +233,10 @@ impl<'a> MdParser<'a> {
             if self.in_code_block {
                 // render code line with bg
                 let padded = format!(" {} ", line);
-                self.lines.push(Line::styled(padded, st(self.th.text, self.th.markdown_code_bg)));
+                self.lines.push(Line::styled(
+                    padded,
+                    st(self.th.text, self.th.markdown_code_bg),
+                ));
                 i += 1;
                 continue;
             }
@@ -233,16 +251,25 @@ impl<'a> MdParser<'a> {
                     4 => (self.th.text_muted, false),
                     _ => (self.th.text, false),
                 };
-                // Use Span like paragraphs do, with both fg and bg  
-                let span = Span::styled(text.to_string(), st(fg, self.th.background).add_modifier(Modifier::BOLD));
+                // Use Span like paragraphs do, with both fg and bg
+                let span = Span::styled(
+                    text.to_string(),
+                    st(fg, self.th.background).add_modifier(Modifier::BOLD),
+                );
                 self.lines.push(Line::from(vec![span]));
                 if underline && level == 1 {
                     let rule_len = text.len().min(self.width);
-                    let rule_span = Span::styled("▔".repeat(rule_len), st(self.th.secondary, self.th.background));
+                    let rule_span = Span::styled(
+                        "▔".repeat(rule_len),
+                        st(self.th.secondary, self.th.background),
+                    );
                     self.lines.push(Line::from(vec![rule_span]));
                 } else if underline && level == 2 {
                     let rule_len = text.len().min(self.width);
-                    let rule_span = Span::styled("─".repeat(rule_len), st(self.th.secondary, self.th.background));
+                    let rule_span = Span::styled(
+                        "─".repeat(rule_len),
+                        st(self.th.secondary, self.th.background),
+                    );
                     self.lines.push(Line::from(vec![rule_span]));
                 }
                 self.lines.push(Line::raw(""));
@@ -252,7 +279,10 @@ impl<'a> MdParser<'a> {
 
             // horizontal rule
             if line.trim() == "---" || line.trim() == "***" || line.trim() == "___" {
-                self.lines.push(Line::styled("─".repeat(self.width), st(self.th.border, self.th.surface)));
+                self.lines.push(Line::styled(
+                    "─".repeat(self.width),
+                    st(self.th.border, self.th.surface),
+                ));
                 self.lines.push(Line::raw(""));
                 i += 1;
                 continue;
@@ -263,7 +293,10 @@ impl<'a> MdParser<'a> {
                 let text = line.strip_prefix('>').unwrap().trim();
                 let spans = vec![
                     Span::styled("▌ ", st(self.th.secondary, self.th.surface)),
-                    Span::styled(text.to_string(), st(self.th.text_muted, self.th.surface).add_modifier(Modifier::ITALIC)),
+                    Span::styled(
+                        text.to_string(),
+                        st(self.th.text_muted, self.th.surface).add_modifier(Modifier::ITALIC),
+                    ),
                 ];
                 self.lines.push(Line::from(spans));
                 i += 1;
@@ -278,7 +311,7 @@ impl<'a> MdParser<'a> {
                 let bullet = match depth % 3 {
                     0 => "•",
                     1 => "◦",
-                    _ => "▪",
+                    _ => "•",
                 };
                 let prefix = format!("{}{} ", " ".repeat(indent), bullet);
                 let parsed = self.parse_inline(text);
@@ -291,29 +324,39 @@ impl<'a> MdParser<'a> {
 
             // ordered list
             if let Some(num_end) = line.trim_start().find('.')
-                && line.trim_start()[..num_end].chars().all(|c| c.is_ascii_digit()) {
-                    let indent = line.len() - line.trim_start().len();
-                    let num = &line.trim_start()[..num_end];
-                    let text = line.trim_start()[num_end + 1..].trim();
-                    let prefix = format!("{}{}. ", " ".repeat(indent), num);
-                    let parsed = self.parse_inline(text);
-                    let mut spans = vec![Span::styled(prefix, st(self.th.text, self.th.surface))];
-                    spans.extend(parsed);
-                    self.lines.push(Line::from(spans));
-                    i += 1;
-                    continue;
-                }
+                && line.trim_start()[..num_end]
+                    .chars()
+                    .all(|c| c.is_ascii_digit())
+            {
+                let indent = line.len() - line.trim_start().len();
+                let num = &line.trim_start()[..num_end];
+                let text = line.trim_start()[num_end + 1..].trim();
+                let prefix = format!("{}{}. ", " ".repeat(indent), num);
+                let parsed = self.parse_inline(text);
+                let mut spans = vec![Span::styled(prefix, st(self.th.text, self.th.surface))];
+                spans.extend(parsed);
+                self.lines.push(Line::from(spans));
+                i += 1;
+                continue;
+            }
 
             // task list
             if line.trim_start().starts_with("- [") {
                 let indent = line.len() - line.trim_start().len();
                 let checkbox_end = line.find(']').unwrap_or(0);
                 let checked = line.contains("[x]") || line.contains("[X]");
-                let text = if checkbox_end > 0 { line[checkbox_end + 1..].trim() } else { "" };
+                let text = if checkbox_end > 0 {
+                    line[checkbox_end + 1..].trim()
+                } else {
+                    ""
+                };
                 let checkbox = if checked { "[✓]" } else { "[ ]" };
                 let prefix = format!("{}{} ", " ".repeat(indent), checkbox);
                 let parsed = self.parse_inline(text);
-                let mut spans = vec![Span::styled(prefix, st(self.th.text_muted, self.th.surface))];
+                let mut spans = vec![Span::styled(
+                    prefix,
+                    st(self.th.text_muted, self.th.surface),
+                )];
                 spans.extend(parsed);
                 self.lines.push(Line::from(spans));
                 i += 1;
@@ -366,7 +409,10 @@ impl<'a> MdParser<'a> {
                 if i + 1 < chars.len() {
                     i += 2;
                 }
-                spans.push(Span::styled(bold_text, current_style.add_modifier(Modifier::BOLD)));
+                spans.push(Span::styled(
+                    bold_text,
+                    current_style.add_modifier(Modifier::BOLD),
+                ));
                 continue;
             }
 
@@ -385,7 +431,10 @@ impl<'a> MdParser<'a> {
                 if i < chars.len() {
                     i += 1;
                 }
-                spans.push(Span::styled(italic_text, current_style.add_modifier(Modifier::ITALIC)));
+                spans.push(Span::styled(
+                    italic_text,
+                    current_style.add_modifier(Modifier::ITALIC),
+                ));
                 continue;
             }
 
@@ -405,7 +454,10 @@ impl<'a> MdParser<'a> {
                     i += 1;
                 }
                 let code_padded = format!(" {} ", code_text);
-                spans.push(Span::styled(code_padded, st(self.th.text, self.th.markdown_code_bg)));
+                spans.push(Span::styled(
+                    code_padded,
+                    st(self.th.text, self.th.markdown_code_bg),
+                ));
                 continue;
             }
 
@@ -424,7 +476,10 @@ impl<'a> MdParser<'a> {
                 if i + 1 < chars.len() {
                     i += 2;
                 }
-                spans.push(Span::styled(strike_text, current_style.add_modifier(Modifier::CROSSED_OUT)));
+                spans.push(Span::styled(
+                    strike_text,
+                    current_style.add_modifier(Modifier::CROSSED_OUT),
+                ));
                 continue;
             }
 
@@ -452,7 +507,10 @@ impl<'a> MdParser<'a> {
                         i += 1;
                     }
                 }
-                spans.push(Span::styled(link_text, st(self.th.link, self.th.surface).add_modifier(Modifier::UNDERLINED)));
+                spans.push(Span::styled(
+                    link_text,
+                    st(self.th.link, self.th.surface).add_modifier(Modifier::UNDERLINED),
+                ));
                 continue;
             }
 
@@ -473,7 +531,11 @@ impl<'a> MdParser<'a> {
         let mut i = start + 2;
 
         // parse header
-        let headers: Vec<&str> = header.split('|').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+        let headers: Vec<&str> = header
+            .split('|')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .collect();
         if headers.is_empty() {
             return i;
         }
@@ -484,7 +546,10 @@ impl<'a> MdParser<'a> {
         let mut header_spans = Vec::new();
         for (idx, h) in headers.iter().enumerate() {
             let display = crate::draw::fit(h, col_w);
-            header_spans.push(Span::styled(display, st(self.th.text, self.th.surface).add_modifier(Modifier::BOLD)));
+            header_spans.push(Span::styled(
+                display,
+                st(self.th.text, self.th.surface).add_modifier(Modifier::BOLD),
+            ));
             if idx < headers.len() - 1 {
                 header_spans.push(Span::raw(" │ "));
             }
@@ -492,8 +557,12 @@ impl<'a> MdParser<'a> {
         self.lines.push(Line::from(header_spans));
 
         // separator
-        let sep_line = (0..headers.len()).map(|_| "─".repeat(col_w)).collect::<Vec<_>>().join("─┼─");
-        self.lines.push(Line::styled(sep_line, st(self.th.border, self.th.surface)));
+        let sep_line = (0..headers.len())
+            .map(|_| "─".repeat(col_w))
+            .collect::<Vec<_>>()
+            .join("─┼─");
+        self.lines
+            .push(Line::styled(sep_line, st(self.th.border, self.th.surface)));
 
         // data rows
         while i < raw_lines.len() {
@@ -501,7 +570,11 @@ impl<'a> MdParser<'a> {
             if !row.contains('|') {
                 break;
             }
-            let cells: Vec<&str> = row.split('|').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+            let cells: Vec<&str> = row
+                .split('|')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect();
             if cells.is_empty() {
                 break;
             }
@@ -551,7 +624,12 @@ mod tests {
         let md = Markdown::new("**bold**");
         let lines = md.lines(40, &th);
         assert_eq!(lines.len(), 1);
-        assert!(lines[0].spans[0].style.add_modifier.contains(Modifier::BOLD));
+        assert!(
+            lines[0].spans[0]
+                .style
+                .add_modifier
+                .contains(Modifier::BOLD)
+        );
     }
 
     #[test]
@@ -570,10 +648,20 @@ mod tests {
         // Debug: print what we got
         eprintln!("Lines generated: {}", lines.len());
         for (i, line) in lines.iter().enumerate() {
-            eprintln!("Line {}: spans={}, first_span={:?}", i, line.spans.len(), 
-                line.spans.first().map(|s| &s.content));
+            eprintln!(
+                "Line {}: spans={}, first_span={:?}",
+                i,
+                line.spans.len(),
+                line.spans.first().map(|s| &s.content)
+            );
         }
-        assert!(lines.len() >= 3, "Expected heading + underline + blank + text");
-        assert!(lines[0].spans[0].content.contains("Title"), "First line should contain 'Title'");
+        assert!(
+            lines.len() >= 3,
+            "Expected heading + underline + blank + text"
+        );
+        assert!(
+            lines[0].spans[0].content.contains("Title"),
+            "First line should contain 'Title'"
+        );
     }
 }

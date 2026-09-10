@@ -77,7 +77,9 @@ pub mod prelude {
 
     pub use ratatui::Frame;
     pub use ratatui::buffer::Buffer;
-    pub use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    pub use ratatui::crossterm::event::{
+        Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    };
     pub use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
     pub use ratatui::style::{Modifier, Style};
     pub use ratatui::text::{Line, Span, Text};
@@ -85,7 +87,9 @@ pub mod prelude {
 
     pub use crate::anim::{self, Clock, Easing, Tween, blink, elapsed, frame_index, pulse, since};
     pub use crate::core::*;
-    pub use crate::draw::{Border, Edge, FieldShape, fill, put, put_centered, put_right, st, truncate, wrap};
+    pub use crate::draw::{
+        Border, Edge, FieldShape, fill, put, put_centered, put_right, st, truncate, wrap,
+    };
     pub use crate::layout::{Overlay, center, center_h, columns, pad, popup_below, stack};
     pub use crate::runtime::{App, Flow, RunOptions, run, run_with};
     pub use crate::theme::{self, Rgb, Theme, ThemeSpec, Variant};

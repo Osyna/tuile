@@ -27,7 +27,11 @@ const BUTTON_MIN_W: u16 = 16;
 /// Calculate button width given label and compact flag.
 pub fn button_width(label: &str, compact: bool) -> u16 {
     let content_w = label.width() as u16 + 4;
-    if compact { content_w } else { content_w.max(BUTTON_MIN_W) }
+    if compact {
+        content_w
+    } else {
+        content_w.max(BUTTON_MIN_W)
+    }
 }
 
 /// Button rendering style.
@@ -143,11 +147,19 @@ impl StatefulWidget for Button {
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
-        let pressed = state.pressed_at.filter(|&t| {
-            self.now.is_some_and(|now| now.duration_since(t).as_millis() < 120)
-        }).is_some();
+        let pressed = state
+            .pressed_at
+            .filter(|&t| {
+                self.now
+                    .is_some_and(|now| now.duration_since(t).as_millis() < 120)
+            })
+            .is_some();
 
-        let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
+        let look = Look {
+            focused: self.focused,
+            hover: state.hit.hover,
+            enabled: self.enabled,
+        };
         let display = if let Some(icon) = &self.icon {
             format!("{} {}", icon, self.label)
         } else {
@@ -164,10 +176,22 @@ impl StatefulWidget for Button {
 }
 
 impl Button {
-    fn render_3d(&self, area: Rect, buf: &mut Buffer, th: &Theme, label: &str, look: &Look, pressed: bool) {
+    fn render_3d(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        th: &Theme,
+        label: &str,
+        look: &Look,
+        pressed: bool,
+    ) {
         let base = th.variant(self.variant);
         let (mut bg, mut top, mut bottom) = match self.variant {
-            Variant::Default => (th.surface, Theme::shade(th.surface, 1), Theme::shade(th.surface, -1)),
+            Variant::Default => (
+                th.surface,
+                Theme::shade(th.surface, 1),
+                Theme::shade(th.surface, -1),
+            ),
             Variant::Primary => (base, Theme::shade(base, 3), Theme::shade(base, -3)),
             _ => (base, Theme::shade(base, 2), Theme::shade(base, -3)),
         };
@@ -186,7 +210,11 @@ impl Button {
         if look.focused && look.enabled {
             bg = Theme::shade(bg, 1);
         }
-        let mut fg = if self.variant == Variant::Default { th.foreground } else { base.text_on(0.9) };
+        let mut fg = if self.variant == Variant::Default {
+            th.foreground
+        } else {
+            base.text_on(0.9)
+        };
         if !look.enabled {
             fg = bg.blend(fg, 0.5);
         }
@@ -197,15 +225,20 @@ impl Button {
                     c.set_symbol("▔").set_fg(top.color());
                 }
                 if area.height >= 3
-                    && let Some(c) = buf.cell_mut((x, area.bottom() - 1)) {
-                        c.set_symbol("▁").set_fg(bottom.color());
-                    }
+                    && let Some(c) = buf.cell_mut((x, area.bottom() - 1))
+                {
+                    c.set_symbol("▁").set_fg(bottom.color());
+                }
             }
         }
         let mid = if self.compact {
             area
         } else {
-            Rect { y: area.y + 1, height: 1, ..area }
+            Rect {
+                y: area.y + 1,
+                height: 1,
+                ..area
+            }
         };
         put_centered(buf, mid, label, Self::focus_style(st(fg, bg), look));
     }
@@ -214,32 +247,72 @@ impl Button {
     /// text selection (Textual's `bold reverse` inverted the whole row).
     fn focus_style(base: Style, look: &Look) -> Style {
         let style = base.add_modifier(Modifier::BOLD);
-        if look.focused { style.add_modifier(Modifier::UNDERLINED) } else { style }
+        if look.focused {
+            style.add_modifier(Modifier::UNDERLINED)
+        } else {
+            style
+        }
     }
 
-    fn render_flat(&self, area: Rect, buf: &mut Buffer, th: &Theme, label: &str, look: &Look, pressed: bool) {
+    fn render_flat(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        th: &Theme,
+        label: &str,
+        look: &Look,
+        pressed: bool,
+    ) {
         let base = th.variant(self.variant);
-        let mut bg = if self.variant == Variant::Default { th.surface } else { base };
+        let mut bg = if self.variant == Variant::Default {
+            th.surface
+        } else {
+            base
+        };
         if look.hover && look.enabled {
             bg = Theme::shade(bg, if pressed { -2 } else { -1 });
         }
         if look.focused && look.enabled {
             bg = Theme::shade(bg, 1);
         }
-        let mut fg = if self.variant == Variant::Default { th.foreground } else { base.text_on(0.9) };
+        let mut fg = if self.variant == Variant::Default {
+            th.foreground
+        } else {
+            base.text_on(0.9)
+        };
         if !look.enabled {
             fg = bg.blend(fg, 0.5);
         }
 
         fill(buf, area, bg);
-        let mid = Rect { y: area.y + area.height / 2, height: 1, ..area };
+        let mid = Rect {
+            y: area.y + area.height / 2,
+            height: 1,
+            ..area
+        };
         put_centered(buf, mid, label, Self::focus_style(st(fg, bg), look));
     }
 
-    fn render_outline(&self, area: Rect, buf: &mut Buffer, th: &Theme, label: &str, look: &Look, pressed: bool) {
+    fn render_outline(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        th: &Theme,
+        label: &str,
+        look: &Look,
+        pressed: bool,
+    ) {
         // `Default` maps to `$surface`, invisible on the background: outline buttons use the text colour instead
-        let base = if self.variant == Variant::Default { th.text_muted } else { th.variant(self.variant) };
-        let border_color = if look.enabled { base } else { base.blend(th.background, 0.5) };
+        let base = if self.variant == Variant::Default {
+            th.text_muted
+        } else {
+            th.variant(self.variant)
+        };
+        let border_color = if look.enabled {
+            base
+        } else {
+            base.blend(th.background, 0.5)
+        };
         let mut bg = th.background;
         if look.hover && look.enabled {
             bg = Theme::shade(th.background, 1);
@@ -250,14 +323,27 @@ impl Button {
         if look.focused && look.enabled {
             bg = Theme::shade(bg, 1);
         }
-        let label_base = if self.variant == Variant::Default { th.text } else { base };
-        let fg = if look.enabled { label_base } else { label_base.blend(th.background, 0.5) };
+        let label_base = if self.variant == Variant::Default {
+            th.text
+        } else {
+            base
+        };
+        let fg = if look.enabled {
+            label_base
+        } else {
+            label_base.blend(th.background, 0.5)
+        };
 
         fill(buf, area, bg);
         let framed = area.height >= 3 && area.width >= 3 && !self.compact;
         let mid = if framed {
             Border::Tall.draw(buf, area, border_color, bg);
-            Rect { x: area.x + 1, y: area.y + area.height / 2, width: area.width - 2, height: 1 }
+            Rect {
+                x: area.x + 1,
+                y: area.y + area.height / 2,
+                width: area.width - 2,
+                height: 1,
+            }
         } else {
             area
         };
@@ -270,7 +356,11 @@ impl Button {
         if look.hover && look.enabled {
             bg = Theme::shade(th.background, 1);
         }
-        let mut fg = if self.variant == Variant::Default { th.text_muted } else { base };
+        let mut fg = if self.variant == Variant::Default {
+            th.text_muted
+        } else {
+            base
+        };
         if !look.enabled {
             fg = fg.blend(bg, 0.5);
         }
@@ -298,7 +388,8 @@ impl ButtonState {
     }
 
     pub fn animating(&self, now: Instant) -> bool {
-        self.pressed_at.is_some_and(|t| now.duration_since(t).as_millis() < 120)
+        self.pressed_at
+            .is_some_and(|t| now.duration_since(t).as_millis() < 120)
     }
 }
 
@@ -343,11 +434,19 @@ impl ButtonGroup {
         }
         let mut x = area.x;
         let h = if compact { 1 } else { 3 };
-        widths.iter().map(|&w| {
-            let r = Rect { x, y: area.y, width: w, height: h.min(area.height) };
-            x += w + gap;
-            r
-        }).collect()
+        widths
+            .iter()
+            .map(|&w| {
+                let r = Rect {
+                    x,
+                    y: area.y,
+                    width: w,
+                    height: h.min(area.height),
+                };
+                x += w + gap;
+                r
+            })
+            .collect()
     }
 }
 
@@ -359,7 +458,12 @@ mod tests {
 
     #[test]
     fn button_renders_at_minimum_size() {
-        let area = Rect { x: 0, y: 0, width: 16, height: 3 };
+        let area = Rect {
+            x: 0,
+            y: 0,
+            width: 16,
+            height: 3,
+        };
         let mut buf = Buffer::empty(area);
         let mut state = ButtonState::default();
         Button::new("OK").render(area, &mut buf, &mut state);
@@ -377,12 +481,20 @@ mod tests {
     fn button_width_respects_compact() {
         assert_eq!(button_width("X", false), BUTTON_MIN_W);
         assert_eq!(button_width("X", true), 5); // "X" + 4 padding
-        assert_eq!(button_width("Long Label", false), BUTTON_MIN_W.max("Long Label".width() as u16 + 4));
+        assert_eq!(
+            button_width("Long Label", false),
+            BUTTON_MIN_W.max("Long Label".width() as u16 + 4)
+        );
     }
 
     #[test]
     fn button_group_layout() {
-        let area = Rect { x: 0, y: 0, width: 60, height: 3 };
+        let area = Rect {
+            x: 0,
+            y: 0,
+            width: 60,
+            height: 3,
+        };
         let rects = ButtonGroup::layout(area, &["One", "Two", "Three"], 2, false);
         assert_eq!(rects.len(), 3);
         assert!(rects[0].x < rects[1].x);

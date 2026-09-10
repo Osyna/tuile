@@ -94,6 +94,14 @@ Rules:
     Textual-style `Tall`/`Panel`/`Wide` borders pair painted bars with a thin `▔`/`▁`/`▏`/`▕`
     line so the corners always meet. Half-blocks only for partial cells in animated bars.
     Wide/ambiguous glyphs (`★`, emoji) get two cells.
+16. **Icons are width-1, non-emoji, and present in common monospace fonts.** Terminals size
+    glyphs with their own tables: anything with the Unicode *Emoji* property (`▶ ◀ ▪ ▫ ⚠ ♥ ⚡ ☰
+    ⚙ ✦ ℹ …`) is two cells for utf8proc-based terminals (tmux, foot, kitty) while `unicode-width`
+    says one, so every cell after it on that row shifts - the whole row skews. Use glyphs that
+    are 1 cell everywhere and exist in JetBrains Mono / DejaVu:
+    `◈ ◉ ◔ ◌ ◆ ◇ ● ○ ■ □ ◧ ◫ ◊ ⊞ ⊡ ⊙ ⊛ ⊕ ⊗ ⌘ ⌂ ≡ ▸ ▹ ◂ ◃ ▴ ▾ ▲ ▼ • ◦ ✓ ✗ ✶ ¶ ⋮ ⋯ ❯`. Check a
+    candidate with `unicode_width::UnicodeWidthStr::width` **and** a `tools/shot.py` screenshot
+    before using it.
 
 ## Showcase page contract (`showcase/src/pages/<name>.rs`)
 

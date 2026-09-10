@@ -19,19 +19,17 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 use ratatui::layout::{Alignment, Constraint, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::StatefulWidget;
 
-
-use crate::core::{is_press, mouse_in, mouse_pos, wheel_delta, Hit, HitBox, Interactive, Outcome};
+use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, mouse_in, mouse_pos, wheel_delta};
 use crate::draw::{fill, put, put_aligned, put_centered, st, truncate};
 use crate::layout::pad_trbl;
 use crate::theme::{self, Theme, Variant};
-use crate::widgets::scrollbar::{keep_visible, Scrollbar, ScrollbarState};
+use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
 // ───────────────────────────── column ─────────────────────────────
 
@@ -85,23 +83,39 @@ pub struct TableCell {
 
 impl From<&str> for TableCell {
     fn from(s: &str) -> Self {
-        Self { text: s.to_string(), style: None, sort_key: None }
+        Self {
+            text: s.to_string(),
+            style: None,
+            sort_key: None,
+        }
     }
 }
 impl From<String> for TableCell {
     fn from(text: String) -> Self {
-        Self { text, style: None, sort_key: None }
+        Self {
+            text,
+            style: None,
+            sort_key: None,
+        }
     }
 }
 impl From<f64> for TableCell {
     fn from(v: f64) -> Self {
-        Self { text: format!("{:.1}", v), style: None, sort_key: Some(v) }
+        Self {
+            text: format!("{:.1}", v),
+            style: None,
+            sort_key: Some(v),
+        }
     }
 }
 
 impl TableCell {
     pub fn new(text: impl Into<String>) -> Self {
-        Self { text: text.into(), style: None, sort_key: None }
+        Self {
+            text: text.into(),
+            style: None,
+            sort_key: None,
+        }
     }
     pub fn style(mut self, s: Style) -> Self {
         self.style = Some(s);
@@ -123,13 +137,21 @@ pub struct TableRow {
 
 impl<T: Into<TableCell>> From<Vec<T>> for TableRow {
     fn from(cells: Vec<T>) -> Self {
-        Self { cells: cells.into_iter().map(Into::into).collect(), variant: None, disabled: false }
+        Self {
+            cells: cells.into_iter().map(Into::into).collect(),
+            variant: None,
+            disabled: false,
+        }
     }
 }
 
 impl TableRow {
     pub fn new(cells: Vec<TableCell>) -> Self {
-        Self { cells, variant: None, disabled: false }
+        Self {
+            cells,
+            variant: None,
+            disabled: false,
+        }
     }
     pub fn variant(mut self, v: Variant) -> Self {
         self.variant = Some(v);
@@ -186,7 +208,10 @@ pub struct DataTableState {
 
 impl DataTableState {
     pub fn new() -> Self {
-        Self { dirty: true, ..Default::default() }
+        Self {
+            dirty: true,
+            ..Default::default()
+        }
     }
     pub fn visible_len(&self) -> usize {
         self.order.len()
@@ -217,32 +242,36 @@ impl DataTableState {
                 if query.is_empty() {
                     return true;
                 }
-                rows[i].cells.iter().any(|c| c.text.to_lowercase().contains(&query))
+                rows[i]
+                    .cells
+                    .iter()
+                    .any(|c| c.text.to_lowercase().contains(&query))
             })
             .collect();
 
         if let Some((col, asc)) = self.sort
-            && col < cols.len() {
-                indices.sort_by(|&a, &b| {
-                    let ca = rows[a].cells.get(col);
-                    let cb = rows[b].cells.get(col);
-                    let ord = match (ca, cb) {
-                        (Some(ca), Some(cb)) => {
-                            if let (Some(ka), Some(kb)) = (ca.sort_key, cb.sort_key) {
-                                ka.partial_cmp(&kb).unwrap_or(std::cmp::Ordering::Equal)
-                            } else {
-                                let ta = ca.text.to_lowercase();
-                                let tb = cb.text.to_lowercase();
-                                ta.cmp(&tb)
-                            }
+            && col < cols.len()
+        {
+            indices.sort_by(|&a, &b| {
+                let ca = rows[a].cells.get(col);
+                let cb = rows[b].cells.get(col);
+                let ord = match (ca, cb) {
+                    (Some(ca), Some(cb)) => {
+                        if let (Some(ka), Some(kb)) = (ca.sort_key, cb.sort_key) {
+                            ka.partial_cmp(&kb).unwrap_or(std::cmp::Ordering::Equal)
+                        } else {
+                            let ta = ca.text.to_lowercase();
+                            let tb = cb.text.to_lowercase();
+                            ta.cmp(&tb)
                         }
-                        (Some(_), None) => std::cmp::Ordering::Less,
-                        (None, Some(_)) => std::cmp::Ordering::Greater,
-                        _ => std::cmp::Ordering::Equal,
-                    };
-                    if asc { ord } else { ord.reverse() }
-                });
-            }
+                    }
+                    (Some(_), None) => std::cmp::Ordering::Less,
+                    (None, Some(_)) => std::cmp::Ordering::Greater,
+                    _ => std::cmp::Ordering::Equal,
+                };
+                if asc { ord } else { ord.reverse() }
+            });
+        }
         self.order = indices;
         self.dirty = false;
     }
@@ -262,7 +291,9 @@ impl Interactive for DataTableState {
             KeyCode::Home => self.cursor_row = 0,
             KeyCode::End if !self.order.is_empty() => self.cursor_row = self.order.len() - 1,
             KeyCode::PageUp => self.cursor_row = self.cursor_row.saturating_sub(10),
-            KeyCode::PageDown => self.cursor_row = (self.cursor_row + 10).min(self.order.len().saturating_sub(1)),
+            KeyCode::PageDown => {
+                self.cursor_row = (self.cursor_row + 10).min(self.order.len().saturating_sub(1))
+            }
             KeyCode::Enter => {
                 if let Some(r) = self.current_row() {
                     self.activated = Some(r);
@@ -325,35 +356,36 @@ impl Interactive for DataTableState {
 
         // Header hit: sort or resize
         if let Some(hdr) = self.hits.first_mut()
-            && let Hit::Press = hdr.mouse(&m) {
-                let pos = mouse_pos(&m);
-                for (i, &w) in self.col_widths.iter().enumerate() {
-                    if i >= self.hits.len() - 1 {
-                        break;
-                    }
-                    let hit = &self.hits[i + 1];
-                    let a = hit.area;
-                    if a.x > 0 && pos.x + 1 == a.x && pos.y == a.y {
-                        // Boundary: start resize
-                        self.col_resize = Some((i, m.column, w));
-                        return Outcome::Consumed;
-                    }
-                    if mouse_in(a, &m) {
-                        // Header click: toggle sort
-                        if let Some((col, asc)) = self.sort {
-                            if col == i {
-                                self.sort = if asc { Some((col, false)) } else { None };
-                            } else {
-                                self.sort = Some((i, true));
-                            }
+            && let Hit::Press = hdr.mouse(&m)
+        {
+            let pos = mouse_pos(&m);
+            for (i, &w) in self.col_widths.iter().enumerate() {
+                if i >= self.hits.len() - 1 {
+                    break;
+                }
+                let hit = &self.hits[i + 1];
+                let a = hit.area;
+                if a.x > 0 && pos.x + 1 == a.x && pos.y == a.y {
+                    // Boundary: start resize
+                    self.col_resize = Some((i, m.column, w));
+                    return Outcome::Consumed;
+                }
+                if mouse_in(a, &m) {
+                    // Header click: toggle sort
+                    if let Some((col, asc)) = self.sort {
+                        if col == i {
+                            self.sort = if asc { Some((col, false)) } else { None };
                         } else {
                             self.sort = Some((i, true));
                         }
-                        self.dirty = true;
-                        return Outcome::Changed;
+                    } else {
+                        self.sort = Some((i, true));
                     }
+                    self.dirty = true;
+                    return Outcome::Changed;
                 }
             }
+        }
 
         // Body row hit
         if self.hits.len() > 1 {
@@ -505,7 +537,11 @@ impl StatefulWidget for DataTable {
         state.cursor_col = state.cursor_col.min(self.columns.len().saturating_sub(1));
         state.cursor_row = state.cursor_row.min(state.order.len().saturating_sub(1));
 
-        let content = if self.padding > 0 { pad_trbl(area, self.padding, self.padding, self.padding, self.padding) } else { area };
+        let content = if self.padding > 0 {
+            pad_trbl(area, self.padding, self.padding, self.padding, self.padding)
+        } else {
+            area
+        };
         if content.width < 2 || content.height < 1 {
             return;
         }
@@ -523,17 +559,21 @@ impl StatefulWidget for DataTable {
         let mut used = 0u16;
 
         for (i, col) in self.columns.iter().enumerate() {
-            let w = state.width_overrides.get(&i).copied().unwrap_or_else(|| match col.width {
-                Constraint::Length(l) => l,
-                Constraint::Min(m) => m,
-                Constraint::Max(m) => m.min(total_w.saturating_sub(used)),
-                Constraint::Percentage(p) => (total_w as f32 * p as f32 / 100.0) as u16,
-                Constraint::Fill(_) => {
-                    fill_indices.push(i);
-                    0
-                }
-                _ => 10,
-            });
+            let w = state
+                .width_overrides
+                .get(&i)
+                .copied()
+                .unwrap_or_else(|| match col.width {
+                    Constraint::Length(l) => l,
+                    Constraint::Min(m) => m,
+                    Constraint::Max(m) => m.min(total_w.saturating_sub(used)),
+                    Constraint::Percentage(p) => (total_w as f32 * p as f32 / 100.0) as u16,
+                    Constraint::Fill(_) => {
+                        fill_indices.push(i);
+                        0
+                    }
+                    _ => 10,
+                });
             col_widths[i] = w;
             if !fill_indices.contains(&i) {
                 used += w + if i > 0 { self.column_gap } else { 0 };
@@ -563,7 +603,12 @@ impl StatefulWidget for DataTable {
                     break;
                 }
                 let cell_w = w.min(content.x + content.width - x);
-                let area = Rect { x, y, width: cell_w, height: 1 };
+                let area = Rect {
+                    x,
+                    y,
+                    width: cell_w,
+                    height: 1,
+                };
                 state.hits[0].set_area(area);
                 if i + 1 < state.hits.len() {
                     state.hits[i + 1].set_area(area);
@@ -575,11 +620,19 @@ impl StatefulWidget for DataTable {
 
                 let mut title = col.title.clone();
                 if let Some((sort_col, asc)) = state.sort
-                    && sort_col == i {
-                        title.push_str(if asc { " ▲" } else { " ▼" });
-                    }
+                    && sort_col == i
+                {
+                    title.push_str(if asc { " ▲" } else { " ▼" });
+                }
                 let title_s = st(th.text, bg).add_modifier(ratatui::style::Modifier::BOLD);
-                put(buf, x, y, &truncate(&title, cell_w as usize), cell_w, title_s);
+                put(
+                    buf,
+                    x,
+                    y,
+                    &truncate(&title, cell_w as usize),
+                    cell_w,
+                    title_s,
+                );
                 x += cell_w + self.column_gap;
             }
         }
@@ -622,7 +675,12 @@ impl StatefulWidget for DataTable {
                 th.text
             };
 
-            let row_rect = Rect { x: content.x, y, width: content.width, height: 1 };
+            let row_rect = Rect {
+                x: content.x,
+                y,
+                width: content.width,
+                height: 1,
+            };
             fill(buf, row_rect, bg);
 
             if row_offset + 1 < state.hits.len() {
@@ -658,16 +716,33 @@ impl StatefulWidget for DataTable {
                     cell_style = cell_style.add_modifier(s.add_modifier);
                 }
 
-                let is_cell_cursor = self.cursor == TableCursor::Cell && vis_idx == state.cursor_row && col_i == state.cursor_col;
+                let is_cell_cursor = self.cursor == TableCursor::Cell
+                    && vis_idx == state.cursor_row
+                    && col_i == state.cursor_col;
                 let final_style = if is_cell_cursor {
                     cell_style.add_modifier(ratatui::style::Modifier::REVERSED)
                 } else {
                     cell_style
                 };
 
-                let align = if cell.sort_key.is_some() { Alignment::Right } else { col.align };
-                let cell_rect = Rect { x, y, width: cell_w, height: 1 };
-                put_aligned(buf, cell_rect, &truncate(&cell.text, cell_w as usize), align, final_style);
+                let align = if cell.sort_key.is_some() {
+                    Alignment::Right
+                } else {
+                    col.align
+                };
+                let cell_rect = Rect {
+                    x,
+                    y,
+                    width: cell_w,
+                    height: 1,
+                };
+                put_aligned(
+                    buf,
+                    cell_rect,
+                    &truncate(&cell.text, cell_w as usize),
+                    align,
+                    final_style,
+                );
 
                 x += cell_w + self.column_gap;
             }
@@ -675,7 +750,12 @@ impl StatefulWidget for DataTable {
 
         // Scrollbar
         if state.order.len() > visible_rows {
-            let sb_area = Rect { x: content.x + content.width - 1, y: body_y, width: 1, height: body_h };
+            let sb_area = Rect {
+                x: content.x + content.width - 1,
+                y: body_y,
+                width: 1,
+                height: body_h,
+            };
             Scrollbar::vertical(state.order.len(), visible_rows)
                 .offset(state.offset_y)
                 .theme(&th)
@@ -686,7 +766,17 @@ impl StatefulWidget for DataTable {
         if state.order.is_empty() {
             let msg_y = body_y + body_h / 2;
             if msg_y < body_y + body_h {
-                put_centered(buf, Rect { x: content.x, y: msg_y, width: content.width, height: 1 }, &self.empty_text, st(th.text_muted, th.surface));
+                put_centered(
+                    buf,
+                    Rect {
+                        x: content.x,
+                        y: msg_y,
+                        width: content.width,
+                        height: 1,
+                    },
+                    &self.empty_text,
+                    st(th.text_muted, th.surface),
+                );
             }
         }
     }
@@ -703,7 +793,11 @@ pub struct KeyValueList {
 
 impl KeyValueList {
     pub fn new(items: Vec<(String, String)>) -> Self {
-        Self { items, gap: 2, theme: None }
+        Self {
+            items,
+            gap: 2,
+            theme: None,
+        }
     }
     pub fn gap(mut self, g: u16) -> Self {
         self.gap = g;
@@ -729,10 +823,24 @@ impl ratatui::widgets::Widget for KeyValueList {
             if y >= area.y + area.height {
                 break;
             }
-            put(buf, area.x, y, &truncate(label, label_w as usize), label_w, st(th.text_muted, th.surface).add_modifier(ratatui::style::Modifier::BOLD));
+            put(
+                buf,
+                area.x,
+                y,
+                &truncate(label, label_w as usize),
+                label_w,
+                st(th.text_muted, th.surface).add_modifier(ratatui::style::Modifier::BOLD),
+            );
             let val_x = area.x + label_w + self.gap;
             let val_w = area.width.saturating_sub(label_w + self.gap);
-            put(buf, val_x, y, &truncate(value, val_w as usize), val_w, st(th.text, th.surface));
+            put(
+                buf,
+                val_x,
+                y,
+                &truncate(value, val_w as usize),
+                val_w,
+                st(th.text, th.surface),
+            );
         }
     }
 }

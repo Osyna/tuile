@@ -35,7 +35,10 @@ pub struct SelectOption {
 
 impl SelectOption {
     pub fn new(label: &str) -> Self {
-        Self { label: label.to_string(), disabled: false }
+        Self {
+            label: label.to_string(),
+            disabled: false,
+        }
     }
 
     pub fn disabled(mut self, v: bool) -> Self {
@@ -267,7 +270,8 @@ impl SelectState {
     }
 
     pub fn selected_label(&self) -> Option<&str> {
-        self.selected.and_then(|i| self.options.get(i).map(|o| o.label.as_str()))
+        self.selected
+            .and_then(|i| self.options.get(i).map(|o| o.label.as_str()))
     }
 
     pub fn set_selected(&mut self, idx: Option<usize>) {
@@ -347,7 +351,9 @@ impl Interactive for SelectState {
             KeyCode::Down => {
                 if self.highlight + 1 < self.options.len() {
                     self.highlight += 1;
-                    while self.highlight + 1 < self.options.len() && self.options[self.highlight].disabled {
+                    while self.highlight + 1 < self.options.len()
+                        && self.options[self.highlight].disabled
+                    {
                         self.highlight += 1;
                     }
                 }
@@ -412,7 +418,8 @@ impl Interactive for SelectState {
             }
 
             // Click outside closes
-            if is_left_down(&m) && !mouse_in(self.dropdown_area, &m) && !mouse_in(self.hit.area, &m) {
+            if is_left_down(&m) && !mouse_in(self.dropdown_area, &m) && !mouse_in(self.hit.area, &m)
+            {
                 self.open = false;
                 return Outcome::Consumed;
             }
@@ -442,27 +449,63 @@ impl StatefulWidget for Select {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let th = self.theme.unwrap_or_else(theme::current);
-        let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
+        let look = Look {
+            focused: self.focused,
+            hover: state.hit.hover,
+            enabled: self.enabled,
+        };
 
         let label = state.selected_label().map(str::to_string);
         if self.compact {
-            render_select_compact(area, buf, &mut state.hit, &th, look, label.as_deref(), &self.placeholder, state.open);
+            render_select_compact(
+                area,
+                buf,
+                &mut state.hit,
+                &th,
+                look,
+                label.as_deref(),
+                &self.placeholder,
+                state.open,
+            );
         } else {
-            render_field(area, buf, &mut state.hit, &th, look, self.shape, label.as_deref(), &self.placeholder, state.open);
+            render_field(
+                area,
+                buf,
+                &mut state.hit,
+                &th,
+                look,
+                self.shape,
+                label.as_deref(),
+                &self.placeholder,
+                state.open,
+            );
         }
     }
 }
 
 impl SelectState {
     /// Render the dropdown overlay. Call this at the end of your page's draw.
-    pub fn render_overlay(&mut self, buf: &mut Buffer, bounds: Rect, theme: &Theme, max_visible: usize) {
+    pub fn render_overlay(
+        &mut self,
+        buf: &mut Buffer,
+        bounds: Rect,
+        theme: &Theme,
+        max_visible: usize,
+    ) {
         if !self.open || self.options.is_empty() {
             return;
         }
 
         let visible = max_visible.min(self.options.len());
         let h = visible as u16 + 2;
-        let natural = self.options.iter().map(|o| o.label.width()).max().unwrap_or(10).min(60) as u16 + 4;
+        let natural = self
+            .options
+            .iter()
+            .map(|o| o.label.width())
+            .max()
+            .unwrap_or(10)
+            .min(60) as u16
+            + 4;
         let w = self.dropdown_width.resolve(natural, self.hit.area);
 
         let dropdown = popup_below(self.hit.area, w, h, bounds);
@@ -470,28 +513,79 @@ impl SelectState {
 
         self.scroll = keep_visible(self.scroll, self.highlight, visible);
 
-        render_option_list(buf, dropdown, &self.options, self.highlight, self.scroll, visible, theme, &mut self.option_hits, &mut self.scrollbar_state);
+        render_option_list(
+            buf,
+            dropdown,
+            &self.options,
+            self.highlight,
+            self.scroll,
+            visible,
+            theme,
+            &mut self.option_hits,
+            &mut self.scrollbar_state,
+        );
     }
 }
 
-fn render_select_compact(area: Rect, buf: &mut Buffer, hit: &mut HitBox, th: &Theme, look: Look, label: Option<&str>, placeholder: &str, open: bool) {
+fn render_select_compact(
+    area: Rect,
+    buf: &mut Buffer,
+    hit: &mut HitBox,
+    th: &Theme,
+    look: Look,
+    label: Option<&str>,
+    placeholder: &str,
+    open: bool,
+) {
     hit.set_area(area);
     if area.width < 4 || area.height == 0 {
         return;
     }
 
-    let bg = if look.focused { th.focus_bg() } else { th.surface };
+    let bg = if look.focused {
+        th.focus_bg()
+    } else {
+        th.surface
+    };
     fill(buf, area, bg);
 
-    let fg = if look.enabled { th.text } else { th.text_disabled };
+    let fg = if look.enabled {
+        th.text
+    } else {
+        th.text_disabled
+    };
     let arrow = if open { "▲" } else { "▼" };
 
-    put(buf, area.x, area.y, label.unwrap_or(placeholder), area.width.saturating_sub(2), st(fg, bg));
-    put(buf, area.right().saturating_sub(2), area.y, arrow, 1, st(th.text_muted, bg));
+    put(
+        buf,
+        area.x,
+        area.y,
+        label.unwrap_or(placeholder),
+        area.width.saturating_sub(2),
+        st(fg, bg),
+    );
+    put(
+        buf,
+        area.right().saturating_sub(2),
+        area.y,
+        arrow,
+        1,
+        st(th.text_muted, bg),
+    );
 }
 
 /// The field shared by Select and MultiSelect: label or placeholder, arrow, framed per `shape`.
-fn render_field(area: Rect, buf: &mut Buffer, hit: &mut HitBox, th: &Theme, look: Look, shape: FieldShape, label: Option<&str>, placeholder: &str, open: bool) {
+fn render_field(
+    area: Rect,
+    buf: &mut Buffer,
+    hit: &mut HitBox,
+    th: &Theme,
+    look: Look,
+    shape: FieldShape,
+    label: Option<&str>,
+    placeholder: &str,
+    open: bool,
+) {
     let chrome = shape.vertical_chrome();
     if area.height < 1 + chrome || area.width < 8 {
         hit.set_area(Rect::default());
@@ -499,18 +593,56 @@ fn render_field(area: Rect, buf: &mut Buffer, hit: &mut HitBox, th: &Theme, look
     }
 
     hit.set_area(area);
-    let bg = if look.focused { th.focus_bg() } else { th.surface };
+    let bg = if look.focused {
+        th.focus_bg()
+    } else {
+        th.surface
+    };
     fill(buf, area, bg);
 
-    let border = if look.focused { th.border } else { th.border_blurred };
+    let border = if look.focused {
+        th.border
+    } else {
+        th.border_blurred
+    };
     let extra = u16::from(matches!(shape, FieldShape::Tall(_) | FieldShape::Round));
-    let inner = pad(shape.draw(buf, Rect { height: 1 + chrome, ..area }, border, bg), shape.padding() + extra, 0);
-    let fg = if look.enabled { th.text } else { th.text_disabled };
+    let inner = pad(
+        shape.draw(
+            buf,
+            Rect {
+                height: 1 + chrome,
+                ..area
+            },
+            border,
+            bg,
+        ),
+        shape.padding() + extra,
+        0,
+    );
+    let fg = if look.enabled {
+        th.text
+    } else {
+        th.text_disabled
+    };
     let label_fg = if label.is_some() { fg } else { th.text_muted };
     let arrow = if open { "▲" } else { "▼" };
 
-    put(buf, inner.x, inner.y, label.unwrap_or(placeholder), inner.width.saturating_sub(2), st(label_fg, bg));
-    put(buf, inner.right().saturating_sub(2), inner.y, arrow, 1, st(th.text_muted, bg));
+    put(
+        buf,
+        inner.x,
+        inner.y,
+        label.unwrap_or(placeholder),
+        inner.width.saturating_sub(2),
+        st(label_fg, bg),
+    );
+    put(
+        buf,
+        inner.right().saturating_sub(2),
+        inner.y,
+        arrow,
+        1,
+        st(th.text_muted, bg),
+    );
 }
 
 fn render_option_list(
@@ -536,7 +668,12 @@ fn render_option_list(
             break;
         }
         let y = inner.y + idx as u16;
-        let row_rect = Rect { x: inner.x, y, width: inner.width, height: 1 };
+        let row_rect = Rect {
+            x: inner.x,
+            y,
+            width: inner.width,
+            height: 1,
+        };
 
         let opt = &options[row];
         let is_highlight = row == highlight;
@@ -554,7 +691,14 @@ fn render_option_list(
             style = style.add_modifier(ratatui::style::Modifier::BOLD);
         }
 
-        put(buf, row_rect.x + 1, y, &opt.label, row_rect.width.saturating_sub(2), style);
+        put(
+            buf,
+            row_rect.x + 1,
+            y,
+            &opt.label,
+            row_rect.width.saturating_sub(2),
+            style,
+        );
 
         let mut hit = HitBox::default();
         hit.set_area(row_rect);
@@ -562,8 +706,16 @@ fn render_option_list(
     }
 
     if options.len() > visible {
-        let sb_area = Rect { x: area.right().saturating_sub(1), y: area.y + 1, width: 1, height: area.height.saturating_sub(2) };
-        Scrollbar::vertical(options.len(), visible).offset(scroll).theme(th).render(sb_area, buf, scrollbar_state);
+        let sb_area = Rect {
+            x: area.right().saturating_sub(1),
+            y: area.y + 1,
+            width: 1,
+            height: area.height.saturating_sub(2),
+        };
+        Scrollbar::vertical(options.len(), visible)
+            .offset(scroll)
+            .theme(th)
+            .render(sb_area, buf, scrollbar_state);
     }
 }
 
@@ -653,7 +805,8 @@ impl ComboboxState {
     }
 
     pub fn selected_label(&self) -> Option<&str> {
-        self.selected.and_then(|i| self.options.get(i).map(|o| o.label.as_str()))
+        self.selected
+            .and_then(|i| self.options.get(i).map(|o| o.label.as_str()))
     }
 
     pub fn value(&self) -> &str {
@@ -667,7 +820,12 @@ impl ComboboxState {
     fn update_filter(&mut self) {
         let query = self.input.value();
         if query.is_empty() {
-            self.filtered = self.options.iter().enumerate().map(|(i, _)| (i, 0, Vec::new())).collect();
+            self.filtered = self
+                .options
+                .iter()
+                .enumerate()
+                .map(|(i, _)| (i, 0, Vec::new()))
+                .collect();
         } else {
             let labels: Vec<&str> = self.options.iter().map(|o| o.label.as_str()).collect();
             self.filtered = fuzzy::rank(query, labels);
@@ -678,14 +836,27 @@ impl ComboboxState {
     }
 
     /// Render the dropdown overlay.
-    pub fn render_overlay(&mut self, buf: &mut Buffer, bounds: Rect, theme: &Theme, max_visible: usize) {
+    pub fn render_overlay(
+        &mut self,
+        buf: &mut Buffer,
+        bounds: Rect,
+        theme: &Theme,
+        max_visible: usize,
+    ) {
         if !self.open || self.filtered.is_empty() {
             return;
         }
 
         let visible = max_visible.min(self.filtered.len());
         let h = visible as u16 + 2;
-        let natural = self.options.iter().map(|o| o.label.width()).max().unwrap_or(10).min(60) as u16 + 4;
+        let natural = self
+            .options
+            .iter()
+            .map(|o| o.label.width())
+            .max()
+            .unwrap_or(10)
+            .min(60) as u16
+            + 4;
         let w = self.dropdown_width.resolve(natural, self.hit.area);
 
         let dropdown = popup_below(self.hit.area, w, h, bounds);
@@ -705,7 +876,12 @@ impl ComboboxState {
                 break;
             }
             let y = inner.y + idx as u16;
-            let row_rect = Rect { x: inner.x, y, width: inner.width, height: 1 };
+            let row_rect = Rect {
+                x: inner.x,
+                y,
+                width: inner.width,
+                height: 1,
+            };
 
             let (orig_idx, _score, positions) = &self.filtered[row];
             let opt = &self.options[*orig_idx];
@@ -729,7 +905,11 @@ impl ComboboxState {
             let mut x = row_rect.x + 1;
             for (i, ch) in opt.label.chars().enumerate() {
                 let matched = positions.contains(&i);
-                let s = if matched { style.add_modifier(ratatui::style::Modifier::UNDERLINED) } else { style };
+                let s = if matched {
+                    style.add_modifier(ratatui::style::Modifier::UNDERLINED)
+                } else {
+                    style
+                };
                 let mut buf_ch = [0u8; 4];
                 put(buf, x, y, ch.encode_utf8(&mut buf_ch), 1, s);
                 x += 1;
@@ -744,8 +924,16 @@ impl ComboboxState {
         }
 
         if self.filtered.len() > visible {
-            let sb_area = Rect { x: dropdown.right().saturating_sub(1), y: dropdown.y + 1, width: 1, height: dropdown.height.saturating_sub(2) };
-            Scrollbar::vertical(self.filtered.len(), visible).offset(self.scroll).theme(theme).render(sb_area, buf, &mut self.scrollbar_state);
+            let sb_area = Rect {
+                x: dropdown.right().saturating_sub(1),
+                y: dropdown.y + 1,
+                width: 1,
+                height: dropdown.height.saturating_sub(2),
+            };
+            Scrollbar::vertical(self.filtered.len(), visible)
+                .offset(self.scroll)
+                .theme(theme)
+                .render(sb_area, buf, &mut self.scrollbar_state);
         }
     }
 }
@@ -798,7 +986,8 @@ impl Interactive for ComboboxState {
                     return Outcome::Consumed;
                 }
                 KeyCode::PageDown => {
-                    self.highlight = (self.highlight + 5).min(self.filtered.len().saturating_sub(1));
+                    self.highlight =
+                        (self.highlight + 5).min(self.filtered.len().saturating_sub(1));
                     return Outcome::Consumed;
                 }
                 _ => {}
@@ -849,7 +1038,8 @@ impl Interactive for ComboboxState {
                 return Outcome::Consumed;
             }
 
-            if is_left_down(&m) && !mouse_in(self.dropdown_area, &m) && !mouse_in(self.hit.area, &m) {
+            if is_left_down(&m) && !mouse_in(self.dropdown_area, &m) && !mouse_in(self.hit.area, &m)
+            {
                 self.open = false;
                 return Outcome::Consumed;
             }
@@ -959,7 +1149,12 @@ impl MultiSelectState {
     }
 
     pub fn selected_indices(&self) -> Vec<usize> {
-        self.selected.iter().enumerate().filter(|(_, b)| **b).map(|(i, _)| i).collect()
+        self.selected
+            .iter()
+            .enumerate()
+            .filter(|(_, b)| **b)
+            .map(|(i, _)| i)
+            .collect()
     }
 
     pub fn summary(&self) -> String {
@@ -967,7 +1162,12 @@ impl MultiSelectState {
         if count == 0 {
             "None selected".to_string()
         } else if count == 1 {
-            self.options.iter().zip(self.selected.iter()).find(|(_, b)| **b).map(|(o, _)| o.label.clone()).unwrap_or_default()
+            self.options
+                .iter()
+                .zip(self.selected.iter())
+                .find(|(_, b)| **b)
+                .map(|(o, _)| o.label.clone())
+                .unwrap_or_default()
         } else {
             format!("{} selected", count)
         }
@@ -978,14 +1178,27 @@ impl MultiSelectState {
     }
 
     /// Render the dropdown overlay.
-    pub fn render_overlay(&mut self, buf: &mut Buffer, bounds: Rect, theme: &Theme, max_visible: usize) {
+    pub fn render_overlay(
+        &mut self,
+        buf: &mut Buffer,
+        bounds: Rect,
+        theme: &Theme,
+        max_visible: usize,
+    ) {
         if !self.open || self.options.is_empty() {
             return;
         }
 
         let visible = max_visible.min(self.options.len());
         let h = visible as u16 + 2;
-        let natural = self.options.iter().map(|o| o.label.width() + 4).max().unwrap_or(14).min(60) as u16 + 4;
+        let natural = self
+            .options
+            .iter()
+            .map(|o| o.label.width() + 4)
+            .max()
+            .unwrap_or(14)
+            .min(60) as u16
+            + 4;
         let w = self.dropdown_width.resolve(natural, self.hit.area);
 
         let dropdown = popup_below(self.hit.area, w, h, bounds);
@@ -1005,7 +1218,12 @@ impl MultiSelectState {
                 break;
             }
             let y = inner.y + idx as u16;
-            let row_rect = Rect { x: inner.x, y, width: inner.width, height: 1 };
+            let row_rect = Rect {
+                x: inner.x,
+                y,
+                width: inner.width,
+                height: 1,
+            };
 
             let opt = &self.options[row];
             let is_highlight = row == self.highlight;
@@ -1027,7 +1245,14 @@ impl MultiSelectState {
 
             let check = if checked { "[✓]" } else { "[ ]" };
             put(buf, row_rect.x + 1, y, check, 3, style);
-            put(buf, row_rect.x + 5, y, &opt.label, row_rect.width.saturating_sub(6), style);
+            put(
+                buf,
+                row_rect.x + 5,
+                y,
+                &opt.label,
+                row_rect.width.saturating_sub(6),
+                style,
+            );
 
             let mut hit = HitBox::default();
             hit.set_area(row_rect);
@@ -1035,8 +1260,16 @@ impl MultiSelectState {
         }
 
         if self.options.len() > visible {
-            let sb_area = Rect { x: dropdown.right().saturating_sub(1), y: dropdown.y + 1, width: 1, height: dropdown.height.saturating_sub(2) };
-            Scrollbar::vertical(self.options.len(), visible).offset(self.scroll).theme(theme).render(sb_area, buf, &mut self.scrollbar_state);
+            let sb_area = Rect {
+                x: dropdown.right().saturating_sub(1),
+                y: dropdown.y + 1,
+                width: 1,
+                height: dropdown.height.saturating_sub(2),
+            };
+            Scrollbar::vertical(self.options.len(), visible)
+                .offset(self.scroll)
+                .theme(theme)
+                .render(sb_area, buf, &mut self.scrollbar_state);
         }
     }
 }
@@ -1129,7 +1362,8 @@ impl Interactive for MultiSelectState {
                 return Outcome::Consumed;
             }
 
-            if is_left_down(&m) && !mouse_in(self.dropdown_area, &m) && !mouse_in(self.hit.area, &m) {
+            if is_left_down(&m) && !mouse_in(self.dropdown_area, &m) && !mouse_in(self.hit.area, &m)
+            {
                 self.open = false;
                 return Outcome::Consumed;
             }
@@ -1154,14 +1388,41 @@ impl StatefulWidget for MultiSelect {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let th = self.theme.unwrap_or_else(theme::current);
-        let look = Look { focused: self.focused, hover: state.hit.hover, enabled: self.enabled };
+        let look = Look {
+            focused: self.focused,
+            hover: state.hit.hover,
+            enabled: self.enabled,
+        };
 
         let summary = state.summary();
-        let label = if state.selected.iter().any(|&b| b) { Some(summary.as_str()) } else { None };
-        if self.compact {
-            render_select_compact(area, buf, &mut state.hit, &th, look, label, &self.placeholder, state.open);
+        let label = if state.selected.iter().any(|&b| b) {
+            Some(summary.as_str())
         } else {
-            render_field(area, buf, &mut state.hit, &th, look, self.shape, label, &self.placeholder, state.open);
+            None
+        };
+        if self.compact {
+            render_select_compact(
+                area,
+                buf,
+                &mut state.hit,
+                &th,
+                look,
+                label,
+                &self.placeholder,
+                state.open,
+            );
+        } else {
+            render_field(
+                area,
+                buf,
+                &mut state.hit,
+                &th,
+                look,
+                self.shape,
+                label,
+                &self.placeholder,
+                state.open,
+            );
         }
     }
 }
@@ -1202,8 +1463,16 @@ mod tests {
         let mut s = MultiSelectState::new(&["X", "Y"]);
         let mut buf = Buffer::empty(Rect::new(0, 0, 40, 5));
         MultiSelect::new().render(Rect::new(0, 0, 30, 3), &mut buf, &mut s);
-        let press = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: 5, row: 1, modifiers: KeyModifiers::NONE };
+        let press = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 5,
+            row: 1,
+            modifiers: KeyModifiers::NONE,
+        };
         assert_eq!(s.handle_mouse(press), Outcome::Consumed);
-        assert!(s.open, "click inside the rendered field must open the dropdown");
+        assert!(
+            s.open,
+            "click inside the rendered field must open the dropdown"
+        );
     }
 }

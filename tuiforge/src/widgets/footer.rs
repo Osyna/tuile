@@ -40,11 +40,13 @@ impl FooterBinding {
     }
 
     pub fn enabled(mut self, e: bool) -> Self {
-        self.enabled = e; self
+        self.enabled = e;
+        self
     }
 
     pub fn priority(mut self, p: u8) -> Self {
-        self.priority = p; self
+        self.priority = p;
+        self
     }
 }
 
@@ -125,18 +127,23 @@ impl KeyFooter {
 
     /// Set bindings from `(key, description)` tuples.
     pub fn bindings(mut self, b: &[(&str, &str)]) -> Self {
-        self.bindings = b.iter().map(|&(k, d)| FooterBinding::from((k, d))).collect();
+        self.bindings = b
+            .iter()
+            .map(|&(k, d)| FooterBinding::from((k, d)))
+            .collect();
         self
     }
 
     /// Set bindings from `FooterBinding` instances.
     pub fn bindings_full(mut self, b: Vec<FooterBinding>) -> Self {
-        self.bindings = b; self
+        self.bindings = b;
+        self
     }
 
     /// Compact mode: show keys only, no descriptions.
     pub fn compact(mut self, c: bool) -> Self {
-        self.compact = c; self
+        self.compact = c;
+        self
     }
 
     /// Group bindings with separators (`groups` = lists of binding indices).
@@ -147,29 +154,41 @@ impl KeyFooter {
 
     /// Right-aligned status text.
     pub fn right(mut self, r: impl Into<String>) -> Self {
-        self.right = Some(r.into()); self
+        self.right = Some(r.into());
+        self
     }
 
     /// Message mode: replace bindings with a status message.
     pub fn message(mut self, msg: impl Into<String>, v: Variant) -> Self {
-        self.message = Some((msg.into(), v)); self
+        self.message = Some((msg.into(), v));
+        self
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(*t); self
+        self.theme = Some(*t);
+        self
     }
 
     pub fn render(self, area: Rect, buf: &mut Buffer, state: &mut KeyFooterState) {
         let th = self.theme.unwrap_or_else(theme::current);
 
-        if area.width == 0 || area.height == 0 { return; }
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
 
         fill(buf, area, th.panel);
 
         // Message mode
         if let Some((msg, variant)) = self.message {
             let msg_color = th.text_variant(variant);
-            put(buf, area.x + 1, area.y, &msg, area.width.saturating_sub(2), st(msg_color, th.panel).add_modifier(Modifier::BOLD));
+            put(
+                buf,
+                area.x + 1,
+                area.y,
+                &msg,
+                area.width.saturating_sub(2),
+                st(msg_color, th.panel).add_modifier(Modifier::BOLD),
+            );
             state.hits.clear();
             return;
         }
@@ -194,7 +213,11 @@ impl KeyFooter {
 
         for &(orig_idx, binding) in &sorted {
             let key_w = binding.key.len() as u16 + 2;
-            let desc_w = if self.compact { 0 } else { binding.description.len() as u16 + 1 };
+            let desc_w = if self.compact {
+                0
+            } else {
+                binding.description.len() as u16 + 1
+            };
             let w = key_w + desc_w;
 
             if x + w > limit.saturating_sub(2) {
@@ -211,34 +234,75 @@ impl KeyFooter {
         state.hits.resize(self.bindings.len(), HitBox::default());
 
         for (orig_idx, binding, bx, w, key_w) in visible {
-            let r = Rect { x: bx, y: area.y, width: w, height: 1 };
+            let r = Rect {
+                x: bx,
+                y: area.y,
+                width: w,
+                height: 1,
+            };
             state.hits[orig_idx].set_area(r);
 
-            let bg = if state.hover == Some(orig_idx) { th.hover_bg } else { th.panel };
+            let bg = if state.hover == Some(orig_idx) {
+                th.hover_bg
+            } else {
+                th.panel
+            };
             fill(buf, r, bg);
 
             // Key box
             let key_box_bg = th.footer_bg;
-            let key_box = Rect { x: bx, y: area.y, width: key_w, height: 1 };
+            let key_box = Rect {
+                x: bx,
+                y: area.y,
+                width: key_w,
+                height: 1,
+            };
             fill(buf, key_box, key_box_bg);
-            put(buf, bx, area.y, &format!(" {} ", binding.key), key_w, st(th.footer_key, key_box_bg).add_modifier(Modifier::BOLD));
+            put(
+                buf,
+                bx,
+                area.y,
+                &format!(" {} ", binding.key),
+                key_w,
+                st(th.footer_key, key_box_bg).add_modifier(Modifier::BOLD),
+            );
 
             // Description
             if !self.compact {
-                let desc_color = if binding.enabled { th.footer_desc } else { th.text_disabled };
-                put(buf, bx + key_w, area.y, &format!(" {}", binding.description), w - key_w, st(desc_color, bg));
+                let desc_color = if binding.enabled {
+                    th.footer_desc
+                } else {
+                    th.text_disabled
+                };
+                put(
+                    buf,
+                    bx + key_w,
+                    area.y,
+                    &format!(" {}", binding.description),
+                    w - key_w,
+                    st(desc_color, bg),
+                );
             }
         }
 
         // Overflow indicator
         if overflow {
-            put(buf, limit.saturating_sub(2), area.y, "…", 1, st(th.text_muted, th.panel));
+            put(
+                buf,
+                limit.saturating_sub(2),
+                area.y,
+                "…",
+                1,
+                st(th.text_muted, th.panel),
+            );
         }
     }
 }
 
 impl Default for KeyFooter {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
@@ -250,14 +314,19 @@ mod tests {
     fn footer_renders_bindings() {
         let mut state = KeyFooterState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 80, 1));
-        KeyFooter::new().bindings(&[("q", "Quit"), ("^S", "Save")]).render(buf.area, &mut buf, &mut state);
+        KeyFooter::new()
+            .bindings(&[("q", "Quit"), ("^S", "Save")])
+            .render(buf.area, &mut buf, &mut state);
     }
 
     #[test]
     fn footer_compact_mode() {
         let mut state = KeyFooterState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 80, 1));
-        KeyFooter::new().bindings(&[("q", "Quit"), ("^S", "Save")]).compact(true).render(buf.area, &mut buf, &mut state);
+        KeyFooter::new()
+            .bindings(&[("q", "Quit"), ("^S", "Save")])
+            .compact(true)
+            .render(buf.area, &mut buf, &mut state);
     }
 
     #[test]
@@ -270,7 +339,9 @@ mod tests {
             FooterBinding::new("F1", "Help").priority(100),
             FooterBinding::new("F2", "Info").priority(50),
         ];
-        KeyFooter::new().bindings_full(bindings).render(buf.area, &mut buf, &mut state);
+        KeyFooter::new()
+            .bindings_full(bindings)
+            .render(buf.area, &mut buf, &mut state);
         // Lower priority bindings should be dropped first
     }
 
@@ -278,7 +349,9 @@ mod tests {
     fn footer_message_mode() {
         let mut state = KeyFooterState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 80, 1));
-        KeyFooter::new().message("Saved successfully", Variant::Success).render(buf.area, &mut buf, &mut state);
+        KeyFooter::new()
+            .message("Saved successfully", Variant::Success)
+            .render(buf.area, &mut buf, &mut state);
         assert!(state.hits.is_empty());
     }
 }

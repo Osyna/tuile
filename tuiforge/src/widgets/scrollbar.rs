@@ -73,14 +73,17 @@ impl ScrollbarState {
                 }
             }
             Hit::Drag => {
-                let Some((start_offset, start_pointer)) = self.drag else { return Outcome::Ignored };
+                let Some((start_offset, start_pointer)) = self.drag else {
+                    return Outcome::Ignored;
+                };
                 if track_len == 0 || self.content <= self.viewport {
                     return Outcome::Consumed;
                 }
                 let per_cell = self.content as f32 / track_len as f32;
                 let delta = (pointer as i32 - start_pointer as i32) as f32 * per_cell;
                 let before = self.offset;
-                self.offset = ((start_offset as f32 + delta).round().max(0.0) as usize).min(self.max_offset());
+                self.offset = ((start_offset as f32 + delta).round().max(0.0) as usize)
+                    .min(self.max_offset());
                 Outcome::changed_if(before != self.offset)
             }
             Hit::Click | Hit::Cancel => {
@@ -149,7 +152,15 @@ pub struct Scrollbar {
 
 impl Scrollbar {
     pub fn new(axis: ScrollAxis, content: usize, viewport: usize) -> Self {
-        Scrollbar { axis, content, viewport, offset: None, active: false, theme: None, hide_when_fits: true }
+        Scrollbar {
+            axis,
+            content,
+            viewport,
+            offset: None,
+            active: false,
+            theme: None,
+            hide_when_fits: true,
+        }
     }
     pub fn vertical(content: usize, viewport: usize) -> Self {
         Self::new(ScrollAxis::Vertical, content, viewport)
@@ -211,7 +222,12 @@ impl StatefulWidget for Scrollbar {
         let area = area.intersection(buf.area);
         match self.axis {
             ScrollAxis::Vertical => {
-                let (start, end) = thumb_span(self.content, self.viewport, state.offset, area.height as f32);
+                let (start, end) = thumb_span(
+                    self.content,
+                    self.viewport,
+                    state.offset,
+                    area.height as f32,
+                );
                 for i in 0..area.height {
                     let (cl, cr) = (i as f32, i as f32 + 1.0);
                     for x in area.left()..area.right() {
@@ -222,16 +238,21 @@ impl StatefulWidget for Scrollbar {
                             cell.set_symbol(" ").set_bg(color.color());
                         } else if start > cl {
                             let idx = ((cr - start) * 8.0).round() as usize;
-                            cell.set_symbol(LOWER_BLOCKS[idx.min(8)]).set_fg(color.color()).set_bg(th.scrollbar_bg.color());
+                            cell.set_symbol(LOWER_BLOCKS[idx.min(8)])
+                                .set_fg(color.color())
+                                .set_bg(th.scrollbar_bg.color());
                         } else {
                             let idx = ((cr - end) * 8.0).round() as usize;
-                            cell.set_symbol(LOWER_BLOCKS[idx.min(8)]).set_fg(th.scrollbar_bg.color()).set_bg(color.color());
+                            cell.set_symbol(LOWER_BLOCKS[idx.min(8)])
+                                .set_fg(th.scrollbar_bg.color())
+                                .set_bg(color.color());
                         }
                     }
                 }
             }
             ScrollAxis::Horizontal => {
-                let (start, end) = thumb_span(self.content, self.viewport, state.offset, area.width as f32);
+                let (start, end) =
+                    thumb_span(self.content, self.viewport, state.offset, area.width as f32);
                 for i in 0..area.width {
                     let (cl, cr) = (i as f32, i as f32 + 1.0);
                     for y in area.top()..area.bottom() {
@@ -243,10 +264,14 @@ impl StatefulWidget for Scrollbar {
                         } else if start > cl {
                             // thumb starts inside this cell: right part is thumb
                             let idx = ((cr - start) * 8.0).round() as usize;
-                            cell.set_symbol(LEFT_BLOCKS[(8 - idx.min(8)).min(8)]).set_fg(th.scrollbar_bg.color()).set_bg(color.color());
+                            cell.set_symbol(LEFT_BLOCKS[(8 - idx.min(8)).min(8)])
+                                .set_fg(th.scrollbar_bg.color())
+                                .set_bg(color.color());
                         } else {
                             let idx = ((end - cl) * 8.0).round() as usize;
-                            cell.set_symbol(LEFT_BLOCKS[idx.min(8)]).set_fg(color.color()).set_bg(th.scrollbar_bg.color());
+                            cell.set_symbol(LEFT_BLOCKS[idx.min(8)])
+                                .set_fg(color.color())
+                                .set_bg(th.scrollbar_bg.color());
                         }
                     }
                 }
@@ -284,7 +309,12 @@ mod tests {
     use ratatui::crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
 
     fn me(kind: MouseEventKind, x: u16, y: u16) -> MouseEvent {
-        MouseEvent { kind, column: x, row: y, modifiers: KeyModifiers::NONE }
+        MouseEvent {
+            kind,
+            column: x,
+            row: y,
+            modifiers: KeyModifiers::NONE,
+        }
     }
 
     #[test]
@@ -299,7 +329,10 @@ mod tests {
         let mut st = ScrollbarState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 1, 10));
         Scrollbar::vertical(100, 10).render(Rect::new(0, 0, 1, 10), &mut buf, &mut st);
-        assert_eq!(st.handle_mouse(me(MouseEventKind::ScrollDown, 0, 5)), Outcome::Changed);
+        assert_eq!(
+            st.handle_mouse(me(MouseEventKind::ScrollDown, 0, 5)),
+            Outcome::Changed
+        );
         assert_eq!(st.offset, 3);
         st.offset = 0;
         // press on the thumb (top cell) then drag down 5 cells → 50 units
@@ -310,7 +343,9 @@ mod tests {
         st.handle_mouse(me(MouseEventKind::Up(MouseButton::Left), 0, 5));
         assert!(!st.is_dragging());
         // drawn thumb spans one cell at the top when offset is 0
-        Scrollbar::vertical(100, 10).offset(0).render(Rect::new(0, 0, 1, 10), &mut buf, &mut st);
+        Scrollbar::vertical(100, 10)
+            .offset(0)
+            .render(Rect::new(0, 0, 1, 10), &mut buf, &mut st);
         assert_ne!(buf[(0, 0)].bg, buf[(0, 9)].bg);
     }
 }

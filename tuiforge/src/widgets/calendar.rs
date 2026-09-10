@@ -302,16 +302,47 @@ impl StatefulWidget for Calendar {
         let header_text = format!("{} {}", month_name, state.year);
         let header_w = header_text.len() as u16;
         let header_x = area.x + (area.width / 2).saturating_sub(header_w / 2);
-        put(buf, header_x, area.y, &header_text, header_w.min(area.width), st(th.text, th.surface));
+        put(
+            buf,
+            header_x,
+            area.y,
+            &header_text,
+            header_w.min(area.width),
+            st(th.text, th.surface),
+        );
 
         // arrows
         let arrow_y = area.y;
         let left_arrow_x = area.x + 1;
         let right_arrow_x = area.x + area.width.saturating_sub(2);
-        put(buf, left_arrow_x, arrow_y, "◀", 1, st(th.text_muted, th.surface));
-        put(buf, right_arrow_x, arrow_y, "▶", 1, st(th.text_muted, th.surface));
-        state.prev_arrow = Rect { x: left_arrow_x, y: arrow_y, width: 1, height: 1 };
-        state.next_arrow = Rect { x: right_arrow_x, y: arrow_y, width: 1, height: 1 };
+        put(
+            buf,
+            left_arrow_x,
+            arrow_y,
+            "◂",
+            1,
+            st(th.text_muted, th.surface),
+        );
+        put(
+            buf,
+            right_arrow_x,
+            arrow_y,
+            "▸",
+            1,
+            st(th.text_muted, th.surface),
+        );
+        state.prev_arrow = Rect {
+            x: left_arrow_x,
+            y: arrow_y,
+            width: 1,
+            height: 1,
+        };
+        state.next_arrow = Rect {
+            x: right_arrow_x,
+            y: arrow_y,
+            width: 1,
+            height: 1,
+        };
 
         // Weekday header
         let weekday_y = area.y + 1;
@@ -327,7 +358,17 @@ impl StatefulWidget for Calendar {
 
         for (i, day) in weekdays.iter().enumerate() {
             let x = grid_x + (i as u16 * cell_w);
-            put_centered(buf, Rect { x, y: weekday_y, width: cell_w, height: 1 }, day, st(th.text_muted, th.surface));
+            put_centered(
+                buf,
+                Rect {
+                    x,
+                    y: weekday_y,
+                    width: cell_w,
+                    height: 1,
+                },
+                day,
+                st(th.text_muted, th.surface),
+            );
         }
 
         // Calendar grid
@@ -351,7 +392,12 @@ impl StatefulWidget for Calendar {
                 break;
             }
             let x = grid_x + (col as u16 * cell_w);
-            let cell_rect = Rect { x, y, width: cell_w, height: 1 };
+            let cell_rect = Rect {
+                x,
+                y,
+                width: cell_w,
+                height: 1,
+            };
 
             if cell_idx < offset {
                 // prev month
@@ -362,13 +408,20 @@ impl StatefulWidget for Calendar {
                         days_in_month(state.year, state.month - 1)
                     };
                     let day = prev_month_days - (offset - cell_idx - 1);
-                    put_centered(buf, cell_rect, &day.to_string(), st(th.text_disabled, th.surface));
+                    put_centered(
+                        buf,
+                        cell_rect,
+                        &day.to_string(),
+                        st(th.text_disabled, th.surface),
+                    );
                 }
             } else if cell_idx < offset + days_in {
                 let day = cell_idx - offset + 1;
                 state.day_rects.push(cell_rect);
 
-                let is_today = state.today.0 == state.year && state.today.1 == state.month && state.today.2 == day;
+                let is_today = state.today.0 == state.year
+                    && state.today.1 == state.month
+                    && state.today.2 == day;
                 let is_selected = state.selected == Some((state.year, state.month, day));
                 let is_cursor = day == state.cursor_day;
 
@@ -408,7 +461,12 @@ impl StatefulWidget for Calendar {
             } else if self.show_adjacent {
                 // next month
                 let day = cell_idx - offset - days_in + 1;
-                put_centered(buf, cell_rect, &day.to_string(), st(th.text_disabled, th.surface));
+                put_centered(
+                    buf,
+                    cell_rect,
+                    &day.to_string(),
+                    st(th.text_disabled, th.surface),
+                );
             }
         }
     }
@@ -506,7 +564,11 @@ impl Interactive for DatePickerState {
             }
             // click outside the popup and the field closes it
             let down = matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(_));
-            if out == Outcome::Ignored && down && !mouse_in(self.popup, &m) && !mouse_in(self.hit.area, &m) {
+            if out == Outcome::Ignored
+                && down
+                && !mouse_in(self.popup, &m)
+                && !mouse_in(self.hit.area, &m)
+            {
                 self.open = false;
                 return Outcome::Consumed;
             }
@@ -529,7 +591,10 @@ pub struct DatePicker {
 
 impl DatePicker {
     pub fn new() -> Self {
-        Self { focused: false, theme: None }
+        Self {
+            focused: false,
+            theme: None,
+        }
     }
     pub fn focused(mut self, v: bool) -> Self {
         self.focused = v;
@@ -554,7 +619,10 @@ impl DatePicker {
         // dim background
         crate::draw::blend_area(buf, popup_area, th.panel, 0.9);
 
-        Calendar::new().focused(self.focused).theme(&th).render(popup_area, buf, &mut state.cal);
+        Calendar::new()
+            .focused(self.focused)
+            .theme(&th)
+            .render(popup_area, buf, &mut state.cal);
     }
 }
 
@@ -573,7 +641,11 @@ impl StatefulWidget for DatePicker {
         state.hit.set_area(area);
         let th = self.theme.unwrap_or_else(theme::current);
         let bg = th.surface;
-        let border = if self.focused || state.open { th.border } else { th.border_blurred };
+        let border = if self.focused || state.open {
+            th.border
+        } else {
+            th.border_blurred
+        };
 
         fill(buf, area, bg);
         let text_y = if area.height >= 3 {
@@ -588,10 +660,28 @@ impl StatefulWidget for DatePicker {
         } else {
             "Select date".to_string()
         };
-        let fg = if state.cal.selected.is_some() { th.text } else { th.text_muted };
+        let fg = if state.cal.selected.is_some() {
+            th.text
+        } else {
+            th.text_muted
+        };
         let display = crate::draw::truncate(&text, area.width.saturating_sub(5) as usize);
-        put(buf, area.x + 2, text_y, &display, area.width.saturating_sub(5), st(fg, bg));
-        put(buf, area.right().saturating_sub(3), text_y, "▾", 1, st(th.text_muted, bg));
+        put(
+            buf,
+            area.x + 2,
+            text_y,
+            &display,
+            area.width.saturating_sub(5),
+            st(fg, bg),
+        );
+        put(
+            buf,
+            area.right().saturating_sub(3),
+            text_y,
+            "▾",
+            1,
+            st(th.text_muted, bg),
+        );
     }
 }
 
@@ -636,11 +726,21 @@ mod tests {
     #[test]
     fn calendar_day_click_selects_that_day() {
         use ratatui::crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
-        let mut state = CalendarState { year: 2024, month: 3, cursor_day: 1, ..Default::default() };
+        let mut state = CalendarState {
+            year: 2024,
+            month: 3,
+            cursor_day: 1,
+            ..Default::default()
+        };
         let mut buf = Buffer::empty(Rect::new(0, 0, 30, 10));
         Calendar::new().render(buf.area, &mut buf, &mut state);
         let cell = state.day_rects[9]; // 10 March
-        let press = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: cell.x, row: cell.y, modifiers: KeyModifiers::NONE };
+        let press = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: cell.x,
+            row: cell.y,
+            modifiers: KeyModifiers::NONE,
+        };
         assert_eq!(state.handle_mouse(press), Outcome::Changed);
         assert_eq!(state.selected, Some((2024, 3, 10)));
     }

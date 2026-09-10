@@ -18,7 +18,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::core::{Hit, HitBox, Interactive, Outcome, is_activate, is_press};
 use crate::draw::{LOWER_BLOCKS, fill, put, put_aligned, put_centered, st};
-use crate::theme::{Rgb, Theme, Variant, self};
+use crate::theme::{self, Rgb, Theme, Variant};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Label
@@ -149,7 +149,18 @@ impl Widget for Label {
                 if i >= area.height as usize {
                     break;
                 }
-                put_aligned(buf, Rect { x: area.x, y: area.y + i as u16, width: area.width, height: 1 }, line, self.align, style);
+                put_aligned(
+                    buf,
+                    Rect {
+                        x: area.x,
+                        y: area.y + i as u16,
+                        width: area.width,
+                        height: 1,
+                    },
+                    line,
+                    self.align,
+                    style,
+                );
             }
         } else {
             let display = if self.ellipsis {
@@ -157,7 +168,18 @@ impl Widget for Label {
             } else {
                 self.text[..self.text.len().min(area.width as usize)].to_string()
             };
-            put_aligned(buf, Rect { x: area.x, y: area.y, width: area.width, height: 1 }, &display, self.align, style);
+            put_aligned(
+                buf,
+                Rect {
+                    x: area.x,
+                    y: area.y,
+                    width: area.width,
+                    height: 1,
+                },
+                &display,
+                self.align,
+                style,
+            );
         }
     }
 }
@@ -282,7 +304,14 @@ impl Widget for Rule {
                         put(buf, area.x + x, area.y, glyph, 1, style);
                     }
                     put(buf, area.x + left, area.y, " ", 1, style);
-                    put(buf, area.x + left + 1, area.y, title, title_w, st(th.text, th.surface));
+                    put(
+                        buf,
+                        area.x + left + 1,
+                        area.y,
+                        title,
+                        title_w,
+                        st(th.text, th.surface),
+                    );
                     put(buf, area.x + left + 1 + title_w, area.y, " ", 1, style);
                     for x in (left + title_w + 2)..area.width {
                         put(buf, area.x + x, area.y, glyph, 1, style);
@@ -382,7 +411,17 @@ impl Widget for Badge {
         }
         let remain = area.width.saturating_sub(x - area.x);
         let display = crate::draw::fit(&self.text, remain as usize);
-        put_centered(buf, Rect { x, y: area.y, width: remain, height: 1 }, &display, st(fg, bg));
+        put_centered(
+            buf,
+            Rect {
+                x,
+                y: area.y,
+                width: remain,
+                height: 1,
+            },
+            &display,
+            st(fg, bg),
+        );
     }
 }
 
@@ -396,7 +435,11 @@ pub struct Pill {
 
 impl Pill {
     pub fn new(text: impl Into<String>) -> Self {
-        Self { text: text.into(), variant: Variant::Default, theme: None }
+        Self {
+            text: text.into(),
+            variant: Variant::Default,
+            theme: None,
+        }
     }
     pub fn variant(mut self, v: Variant) -> Self {
         self.variant = v;
@@ -420,7 +463,12 @@ impl Widget for Pill {
         // flat painted pill: bg colour only, no half-block ends (font seams, min-contrast recolouring)
         fill(buf, Rect { height: 1, ..area }, variant_color);
         let display = crate::draw::fit(&self.text, area.width.saturating_sub(2) as usize);
-        put_centered(buf, Rect { height: 1, ..area }, &display, st(fg, variant_color));
+        put_centered(
+            buf,
+            Rect { height: 1, ..area },
+            &display,
+            st(fg, variant_color),
+        );
     }
 }
 
@@ -433,7 +481,10 @@ pub struct KeyCap {
 
 impl KeyCap {
     pub fn new(key: impl Into<String>) -> Self {
-        Self { key: key.into(), theme: None }
+        Self {
+            key: key.into(),
+            theme: None,
+        }
     }
     pub fn theme(mut self, th: &Theme) -> Self {
         self.theme = Some(*th);
@@ -450,7 +501,17 @@ impl Widget for KeyCap {
         fill(buf, area, th.panel);
         let display = crate::draw::fit(&self.key, area.width.saturating_sub(2) as usize);
         let style = st(th.footer_key, th.panel).add_modifier(Modifier::BOLD);
-        put_centered(buf, Rect { x: area.x + 1, y: area.y, width: area.width.saturating_sub(2), height: 1 }, &display, style);
+        put_centered(
+            buf,
+            Rect {
+                x: area.x + 1,
+                y: area.y,
+                width: area.width.saturating_sub(2),
+                height: 1,
+            },
+            &display,
+            style,
+        );
     }
 }
 
@@ -511,7 +572,13 @@ pub struct Link {
 
 impl Link {
     pub fn new(text: impl Into<String>) -> Self {
-        Self { text: text.into(), url: None, show_url: false, focused: false, theme: None }
+        Self {
+            text: text.into(),
+            url: None,
+            show_url: false,
+            focused: false,
+            theme: None,
+        }
     }
     pub fn url(mut self, u: impl Into<String>) -> Self {
         self.url = Some(u.into());
@@ -661,9 +728,23 @@ impl Widget for StatCard {
         let display_val = crate::draw::truncate(&self.value, inner.width as usize);
         if let Some(icon) = &self.icon {
             let icon_w = icon.width() as u16;
-            put(buf, inner.x, y, icon, icon_w.min(inner.width), st(th.text_variant(self.variant), bg));
+            put(
+                buf,
+                inner.x,
+                y,
+                icon,
+                icon_w.min(inner.width),
+                st(th.text_variant(self.variant), bg),
+            );
             let remain = inner.width.saturating_sub(icon_w + 1);
-            put(buf, inner.x + icon_w + 1, y, &display_val, remain, val_style);
+            put(
+                buf,
+                inner.x + icon_w + 1,
+                y,
+                &display_val,
+                remain,
+                val_style,
+            );
         } else {
             put(buf, inner.x, y, &display_val, inner.width, val_style);
         }
@@ -681,9 +762,23 @@ impl Widget for StatCard {
             let delta_str = format!(" {} {:.1}%", arrow, dval.abs());
             label_line.push_str(&delta_str);
             let label_w = self.label.width() as u16;
-            put(buf, inner.x, y, &self.label, label_w.min(inner.width), label_style);
+            put(
+                buf,
+                inner.x,
+                y,
+                &self.label,
+                label_w.min(inner.width),
+                label_style,
+            );
             let delta_fg = if positive { th.success } else { th.error };
-            put(buf, inner.x + label_w, y, &delta_str, inner.width.saturating_sub(label_w), st(delta_fg, bg));
+            put(
+                buf,
+                inner.x + label_w,
+                y,
+                &delta_str,
+                inner.width.saturating_sub(label_w),
+                st(delta_fg, bg),
+            );
         } else {
             put(buf, inner.x, y, &label_line, inner.width, label_style);
         }
@@ -693,8 +788,14 @@ impl Widget for StatCard {
         if !self.trend.is_empty() && y < inner.y + inner.height {
             let spark_w = inner.width.min(self.trend.len() as u16);
             if let (Some(min), Some(max)) = (
-                self.trend.iter().copied().min_by(|a, b| a.partial_cmp(b).unwrap()),
-                self.trend.iter().copied().max_by(|a, b| a.partial_cmp(b).unwrap()),
+                self.trend
+                    .iter()
+                    .copied()
+                    .min_by(|a, b| a.partial_cmp(b).unwrap()),
+                self.trend
+                    .iter()
+                    .copied()
+                    .max_by(|a, b| a.partial_cmp(b).unwrap()),
             ) {
                 let range = (max - min).max(1e-9);
                 let start = self.trend.len().saturating_sub(spark_w as usize);
@@ -705,7 +806,14 @@ impl Widget for StatCard {
                     let frac = ((val - min) / range).clamp(0.0, 1.0);
                     let idx = (frac * 8.0).round() as usize;
                     let glyph = LOWER_BLOCKS[idx.min(8)];
-                    put(buf, inner.x + i as u16, y, glyph, 1, st(th.text_variant(self.variant), bg));
+                    put(
+                        buf,
+                        inner.x + i as u16,
+                        y,
+                        glyph,
+                        1,
+                        st(th.text_variant(self.variant), bg),
+                    );
                 }
             }
         }
@@ -754,7 +862,11 @@ pub struct StatusSegment<'a> {
 
 impl<'a> StatusSegment<'a> {
     pub fn new(text: &'a str) -> Self {
-        Self { icon: None, text, color: None }
+        Self {
+            icon: None,
+            text,
+            color: None,
+        }
     }
     pub fn icon(mut self, i: &'a str) -> Self {
         self.icon = Some(i);
@@ -792,7 +904,14 @@ pub struct StatusLine<'a> {
 
 impl<'a> StatusLine<'a> {
     pub fn new(segments: &'a [StatusSegment<'a>]) -> Self {
-        Self { segments, sep: StatusSep::Chevron, right: None, right_color: None, bg: None, theme: None }
+        Self {
+            segments,
+            sep: StatusSep::Chevron,
+            right: None,
+            right_color: None,
+            bg: None,
+            theme: None,
+        }
     }
     pub fn sep(mut self, s: StatusSep) -> Self {
         self.sep = s;
@@ -831,7 +950,14 @@ impl Widget for StatusLine<'_> {
         let mut limit = area.right();
         if let Some(r) = self.right {
             let w = r.width() as u16 + 1;
-            put(buf, area.right().saturating_sub(w), area.y, &format!("{r} "), w, st(self.right_color.unwrap_or(th.accent), bg).add_modifier(Modifier::BOLD));
+            put(
+                buf,
+                area.right().saturating_sub(w),
+                area.y,
+                &format!("{r} "),
+                w,
+                st(self.right_color.unwrap_or(th.accent), bg).add_modifier(Modifier::BOLD),
+            );
             limit = area.right().saturating_sub(w + 1);
         }
 
@@ -844,13 +970,24 @@ impl Widget for StatusLine<'_> {
                 text.push(' ');
             }
             text.push_str(seg.text);
-            let sep_w = if i > 0 { self.sep.glyph().width() as u16 } else { 0 };
+            let sep_w = if i > 0 {
+                self.sep.glyph().width() as u16
+            } else {
+                0
+            };
             let w = text.width() as u16;
             if x + sep_w + w > limit {
                 break;
             }
             if i > 0 {
-                x += put(buf, x, area.y, self.sep.glyph(), sep_w, st(th.text_disabled, bg));
+                x += put(
+                    buf,
+                    x,
+                    area.y,
+                    self.sep.glyph(),
+                    sep_w,
+                    st(th.text_disabled, bg),
+                );
             }
             x += put(buf, x, area.y, &text, w, st(color, bg));
         }
@@ -949,13 +1086,22 @@ impl Markup {
         } else if tag_text == "i" {
             (TagKind::Italic, base_style.add_modifier(Modifier::ITALIC))
         } else if tag_text == "u" {
-            (TagKind::Underline, base_style.add_modifier(Modifier::UNDERLINED))
+            (
+                TagKind::Underline,
+                base_style.add_modifier(Modifier::UNDERLINED),
+            )
         } else if tag_text == "s" {
-            (TagKind::Strike, base_style.add_modifier(Modifier::CROSSED_OUT))
+            (
+                TagKind::Strike,
+                base_style.add_modifier(Modifier::CROSSED_OUT),
+            )
         } else if tag_text == "dim" {
             (TagKind::Dim, base_style.add_modifier(Modifier::DIM))
         } else if tag_text == "reverse" {
-            (TagKind::Reverse, base_style.add_modifier(Modifier::REVERSED))
+            (
+                TagKind::Reverse,
+                base_style.add_modifier(Modifier::REVERSED),
+            )
         } else if tag_text == "primary" {
             (TagKind::Color, base_style.fg(th.primary.color()))
         } else if tag_text == "secondary" {
@@ -1034,7 +1180,11 @@ pub struct MarkupLabel {
 
 impl MarkupLabel {
     pub fn new(text: impl Into<String>) -> Self {
-        Self { text: text.into(), wrap: false, theme: None }
+        Self {
+            text: text.into(),
+            wrap: false,
+            theme: None,
+        }
     }
     pub fn wrap(mut self, v: bool) -> Self {
         self.wrap = v;
@@ -1057,7 +1207,12 @@ impl Widget for MarkupLabel {
         let parsed = Markup::parse(&self.text, &th);
         let lines: Vec<Line> = if self.wrap {
             // simple wrap: re-parse after wrapping plain text
-            let plain = self.text.replace("[b]", "").replace("[/b]", "").replace("[i]", "").replace("[/i]", "");
+            let plain = self
+                .text
+                .replace("[b]", "")
+                .replace("[/b]", "")
+                .replace("[i]", "")
+                .replace("[/i]", "");
             let wrapped = crate::draw::wrap(&plain, area.width as usize);
             wrapped.iter().map(|l| Markup::parse_line(l, &th)).collect()
         } else {
@@ -1091,7 +1246,11 @@ mod tests {
         let l = Label::new("hello world test").wrap(true);
         assert_eq!(l.height_for(10), 2);
         assert_eq!(l.height_for(20), 1);
-        assert_eq!(Label::new("hello world test").height_for(10), 1, "no wrap → one line");
+        assert_eq!(
+            Label::new("hello world test").height_for(10),
+            1,
+            "no wrap → one line"
+        );
     }
 
     #[test]
@@ -1107,7 +1266,11 @@ mod tests {
         assert!(!line.spans[3].style.add_modifier.contains(Modifier::ITALIC));
         // unknown tags and unterminated brackets are literal, never loop forever
         let odd = Markup::parse("[nope]x[ y", &th);
-        let joined: String = odd.lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
+        let joined: String = odd.lines[0]
+            .spans
+            .iter()
+            .map(|s| s.content.as_ref())
+            .collect();
         assert_eq!(joined, "[nope]x[ y");
     }
 

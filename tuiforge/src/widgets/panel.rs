@@ -12,13 +12,12 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 
-use ratatui::style::Modifier;
 use crate::draw::{Border, fill, put, put_aligned, shadow, st};
 use crate::theme::{self, Rgb, Theme, Variant};
+use ratatui::style::Modifier;
 
 /// Panel background fill.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum PanelBg {
     /// No fill (transparent).
     #[default]
@@ -32,7 +31,6 @@ pub enum PanelBg {
     /// Custom colour.
     Custom(Rgb),
 }
-
 
 /// Panel builder (Widget-like, but returns inner rect instead of implementing `Widget`).
 #[derive(Clone, Debug)]
@@ -75,7 +73,10 @@ impl Panel {
 
     /// Preset: card (Surface bg, Round border, shadow).
     pub fn card() -> Self {
-        Self::new().background(PanelBg::Surface).border(Border::Round).shadow(true)
+        Self::new()
+            .background(PanelBg::Surface)
+            .border(Border::Round)
+            .shadow(true)
     }
 
     /// Preset: section (title row with horizontal rule, no box).
@@ -84,68 +85,84 @@ impl Panel {
     }
 
     pub fn title(mut self, t: impl Into<String>) -> Self {
-        self.title = Some(t.into()); self
+        self.title = Some(t.into());
+        self
     }
 
     pub fn title_align(mut self, a: Alignment) -> Self {
-        self.title_align = a; self
+        self.title_align = a;
+        self
     }
 
     pub fn subtitle(mut self, s: impl Into<String>) -> Self {
-        self.subtitle = Some(s.into()); self
+        self.subtitle = Some(s.into());
+        self
     }
 
     /// Second title, right-aligned in the top border (btop's `┤ io ├`).
     pub fn title_right(mut self, s: impl Into<String>) -> Self {
-        self.title_right = Some(s.into()); self
+        self.title_right = Some(s.into());
+        self
     }
 
     /// Key hints embedded left in the bottom border (`┤ sync ├┤ auto ├`).
     pub fn footer(mut self, s: impl Into<String>) -> Self {
-        self.footer = Some(s.into()); self
+        self.footer = Some(s.into());
+        self
     }
 
     pub fn border(mut self, b: Border) -> Self {
-        self.border = Some(b); self
+        self.border = Some(b);
+        self
     }
 
     pub fn border_color(mut self, c: Rgb) -> Self {
-        self.border_color = Some(c); self
+        self.border_color = Some(c);
+        self
     }
 
     pub fn variant(mut self, v: Variant) -> Self {
-        self.variant = Some(v); self
+        self.variant = Some(v);
+        self
     }
 
     pub fn focused(mut self, f: bool) -> Self {
-        self.focused = f; self
+        self.focused = f;
+        self
     }
 
     pub fn background(mut self, bg: PanelBg) -> Self {
-        self.background = bg; self
+        self.background = bg;
+        self
     }
 
     pub fn padding(mut self, h: u16, v: u16) -> Self {
-        self.padding = (h, v); self
+        self.padding = (h, v);
+        self
     }
 
     pub fn shadow(mut self, s: bool) -> Self {
-        self.shadow_enabled = s; self
+        self.shadow_enabled = s;
+        self
     }
 
     pub fn badge(mut self, b: impl Into<String>) -> Self {
-        self.badge = Some(b.into()); self
+        self.badge = Some(b.into());
+        self
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(*t); self
+        self.theme = Some(*t);
+        self
     }
 
     /// Render the panel and return the inner content rect.
     pub fn render(self, area: Rect, buf: &mut Buffer) -> Rect {
         let th = self.theme.unwrap_or_else(theme::current);
 
-        if area.width == 0 || area.height == 0 { return Rect::default(); }
+        if area.width == 0 || area.height == 0 {
+            return Rect::default();
+        }
 
         // Background fill
         let bg = match self.background {
@@ -165,11 +182,16 @@ impl Panel {
         }
 
         // Border
-        let border_color = self.border_color.or_else(|| {
-            self.variant.map(|v| th.variant(v))
-        }).unwrap_or({
-            if self.focused { th.border } else { th.border_blurred }
-        });
+        let border_color = self
+            .border_color
+            .or_else(|| self.variant.map(|v| th.variant(v)))
+            .unwrap_or({
+                if self.focused {
+                    th.border
+                } else {
+                    th.border_blurred
+                }
+            });
 
         let inner = if let Some(bord) = self.border {
             if bord == Border::None {
@@ -177,16 +199,31 @@ impl Panel {
                 if let Some(ref title) = self.title {
                     if area.height > 0 {
                         let title_bg = bg.unwrap_or(th.background);
-                        put_aligned(buf, area, title, self.title_align, st(th.foreground, title_bg));
+                        put_aligned(
+                            buf,
+                            area,
+                            title,
+                            self.title_align,
+                            st(th.foreground, title_bg),
+                        );
                         if area.height > 1 {
                             for x in area.x..area.right() {
-                                if x >= area.x && x < area.right()
-                                    && let Some(c) = buf.cell_mut((x, area.y + 1)) {
-                                        c.set_symbol("─").set_fg(border_color.color()).set_bg(title_bg.color());
-                                    }
+                                if x >= area.x
+                                    && x < area.right()
+                                    && let Some(c) = buf.cell_mut((x, area.y + 1))
+                                {
+                                    c.set_symbol("─")
+                                        .set_fg(border_color.color())
+                                        .set_bg(title_bg.color());
+                                }
                             }
                         }
-                        Rect { x: area.x, y: area.y + 2, width: area.width, height: area.height.saturating_sub(2) }
+                        Rect {
+                            x: area.x,
+                            y: area.y + 2,
+                            width: area.width,
+                            height: area.height.saturating_sub(2),
+                        }
                     } else {
                         area
                     }
@@ -203,25 +240,51 @@ impl Panel {
                         title.clone()
                     };
                     // Textual: titles are `$text` bold; only focus / a semantic variant tint them
-                    let title_fg = if self.focused || self.variant.is_some() { border_color } else { th.text };
-                    bord.draw_titled_with(buf, area, border_color, border_bg, &full_title, self.title_align, st(title_fg, border_bg).add_modifier(Modifier::BOLD));
+                    let title_fg = if self.focused || self.variant.is_some() {
+                        border_color
+                    } else {
+                        th.text
+                    };
+                    bord.draw_titled_with(
+                        buf,
+                        area,
+                        border_color,
+                        border_bg,
+                        &full_title,
+                        self.title_align,
+                        st(title_fg, border_bg).add_modifier(Modifier::BOLD),
+                    );
                 } else {
                     bord.draw(buf, area, border_color, border_bg);
                 }
-                
+
                 // Right title in the top border, footer in the bottom border, subtitle bottom-right
                 if let Some(t) = &self.title_right {
                     let text = format!(" {t} ");
                     let tw = crate::draw::width(&text) as u16;
                     if area.width > tw + 4 {
-                        put(buf, area.right() - tw - 2, area.y, &text, tw, st(th.text, border_bg).add_modifier(Modifier::BOLD));
+                        put(
+                            buf,
+                            area.right() - tw - 2,
+                            area.y,
+                            &text,
+                            tw,
+                            st(th.text, border_bg).add_modifier(Modifier::BOLD),
+                        );
                     }
                 }
                 if let Some(f) = &self.footer {
                     let text = format!(" {f} ");
                     let fw = crate::draw::width(&text) as u16;
                     if area.width > fw + 4 && area.height > 1 {
-                        put(buf, area.x + 2, area.bottom() - 1, &text, fw, st(th.text_muted, border_bg));
+                        put(
+                            buf,
+                            area.x + 2,
+                            area.bottom() - 1,
+                            &text,
+                            fw,
+                            st(th.text_muted, border_bg),
+                        );
                     }
                 }
                 if let Some(subtitle) = &self.subtitle {
@@ -229,7 +292,14 @@ impl Panel {
                     if area.width > sw + 4 && area.height > 1 {
                         let sub_x = area.right() - sw - 2;
                         let sub_y = area.bottom() - 1;
-                        put(buf, sub_x, sub_y, subtitle, sw, st(th.text_muted, border_bg));
+                        put(
+                            buf,
+                            sub_x,
+                            sub_y,
+                            subtitle,
+                            sw,
+                            st(th.text_muted, border_bg),
+                        );
                     }
                 }
 
@@ -256,7 +326,9 @@ impl Panel {
 }
 
 impl Default for Panel {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Standalone `Placeholder` widget: Textual's placeholder block (cycles colours, shows size/name).
@@ -267,8 +339,7 @@ pub struct Placeholder {
     theme: Option<Theme>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum PlaceholderVariant {
     /// Show name only.
     #[default]
@@ -279,41 +350,49 @@ pub enum PlaceholderVariant {
     Text,
 }
 
-
 const PLACEHOLDER_COLORS: &[Rgb] = &[
-    Rgb(136, 17, 119),   // #881177
-    Rgb(170, 51, 85),    // #aa3355
-    Rgb(204, 102, 102),  // #cc6666
-    Rgb(238, 153, 68),   // #ee9944
-    Rgb(238, 221, 0),    // #eedd00
-    Rgb(153, 221, 85),   // #99dd55
-    Rgb(68, 221, 136),   // #44dd88
-    Rgb(34, 204, 187),   // #22ccbb
-    Rgb(0, 187, 204),    // #00bbcc
-    Rgb(0, 153, 204),    // #0099cc
-    Rgb(51, 102, 187),   // #3366bb
-    Rgb(102, 51, 153),   // #663399
+    Rgb(136, 17, 119),  // #881177
+    Rgb(170, 51, 85),   // #aa3355
+    Rgb(204, 102, 102), // #cc6666
+    Rgb(238, 153, 68),  // #ee9944
+    Rgb(238, 221, 0),   // #eedd00
+    Rgb(153, 221, 85),  // #99dd55
+    Rgb(68, 221, 136),  // #44dd88
+    Rgb(34, 204, 187),  // #22ccbb
+    Rgb(0, 187, 204),   // #00bbcc
+    Rgb(0, 153, 204),   // #0099cc
+    Rgb(51, 102, 187),  // #3366bb
+    Rgb(102, 51, 153),  // #663399
 ];
 
 impl Placeholder {
     pub fn new() -> Self {
-        Self { variant: PlaceholderVariant::default(), index: 0, theme: None }
+        Self {
+            variant: PlaceholderVariant::default(),
+            index: 0,
+            theme: None,
+        }
     }
 
     pub fn variant(mut self, v: PlaceholderVariant) -> Self {
-        self.variant = v; self
+        self.variant = v;
+        self
     }
 
     pub fn index(mut self, i: usize) -> Self {
-        self.index = i; self
+        self.index = i;
+        self
     }
 
     pub fn theme(mut self, t: &Theme) -> Self {
-        self.theme = Some(*t); self
+        self.theme = Some(*t);
+        self
     }
 
     pub fn render(self, area: Rect, buf: &mut Buffer, name: &str) {
-        if area.width == 0 || area.height == 0 { return; }
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
 
         let color = PLACEHOLDER_COLORS[self.index % PLACEHOLDER_COLORS.len()];
         fill(buf, area, color);
@@ -325,13 +404,21 @@ impl Placeholder {
         };
 
         if !text.is_empty() {
-            put_aligned(buf, area, &text, Alignment::Center, st(Rgb(255, 255, 255), color));
+            put_aligned(
+                buf,
+                area,
+                &text,
+                Alignment::Center,
+                st(Rgb(255, 255, 255), color),
+            );
         }
     }
 }
 
 impl Default for Placeholder {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
@@ -342,7 +429,10 @@ mod tests {
     #[test]
     fn panel_inner_rect() {
         let mut buf = Buffer::empty(Rect::new(0, 0, 40, 20));
-        let inner = Panel::new().border(Border::Round).padding(2, 1).render(buf.area, &mut buf);
+        let inner = Panel::new()
+            .border(Border::Round)
+            .padding(2, 1)
+            .render(buf.area, &mut buf);
         // Border takes 2 (1 on each side), padding adds 2 more horizontally and 1 vertically on each side
         assert_eq!(inner.x, 3); // 1 (border) + 2 (padding)
         assert_eq!(inner.y, 2); // 1 (border) + 1 (padding)
@@ -362,11 +452,13 @@ mod tests {
         let mut buf = Buffer::empty(Rect::new(0, 0, 20, 10));
         Placeholder::new().index(0).render(buf.area, &mut buf, "A");
         let c1 = buf.cell((10, 5)).map(|c| c.bg).unwrap_or_default();
-        
+
         let mut buf2 = Buffer::empty(Rect::new(0, 0, 20, 10));
-        Placeholder::new().index(1).render(buf2.area, &mut buf2, "B");
+        Placeholder::new()
+            .index(1)
+            .render(buf2.area, &mut buf2, "B");
         let c2 = buf2.cell((10, 5)).map(|c| c.bg).unwrap_or_default();
-        
+
         assert_ne!(c1, c2);
     }
 }

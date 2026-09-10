@@ -33,24 +33,53 @@ impl Shell {
     fn new(start: Option<&str>) -> Self {
         let pages = pages::all();
         let current = start
-            .and_then(|s| pages.iter().position(|p| p.title().to_lowercase().contains(&s.to_lowercase())))
+            .and_then(|s| {
+                pages
+                    .iter()
+                    .position(|p| p.title().to_lowercase().contains(&s.to_lowercase()))
+            })
             .unwrap_or(0);
         let now = Instant::now();
-        let ctx = Ctx { theme: theme::current(), now, started: now, reduce_motion: false, notices: Vec::new(), area: Rect::default() };
+        let ctx = Ctx {
+            theme: theme::current(),
+            now,
+            started: now,
+            reduce_motion: false,
+            notices: Vec::new(),
+            area: Rect::default(),
+        };
         let mut palette_items = Vec::new();
         for (i, p) in pages.iter().enumerate() {
-            let mut item = PaletteItem::new(format!("Go to {}", p.title())).group("Pages").icon(p.icon());
+            let mut item = PaletteItem::new(format!("Go to {}", p.title()))
+                .group("Pages")
+                .icon(p.icon());
             if i < 9 {
                 item = item.shortcut(format!("alt+{}", i + 1));
             }
             palette_items.push(item.hint(p.subtitle()));
         }
         for spec in theme::BUILTIN {
-            palette_items.push(PaletteItem::new(format!("Theme: {}", spec.name)).group("Themes").icon(if spec.dark { "◑" } else { "◐" }));
+            palette_items.push(
+                PaletteItem::new(format!("Theme: {}", spec.name))
+                    .group("Themes")
+                    .icon(if spec.dark { "◑" } else { "◐" }),
+            );
         }
-        palette_items.push(PaletteItem::new("Toggle sidebar").group("Actions").shortcut("^b"));
-        palette_items.push(PaletteItem::new("Toggle reduce motion").group("Actions").shortcut("F3"));
-        palette_items.push(PaletteItem::new("Show help").group("Actions").shortcut("F1"));
+        palette_items.push(
+            PaletteItem::new("Toggle sidebar")
+                .group("Actions")
+                .shortcut("^b"),
+        );
+        palette_items.push(
+            PaletteItem::new("Toggle reduce motion")
+                .group("Actions")
+                .shortcut("F3"),
+        );
+        palette_items.push(
+            PaletteItem::new("Show help")
+                .group("Actions")
+                .shortcut("F1"),
+        );
         palette_items.push(PaletteItem::new("Quit").group("Actions").shortcut("^q"));
         let mut palette = CommandPaletteState::new();
         palette.set_items(&palette_items);
@@ -78,7 +107,10 @@ impl Shell {
 
     /// Index of the current theme in `BUILTIN` (pages may switch themes behind our back).
     fn theme_idx(&self) -> usize {
-        theme::BUILTIN.iter().position(|t| t.name == self.ctx.theme.name).unwrap_or(0)
+        theme::BUILTIN
+            .iter()
+            .position(|t| t.name == self.ctx.theme.name)
+            .unwrap_or(0)
     }
 
     fn goto(&mut self, idx: usize) {
@@ -106,14 +138,24 @@ impl Shell {
     fn toggle_reduce_motion(&mut self) {
         self.ctx.reduce_motion = !self.ctx.reduce_motion;
         self.toaster = std::mem::take(&mut self.toaster).reduce_motion(self.ctx.reduce_motion);
-        let msg = if self.ctx.reduce_motion { "Reduce motion: on" } else { "Reduce motion: off" };
+        let msg = if self.ctx.reduce_motion {
+            "Reduce motion: on"
+        } else {
+            "Reduce motion: off"
+        };
         self.ctx.notify(msg, Variant::Accent);
     }
 
     fn layout(&self, area: Rect) -> (Rect, Rect, Rect, Rect) {
-        let [header, body, footer] = Layout::vertical([Constraint::Length(1), Constraint::Fill(1), Constraint::Length(1)]).areas(area);
+        let [header, body, footer] = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Fill(1),
+            Constraint::Length(1),
+        ])
+        .areas(area);
         let (side, content) = if self.sidebar && area.width >= 70 {
-            let [s, c] = Layout::horizontal([Constraint::Length(SIDEBAR_W), Constraint::Fill(1)]).areas(body);
+            let [s, c] = Layout::horizontal([Constraint::Length(SIDEBAR_W), Constraint::Fill(1)])
+                .areas(body);
             (s, c)
         } else {
             (Rect { width: 0, ..body }, body)
@@ -126,26 +168,57 @@ impl Shell {
         fill(buf, area, th.panel);
         let page = &self.pages[self.current];
         let title = format!(" ⚒ tuiforge showcase  ›  {}", page.title());
-        put(buf, area.x, area.y, &title, area.width, st(th.text, th.panel).add_modifier(Modifier::BOLD));
+        put(
+            buf,
+            area.x,
+            area.y,
+            &title,
+            area.width,
+            st(th.text, th.panel).add_modifier(Modifier::BOLD),
+        );
         let sub = page.subtitle();
         if !sub.is_empty() && area.width > 80 {
             let x = area.x + title.chars().count() as u16 + 2;
-            put(buf, x, area.y, sub, area.width.saturating_sub(x + 12), st(th.text_muted, th.panel));
+            put(
+                buf,
+                x,
+                area.y,
+                sub,
+                area.width.saturating_sub(x + 12),
+                st(th.text_muted, th.panel),
+            );
         }
         let (h, m, s) = local_hms();
-        put_right(buf, area, &format!("{h:02}:{m:02}:{s:02} "), st(th.text_muted, th.panel));
+        put_right(
+            buf,
+            area,
+            &format!("{h:02}:{m:02}:{s:02} "),
+            st(th.text_muted, th.panel),
+        );
     }
 
     fn draw_sidebar(&self, area: Rect, buf: &mut Buffer) {
         let th = &self.ctx.theme;
         fill(buf, area, th.surface);
-        put(buf, area.x + 2, area.y + 1, "COMPONENTS", area.width, st(th.text_muted, th.surface).add_modifier(Modifier::BOLD));
+        put(
+            buf,
+            area.x + 2,
+            area.y + 1,
+            "COMPONENTS",
+            area.width,
+            st(th.text_muted, th.surface).add_modifier(Modifier::BOLD),
+        );
         for (i, page) in self.pages.iter().enumerate() {
             let y = area.y + 3 + i as u16;
             if y >= area.bottom().saturating_sub(3) {
                 break;
             }
-            let row = Rect { x: area.x, y, width: area.width, height: 1 };
+            let row = Rect {
+                x: area.x,
+                y,
+                width: area.width,
+                height: 1,
+            };
             let active = i == self.current;
             let hover = self.sidebar_hover == Some(i);
             let (fg, bg) = if active {
@@ -157,7 +230,11 @@ impl Shell {
             };
             fill(buf, row, bg);
             let label = format!("  {:<2} {}", page.icon(), page.title());
-            let style = if active { st(fg, bg).add_modifier(Modifier::BOLD) } else { st(fg, bg) };
+            let style = if active {
+                st(fg, bg).add_modifier(Modifier::BOLD)
+            } else {
+                st(fg, bg)
+            };
             put(buf, row.x, y, &label, row.width, style);
             if active {
                 put(buf, row.x, y, "┃", 1, st(th.accent, bg));
@@ -165,8 +242,22 @@ impl Shell {
         }
         if area.height > 16 {
             let y = area.bottom() - 2;
-            put(buf, area.x + 2, y, &format!("v{}", env!("CARGO_PKG_VERSION")), area.width - 3, st(th.text_disabled, th.surface));
-            put(buf, area.x + 2, y + 1, th.name, area.width - 3, st(th.text_disabled, th.surface));
+            put(
+                buf,
+                area.x + 2,
+                y,
+                &format!("v{}", env!("CARGO_PKG_VERSION")),
+                area.width - 3,
+                st(th.text_disabled, th.surface),
+            );
+            put(
+                buf,
+                area.x + 2,
+                y + 1,
+                th.name,
+                area.width - 3,
+                st(th.text_disabled, th.surface),
+            );
         }
     }
 
@@ -174,15 +265,34 @@ impl Shell {
         let th = &self.ctx.theme;
         fill(buf, area, th.footer_bg);
         let mut x = area.x + 1;
-        let mut bindings: Vec<(&str, &str)> = vec![("^p", "Palette"), ("[ ]", "Page"), ("^t", "Theme"), ("F1", "Help")];
+        let mut bindings: Vec<(&str, &str)> = vec![
+            ("^p", "Palette"),
+            ("[ ]", "Page"),
+            ("^t", "Theme"),
+            ("F1", "Help"),
+        ];
         bindings.extend(self.pages[self.current].bindings().iter().copied());
         for (key, desc) in bindings {
             let need = key.chars().count() as u16 + desc.chars().count() as u16 + 4;
             if x + need > area.right() {
                 break;
             }
-            x += put(buf, x, area.y, &format!(" {key} "), need, st(th.footer_key, th.footer_bg).add_modifier(Modifier::BOLD));
-            x += put(buf, x, area.y, &format!("{desc} "), need, st(th.footer_desc, th.footer_bg));
+            x += put(
+                buf,
+                x,
+                area.y,
+                &format!(" {key} "),
+                need,
+                st(th.footer_key, th.footer_bg).add_modifier(Modifier::BOLD),
+            );
+            x += put(
+                buf,
+                x,
+                area.y,
+                &format!("{desc} "),
+                need,
+                st(th.footer_desc, th.footer_bg),
+            );
         }
     }
 
@@ -195,7 +305,11 @@ impl Shell {
                 Variant::Primary | Variant::Secondary | Variant::Accent => "Showcase",
                 Variant::Default => "Info",
             };
-            self.toaster.push(Toast::new(title, &msg).variant(v).timeout(Duration::from_millis(2500)));
+            self.toaster.push(
+                Toast::new(title, &msg)
+                    .variant(v)
+                    .timeout(Duration::from_millis(2500)),
+            );
         }
     }
 
@@ -219,7 +333,16 @@ impl App for Shell {
         let th = self.ctx.theme;
         fill(buf, area, th.background);
         if area.width < 60 || area.height < 16 {
-            put_centered(buf, Rect { y: area.y + area.height / 2, height: 1, ..area }, "Terminal too small (need 60×16)", st(th.text, th.background));
+            put_centered(
+                buf,
+                Rect {
+                    y: area.y + area.height / 2,
+                    height: 1,
+                    ..area
+                },
+                "Terminal too small (need 60×16)",
+                st(th.text, th.background),
+            );
             return;
         }
         let (header, side, content, footer) = self.layout(area);
@@ -235,12 +358,26 @@ impl App for Shell {
         self.drain_notices();
         self.draw_footer(footer, buf);
         // overlays: toasts above content, dialogs above toasts, palette on top
-        let toast_area = Rect { height: area.height.saturating_sub(1), ..area };
-        ToastStack::new().theme(&th).now(now).render(toast_area, buf, &mut self.toaster);
+        let toast_area = Rect {
+            height: area.height.saturating_sub(1),
+            ..area
+        };
+        ToastStack::new()
+            .theme(&th)
+            .now(now)
+            .render(toast_area, buf, &mut self.toaster);
         if self.help.open {
-            Modal::alert("Key bindings", HELP).width(64).icon("?").theme(&th).now(now).render(area, buf, &mut self.help);
+            Modal::alert("Key bindings", HELP)
+                .width(64)
+                .icon("?")
+                .theme(&th)
+                .now(now)
+                .render(area, buf, &mut self.help);
         }
-        CommandPalette::new().theme(&th).now(now).render(area, buf, &mut self.palette);
+        CommandPalette::new()
+            .theme(&th)
+            .now(now)
+            .render(area, buf, &mut self.palette);
     }
 
     fn event(&mut self, ev: Event, now: Instant) -> Flow {
@@ -306,7 +443,9 @@ impl App for Shell {
                 let side = self.side_area;
                 let pos = mouse_pos(m);
                 let over = self.sidebar_item_at(side, pos);
-                if is_left_down(m) && let Some(i) = over {
+                if is_left_down(m)
+                    && let Some(i) = over
+                {
                     self.goto(i);
                 } else if side.contains(pos) || over != self.sidebar_hover {
                     self.sidebar_hover = over;
@@ -337,7 +476,10 @@ fn main() -> std::io::Result<()> {
             "--page" | "-p" => start = it.next().map(String::as_str),
             "--theme" | "-t" => theme_name = it.next().map(String::as_str),
             "--help" | "-h" => {
-                println!("showcase [--page NAME] [--theme NAME]\n\nThemes: {}", theme::theme_names().join(", "));
+                println!(
+                    "showcase [--page NAME] [--theme NAME]\n\nThemes: {}",
+                    theme::theme_names().join(", ")
+                );
                 return Ok(());
             }
             _ => {}

@@ -13,7 +13,8 @@ pub mod scrollbar;
 pub mod button;
 pub mod slider;
 pub mod toggle;
-// text entry
+// text entry & forms
+pub mod form;
 pub mod input;
 pub mod select;
 pub mod textarea;
@@ -21,6 +22,7 @@ pub mod textarea;
 pub mod breadcrumbs;
 pub mod list;
 pub mod menu;
+pub mod sidebar;
 pub mod tabs;
 pub mod tree;
 // data
@@ -30,8 +32,9 @@ pub mod table;
 // feedback & overlays
 pub mod loading;
 pub mod modal;
-pub mod palette;
+pub mod notify;
 pub mod options;
+pub mod palette;
 pub mod progress;
 pub mod spinner;
 pub mod toast;
@@ -54,9 +57,9 @@ pub mod text;
 // ai / llm
 pub mod ai;
 
-pub use breadcrumbs::*;
 pub use ai::*;
 pub use bigtext::*;
+pub use breadcrumbs::*;
 pub use button::*;
 pub use calendar::*;
 pub use charts::*;
@@ -64,14 +67,16 @@ pub use collapsible::*;
 pub use color::*;
 pub use digits::*;
 pub use footer::*;
+pub use form::*;
 pub use header::*;
 pub use input::*;
 pub use list::*;
-pub use log::*;
 pub use loading::*;
+pub use log::*;
 pub use markdown::*;
 pub use menu::*;
 pub use modal::*;
+pub use notify::*;
 pub use options::*;
 pub use palette::*;
 pub use panel::*;
@@ -79,6 +84,7 @@ pub use progress::*;
 pub use scroll::*;
 pub use scrollbar::*;
 pub use select::*;
+pub use sidebar::*;
 pub use slider::*;
 pub use spinner::*;
 pub use split::*;

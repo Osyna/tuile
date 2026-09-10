@@ -4,7 +4,7 @@
 
 use tuiforge::draw::{fill, put, put_right, st};
 use tuiforge::prelude::*;
-use tuiforge::widgets::{LineSeries, LineStyle, LegendPos, BarGroup, MeterStyle};
+use tuiforge::widgets::{BarGroup, LegendPos, LineSeries, LineStyle, MeterStyle};
 
 use super::{Ctx, Page, card};
 
@@ -33,7 +33,10 @@ const SERVICES: [(&str, &str, &str); 9] = [
 struct Lcg(u64);
 impl Lcg {
     fn next_f(&mut self) -> f64 {
-        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.0 = self
+            .0
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         ((self.0 >> 33) as f64) / (u32::MAX as f64 / 2.0)
     }
     fn range(&mut self, lo: f64, hi: f64) -> f64 {
@@ -106,7 +109,12 @@ impl DashboardPage {
         let err = (last(&self.errors, 8.0) + self.rng.range(-2.5, 2.5)).clamp(0.0, 40.0);
         let lat = (last(&self.latency, 140.0) + self.rng.range(-12.0, 12.0)).clamp(60.0, 320.0);
         let usr = (last(&self.users, 830.0) + self.rng.range(-15.0, 16.0)).clamp(300.0, 1500.0);
-        for (v, x) in [(&mut self.rps, rps), (&mut self.errors, err), (&mut self.latency, lat), (&mut self.users, usr)] {
+        for (v, x) in [
+            (&mut self.rps, rps),
+            (&mut self.errors, err),
+            (&mut self.latency, lat),
+            (&mut self.users, usr),
+        ] {
             v.push(x);
             if v.len() > 120 {
                 v.remove(0);
@@ -149,7 +157,11 @@ impl DashboardPage {
                 let p95 = 40.0 + cpu * 2.1;
                 TableRow::new(vec![
                     TableCell::new(*name),
-                    TableCell::new(status).style(Style::new().fg(theme::current().text_variant(v).color()).add_modifier(Modifier::BOLD)),
+                    TableCell::new(status).style(
+                        Style::new()
+                            .fg(theme::current().text_variant(v).color())
+                            .add_modifier(Modifier::BOLD),
+                    ),
                     TableCell::new(format!("{cpu:.0}%")).sort_key(cpu),
                     TableCell::new(format!("{p95:.0} ms")).sort_key(p95),
                     TableCell::new(*ver),
@@ -161,10 +173,20 @@ impl DashboardPage {
 
     fn columns() -> Vec<TableColumn> {
         vec![
-            TableColumn::new("Service").width(Constraint::Fill(2)).sortable(true),
-            TableColumn::new("Status").width(Constraint::Length(9)).sortable(true),
-            TableColumn::new("CPU").width(Constraint::Length(5)).align(Alignment::Right).sortable(true),
-            TableColumn::new("p95").width(Constraint::Length(7)).align(Alignment::Right).sortable(true),
+            TableColumn::new("Service")
+                .width(Constraint::Fill(2))
+                .sortable(true),
+            TableColumn::new("Status")
+                .width(Constraint::Length(9))
+                .sortable(true),
+            TableColumn::new("CPU")
+                .width(Constraint::Length(5))
+                .align(Alignment::Right)
+                .sortable(true),
+            TableColumn::new("p95")
+                .width(Constraint::Length(7))
+                .align(Alignment::Right)
+                .sortable(true),
             TableColumn::new("Version").width(Constraint::Length(8)),
             TableColumn::new("Tier").width(Constraint::Length(6)),
         ]
@@ -177,7 +199,10 @@ impl DashboardPage {
         }
         self.deploying = Some(ctx.now);
         self.deploy.set(0.0, ctx.now, Duration::ZERO);
-        self.log.push(LogLevel::Info, "deploy api-gateway 1.43.0 started (canary 10%)");
+        self.log.push(
+            LogLevel::Info,
+            "deploy api-gateway 1.43.0 started (canary 10%)",
+        );
         ctx.notify("Deploy started: api-gateway 1.43.0", Variant::Primary);
     }
 }
@@ -190,17 +215,26 @@ impl Page for DashboardPage {
         "One screen composed from every widget family"
     }
     fn icon(&self) -> &'static str {
-        "▦"
+        "■"
     }
     fn bindings(&self) -> &'static [(&'static str, &'static str)] {
-        &[("Tab", "Focus"), ("Enter", "Deploy / restart"), ("s", "Sort table"), ("Space", "Toggle auto-refresh")]
+        &[
+            ("Tab", "Focus"),
+            ("Enter", "Deploy / restart"),
+            ("s", "Sort table"),
+            ("Space", "Toggle auto-refresh"),
+        ]
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
         let th = ctx.theme;
         let now = ctx.now;
         // simulation tick
-        if self.auto.on && self.last_tick.is_none_or(|t| now.duration_since(t) >= Duration::from_millis(600)) {
+        if self.auto.on
+            && self
+                .last_tick
+                .is_none_or(|t| now.duration_since(t) >= Duration::from_millis(600))
+        {
             self.step();
             self.last_tick = Some(now);
         }
@@ -209,13 +243,21 @@ impl Page for DashboardPage {
             self.deploy.set(p, now, Duration::ZERO);
             if p >= 1.0 {
                 self.deploying = None;
-                self.log.push(LogLevel::Success, "deploy api-gateway 1.43.0 complete — 100% traffic");
+                self.log.push(
+                    LogLevel::Success,
+                    "deploy api-gateway 1.43.0 complete — 100% traffic",
+                );
                 ctx.notify("Deploy complete", Variant::Success);
             }
         }
 
         let inner = pad(area, 1, 0);
-        let [stats_a, mid_a, bottom_a] = Layout::vertical([Constraint::Length(5), Constraint::Length(13), Constraint::Fill(1)]).areas(inner);
+        let [stats_a, mid_a, bottom_a] = Layout::vertical([
+            Constraint::Length(5),
+            Constraint::Length(13),
+            Constraint::Fill(1),
+        ])
+        .areas(inner);
 
         // ── stat cards ──
         let cards = columns(stats_a, 4, 1);
@@ -231,25 +273,75 @@ impl Page for DashboardPage {
         let (lat, lat_p) = stat(&self.latency);
         let (usr, usr_p) = stat(&self.users);
         let specs = [
-            (format!("{rps:.0}"), "requests / s", Self::pct(rps, rps_p), Variant::Primary, &self.rps, true),
-            (format!("{err:.1}"), "errors / min", Self::pct(err, err_p), Variant::Error, &self.errors, false),
-            (format!("{lat:.0} ms"), "latency p95", Self::pct(lat, lat_p), Variant::Warning, &self.latency, false),
-            (format!("{usr:.0}"), "active users", Self::pct(usr, usr_p), Variant::Success, &self.users, true),
+            (
+                format!("{rps:.0}"),
+                "requests / s",
+                Self::pct(rps, rps_p),
+                Variant::Primary,
+                &self.rps,
+                true,
+            ),
+            (
+                format!("{err:.1}"),
+                "errors / min",
+                Self::pct(err, err_p),
+                Variant::Error,
+                &self.errors,
+                false,
+            ),
+            (
+                format!("{lat:.0} ms"),
+                "latency p95",
+                Self::pct(lat, lat_p),
+                Variant::Warning,
+                &self.latency,
+                false,
+            ),
+            (
+                format!("{usr:.0}"),
+                "active users",
+                Self::pct(usr, usr_p),
+                Variant::Success,
+                &self.users,
+                true,
+            ),
         ];
         for (rect, (value, label, (d, up), v, series, up_is_good)) in cards.iter().zip(specs) {
             let trend: Vec<f64> = series[n.saturating_sub(24)..].to_vec();
             // for errors/latency going up is bad: flip the colour semantics via `positive`
             let positive = if up_is_good { up } else { !up };
-            StatCard::new(value, label).delta(d, positive).trend(&trend).variant(v).bordered(true).theme(&th).render(*rect, buf);
+            StatCard::new(value, label)
+                .delta(d, positive)
+                .trend(&trend)
+                .variant(v)
+                .bordered(true)
+                .theme(&th)
+                .render(*rect, buf);
         }
 
         // ── graphs ──
-        let [traffic_a, regions_a] = Layout::horizontal([Constraint::Percentage(60), Constraint::Fill(1)]).areas(mid_a);
+        let [traffic_a, regions_a] =
+            Layout::horizontal([Constraint::Percentage(60), Constraint::Fill(1)]).areas(mid_a);
         let t_in = card(buf, traffic_a, &th, "Traffic (last 2 min)");
-        let pts = |v: &Vec<f64>| v.iter().enumerate().map(|(i, y)| (i as f64, *y)).collect::<Vec<_>>();
+        let pts = |v: &Vec<f64>| {
+            v.iter()
+                .enumerate()
+                .map(|(i, y)| (i as f64, *y))
+                .collect::<Vec<_>>()
+        };
         let series = [
-            LineSeries { name: "req/s".into(), points: pts(&self.rps), color: Some(th.primary), style: LineStyle::Area },
-            LineSeries { name: "users".into(), points: pts(&self.users), color: Some(th.success), style: LineStyle::Line },
+            LineSeries {
+                name: "req/s".into(),
+                points: pts(&self.rps),
+                color: Some(th.primary),
+                style: LineStyle::Area,
+            },
+            LineSeries {
+                name: "users".into(),
+                points: pts(&self.users),
+                color: Some(th.success),
+                style: LineStyle::Line,
+            },
         ];
         LineGraph::new(&series)
             .y_labels(4)
@@ -263,12 +355,21 @@ impl Page for DashboardPage {
         let groups: Vec<BarGroup> = ["us-east", "us-west", "eu-west", "ap-south", "sa-east"]
             .iter()
             .zip(self.regions)
-            .map(|(l, v)| BarGroup { label: (*l).to_string(), values: vec![v] })
+            .map(|(l, v)| BarGroup {
+                label: (*l).to_string(),
+                values: vec![v],
+            })
             .collect();
-        BarGraph::new(&groups).horizontal(true).show_values(true).colors(&[th.secondary]).theme(&th).render(pad(r_in, 1, 0), buf);
+        BarGraph::new(&groups)
+            .horizontal(true)
+            .show_values(true)
+            .colors(&[th.secondary])
+            .theme(&th)
+            .render(pad(r_in, 1, 0), buf);
 
         // ── bottom: services table | resources ──
-        let [services_a, right_a] = Layout::horizontal([Constraint::Percentage(60), Constraint::Fill(1)]).areas(bottom_a);
+        let [services_a, right_a] =
+            Layout::horizontal([Constraint::Percentage(60), Constraint::Fill(1)]).areas(bottom_a);
         let s_in = card(buf, services_a, &th, "Services");
         let focused = self.focus.is(Id::Services);
         DataTable::new(Self::columns(), self.rows())
@@ -278,12 +379,21 @@ impl Page for DashboardPage {
             .theme(&th)
             .render(pad(s_in, 1, 0), buf, &mut self.table);
 
-        let [res_a, log_a] = Layout::vertical([Constraint::Length(15), Constraint::Fill(1)]).areas(right_a);
+        let [res_a, log_a] =
+            Layout::vertical([Constraint::Length(15), Constraint::Fill(1)]).areas(right_a);
         let res_in = pad(card(buf, res_a, &th, "Resources"), 1, 0);
         let labels = ["CPU", "Memory", "Disk", "Network"];
-        let thresholds = [(0.7, Variant::Success), (0.9, Variant::Warning), (1.01, Variant::Error)];
+        let thresholds = [
+            (0.7, Variant::Success),
+            (0.9, Variant::Warning),
+            (1.01, Variant::Error),
+        ];
         for (i, label) in labels.iter().enumerate() {
-            let row = Rect { y: res_in.y + i as u16, height: 1, ..res_in };
+            let row = Rect {
+                y: res_in.y + i as u16,
+                height: 1,
+                ..res_in
+            };
             if row.y >= res_in.bottom() {
                 break;
             }
@@ -292,35 +402,98 @@ impl Page for DashboardPage {
                 .label(*label)
                 .show_percent(true)
                 .thresholds(&thresholds)
-                .style(if i % 2 == 0 { MeterStyle::Line } else { MeterStyle::Block })
+                .style(if i % 2 == 0 {
+                    MeterStyle::Line
+                } else {
+                    MeterStyle::Block
+                })
                 .theme(&th);
             Widget::render(meter, row, buf);
         }
         // deploy progress + controls
         let py = res_in.y + 5;
         if py + 1 < res_in.bottom() {
-            put(buf, res_in.x, py, "Deploy", 6, st(th.text_muted, th.background));
-            let bar = Rect { x: res_in.x + 7, y: py, width: res_in.width.saturating_sub(7), height: 1 };
-            ProgressBar::new().show_eta(self.deploying.is_some()).now(now).theme(&th).render(bar, buf, &mut self.deploy);
+            put(
+                buf,
+                res_in.x,
+                py,
+                "Deploy",
+                6,
+                st(th.text_muted, th.background),
+            );
+            let bar = Rect {
+                x: res_in.x + 7,
+                y: py,
+                width: res_in.width.saturating_sub(7),
+                height: 1,
+            };
+            ProgressBar::new()
+                .show_eta(self.deploying.is_some())
+                .now(now)
+                .theme(&th)
+                .render(bar, buf, &mut self.deploy);
         }
         let by = py + 2;
         if by + 3 <= res_in.bottom() {
             let bw = ((res_in.width.saturating_sub(2)) / 3).clamp(10, 18);
-            let b1 = Rect { x: res_in.x, y: by, width: bw, height: 3 };
-            let b2 = Rect { x: b1.right() + 1, y: by, width: bw, height: 3 };
-            Button::new("Deploy").variant(Variant::Primary).min_width(bw).focused(self.focus.is(Id::Deploy)).now(now).theme(&th).render(b1, buf, &mut self.deploy_btn);
-            Button::new("Restart").min_width(bw).focused(self.focus.is(Id::Restart)).now(now).theme(&th).render(b2, buf, &mut self.restart_btn);
-            let sw = Rect { x: res_in.x, y: by + 3, width: res_in.width, height: 3 };
+            let b1 = Rect {
+                x: res_in.x,
+                y: by,
+                width: bw,
+                height: 3,
+            };
+            let b2 = Rect {
+                x: b1.right() + 1,
+                y: by,
+                width: bw,
+                height: 3,
+            };
+            Button::new("Deploy")
+                .variant(Variant::Primary)
+                .min_width(bw)
+                .focused(self.focus.is(Id::Deploy))
+                .now(now)
+                .theme(&th)
+                .render(b1, buf, &mut self.deploy_btn);
+            Button::new("Restart")
+                .min_width(bw)
+                .focused(self.focus.is(Id::Restart))
+                .now(now)
+                .theme(&th)
+                .render(b2, buf, &mut self.restart_btn);
+            let sw = Rect {
+                x: res_in.x,
+                y: by + 3,
+                width: res_in.width,
+                height: 3,
+            };
             if sw.bottom() <= res_in.bottom() {
-                Switch::new().label("Auto-refresh every 600 ms").focused(self.focus.is(Id::Auto)).now(now).theme(&th).render(sw, buf, &mut self.auto);
+                Switch::new()
+                    .label("Auto-refresh every 600 ms")
+                    .focused(self.focus.is(Id::Auto))
+                    .now(now)
+                    .theme(&th)
+                    .render(sw, buf, &mut self.auto);
             }
         }
 
         let l_in = card(buf, log_a, &th, "Events");
         fill(buf, l_in, th.surface);
-        LogView::new().timestamps(true).level_column(true).theme(&th).render(l_in, buf, &mut self.log);
+        LogView::new()
+            .timestamps(true)
+            .level_column(true)
+            .theme(&th)
+            .render(l_in, buf, &mut self.log);
         if self.focus.is(Id::Log) {
-            put_right(buf, Rect { y: log_a.y, ..log_a }, " ↑↓ scroll ", st(th.text_muted, th.background));
+            put_right(
+                buf,
+                Rect {
+                    y: log_a.y,
+                    ..log_a
+                },
+                " ↑↓ scroll ",
+                st(th.text_muted, th.background),
+            );
         }
     }
 
@@ -330,7 +503,7 @@ impl Page for DashboardPage {
                 if self.focus.handle_key(*k).is_consumed() {
                     return Outcome::Consumed;
                 }
-                
+
                 match self.focus.current() {
                     Some(Id::Services) => {
                         let o = self.table.handle_key(*k);
@@ -350,7 +523,8 @@ impl Page for DashboardPage {
                     Some(Id::Restart) => {
                         let o = self.restart_btn.handle_key(*k);
                         if o.is_changed() {
-                            self.log.push(LogLevel::Warn, "restart requested for search (rolling)");
+                            self.log
+                                .push(LogLevel::Warn, "restart requested for search (rolling)");
                             ctx.notify("Rolling restart: search", Variant::Warning);
                         }
                         o
@@ -380,7 +554,8 @@ impl Page for DashboardPage {
                 let r = self.restart_btn.handle_mouse(*m);
                 if r.is_changed() {
                     self.focus.set(Id::Restart);
-                    self.log.push(LogLevel::Warn, "restart requested for search (rolling)");
+                    self.log
+                        .push(LogLevel::Warn, "restart requested for search (rolling)");
                     ctx.notify("Rolling restart: search", Variant::Warning);
                 }
                 out |= r;
@@ -397,6 +572,10 @@ impl Page for DashboardPage {
     }
 
     fn animating(&self, now: Instant) -> bool {
-        self.auto.on || self.deploying.is_some() || self.auto.animating(now) || self.deploy_btn.animating(now) || self.restart_btn.animating(now)
+        self.auto.on
+            || self.deploying.is_some()
+            || self.auto.animating(now)
+            || self.deploy_btn.animating(now)
+            || self.restart_btn.animating(now)
     }
 }

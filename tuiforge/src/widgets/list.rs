@@ -20,12 +20,14 @@ use ratatui::style::Modifier;
 use ratatui::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
-use crate::core::{is_press, mouse_in, mouse_pos, plain_char, wheel_delta, Interactive, Look, Outcome};
+use crate::core::{
+    Interactive, Look, Outcome, is_press, mouse_in, mouse_pos, plain_char, wheel_delta,
+};
 use crate::draw::{Border, fill, hline, put, put_right, st};
 use crate::fuzzy;
 use crate::layout::pad;
 use crate::theme::{self, Theme, Variant};
-use crate::widgets::scrollbar::{keep_visible, Scrollbar, ScrollbarState};
+use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
 // ───────────────────────────── entry ─────────────────────────────
 
@@ -314,16 +316,23 @@ impl Interactive for ListViewState {
             }
 
             // click
-            if matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(ratatui::crossterm::event::MouseButton::Left)) {
+            if matches!(
+                m.kind,
+                ratatui::crossterm::event::MouseEventKind::Down(
+                    ratatui::crossterm::event::MouseButton::Left
+                )
+            ) {
                 self.cursor = row;
                 let now = Instant::now();
                 // double-click detection
                 if let Some((last_row, last_time)) = self.last_click
-                    && last_row == row && now.duration_since(last_time).as_millis() < 400 {
-                        self.activated = Some(row);
-                        self.last_click = None;
-                        return Outcome::Changed;
-                    }
+                    && last_row == row
+                    && now.duration_since(last_time).as_millis() < 400
+                {
+                    self.activated = Some(row);
+                    self.last_click = None;
+                    return Outcome::Changed;
+                }
                 self.last_click = Some((row, now));
                 return Outcome::Changed;
             }
@@ -336,14 +345,15 @@ impl Interactive for ListViewState {
 
         // wheel
         if let Some(delta) = wheel_delta(&m)
-            && mouse_in(self.hits, &m) {
-                if delta > 0 {
-                    self.scroll = self.scroll.saturating_add(1);
-                } else {
-                    self.scroll = self.scroll.saturating_sub(1);
-                }
-                return Outcome::Consumed;
+            && mouse_in(self.hits, &m)
+        {
+            if delta > 0 {
+                self.scroll = self.scroll.saturating_add(1);
+            } else {
+                self.scroll = self.scroll.saturating_sub(1);
             }
+            return Outcome::Consumed;
+        }
 
         out
     }
@@ -379,7 +389,11 @@ impl StatefulWidget for ListView {
         // border
         let mut inner = area;
         if let Some(border) = self.border {
-            let border_color = if self.focused { th.border } else { th.border_blurred };
+            let border_color = if self.focused {
+                th.border
+            } else {
+                th.border_blurred
+            };
             if !self.title.is_empty() {
                 border.draw_titled(buf, area, border_color, bg, &self.title, Alignment::Left);
             } else {
@@ -395,7 +409,14 @@ impl StatefulWidget for ListView {
         // compute visible entries
         let visible = visible_indices(&self.entries, &self.filter);
         if visible.is_empty() {
-            put(buf, inner.x + 1, inner.y, &self.empty_text, inner.width.saturating_sub(2), st(th.text_muted, bg));
+            put(
+                buf,
+                inner.x + 1,
+                inner.y,
+                &self.empty_text,
+                inner.width.saturating_sub(2),
+                st(th.text_muted, bg),
+            );
             return;
         }
 
@@ -408,32 +429,53 @@ impl StatefulWidget for ListView {
             .copied()
             .filter(|&i| !self.entries[i].disabled && !self.entries[i].separator)
             .collect();
-        if !selectable.is_empty() && self.entries.get(visible[state.cursor]).is_some_and(|e| e.disabled || e.separator) {
+        if !selectable.is_empty()
+            && self
+                .entries
+                .get(visible[state.cursor])
+                .is_some_and(|e| e.disabled || e.separator)
+        {
             // move to next selectable
             if let Some(&next) = selectable.iter().find(|&&i| i >= state.cursor) {
                 state.cursor = visible.iter().position(|&x| x == next).unwrap_or(0);
             } else {
-                state.cursor = visible.iter().position(|&x| x == selectable[0]).unwrap_or(0);
+                state.cursor = visible
+                    .iter()
+                    .position(|&x| x == selectable[0])
+                    .unwrap_or(0);
             }
         }
 
         // type-ahead
         if !state.typeahead.is_empty()
-            && let Some(at) = state.typeahead_at {
-                if Instant::now().duration_since(at).as_secs() > 1 {
-                    state.typeahead.clear();
-                } else {
-                    // find next entry starting with typeahead
-                    let lower = state.typeahead.to_lowercase();
-                    if let Some(idx) = visible.iter().skip(state.cursor + 1).find(|&&i| self.entries[i].label.to_lowercase().starts_with(&lower)) {
-                        state.cursor = visible.iter().position(|&x| x == *idx).unwrap_or(state.cursor);
-                    }
+            && let Some(at) = state.typeahead_at
+        {
+            if Instant::now().duration_since(at).as_secs() > 1 {
+                state.typeahead.clear();
+            } else {
+                // find next entry starting with typeahead
+                let lower = state.typeahead.to_lowercase();
+                if let Some(idx) = visible
+                    .iter()
+                    .skip(state.cursor + 1)
+                    .find(|&&i| self.entries[i].label.to_lowercase().starts_with(&lower))
+                {
+                    state.cursor = visible
+                        .iter()
+                        .position(|&x| x == *idx)
+                        .unwrap_or(state.cursor);
                 }
             }
+        }
 
         // scrollbar area
         let sb_area = Rect::new(inner.right().saturating_sub(1), inner.y, 1, inner.height);
-        let list_area = Rect::new(inner.x, inner.y, inner.width.saturating_sub(1), inner.height);
+        let list_area = Rect::new(
+            inner.x,
+            inner.y,
+            inner.width.saturating_sub(1),
+            inner.height,
+        );
 
         // scroll to cursor
         state.scroll = keep_visible(state.scroll, state.cursor, list_area.height as usize);
@@ -454,7 +496,11 @@ impl StatefulWidget for ListView {
             let is_hover = state.hover == Some(entry_idx);
             let is_selected = state.selected.contains(&i);
 
-            let _look = Look { focused: self.focused && is_cursor, hover: is_hover, enabled: !entry.disabled };
+            let _look = Look {
+                focused: self.focused && is_cursor,
+                hover: is_hover,
+                enabled: !entry.disabled,
+            };
 
             let row_bg = if is_cursor && self.focused {
                 th.cursor_bg
@@ -490,17 +536,35 @@ impl StatefulWidget for ListView {
             }
 
             if entry.separator {
-                hline(buf, list_area.x, y, list_area.width, "─", st(th.text_muted.blend(bg, 0.5), bg));
+                hline(
+                    buf,
+                    list_area.x,
+                    y,
+                    list_area.width,
+                    "─",
+                    st(th.text_muted.blend(bg, 0.5), bg),
+                );
                 continue;
             }
 
             // multi-select checkbox: a painted 3-cell button (same look as `Checkbox`)
             let mut x = list_area.x;
             if self.multi_select {
-                let btn = if is_cursor && self.focused { th.cursor_bg } else { th.panel };
+                let btn = if is_cursor && self.focused {
+                    th.cursor_bg
+                } else {
+                    th.panel
+                };
                 let mark_fg = if is_selected { th.text_success } else { btn };
                 put(buf, x, y, "   ", 3, st(btn, btn));
-                put(buf, x + 1, y, if is_selected { "X" } else { " " }, 1, st(mark_fg, btn).add_modifier(Modifier::BOLD));
+                put(
+                    buf,
+                    x + 1,
+                    y,
+                    if is_selected { "X" } else { " " },
+                    1,
+                    st(mark_fg, btn).add_modifier(Modifier::BOLD),
+                );
                 x += 4;
             }
 
@@ -545,7 +609,12 @@ impl StatefulWidget for ListView {
             if let Some(detail) = &entry.detail {
                 match self.details {
                     ListDetail::Right => {
-                        put_right(buf, Rect::new(list_area.x, y, list_area.width, 1), detail, st(th.text_muted, row_bg));
+                        put_right(
+                            buf,
+                            Rect::new(list_area.x, y, list_area.width, 1),
+                            detail,
+                            st(th.text_muted, row_bg),
+                        );
                     }
                     ListDetail::Below => {
                         // would need two rows per entry
@@ -579,7 +648,11 @@ mod tests {
 
     #[test]
     fn list_visible_indices_filters() {
-        let entries = vec![ListEntry::new("apple"), ListEntry::new("banana"), ListEntry::new("apricot")];
+        let entries = vec![
+            ListEntry::new("apple"),
+            ListEntry::new("banana"),
+            ListEntry::new("apricot"),
+        ];
         let vis = visible_indices(&entries, "ap");
         assert_eq!(vis.len(), 2);
         assert!(vis.contains(&0));
@@ -589,9 +662,21 @@ mod tests {
     #[test]
     fn list_cursor_wraps_on_keys() {
         let mut state = ListViewState::new();
-        assert_eq!(state.handle_key(KeyEvent::new(KeyCode::Down, ratatui::crossterm::event::KeyModifiers::NONE)), Outcome::Changed);
+        assert_eq!(
+            state.handle_key(KeyEvent::new(
+                KeyCode::Down,
+                ratatui::crossterm::event::KeyModifiers::NONE
+            )),
+            Outcome::Changed
+        );
         assert_eq!(state.cursor, 1);
-        assert_eq!(state.handle_key(KeyEvent::new(KeyCode::Up, ratatui::crossterm::event::KeyModifiers::NONE)), Outcome::Changed);
+        assert_eq!(
+            state.handle_key(KeyEvent::new(
+                KeyCode::Up,
+                ratatui::crossterm::event::KeyModifiers::NONE
+            )),
+            Outcome::Changed
+        );
         assert_eq!(state.cursor, 0);
     }
 
@@ -599,7 +684,13 @@ mod tests {
     fn list_activates_on_enter() {
         let mut state = ListViewState::new();
         state.cursor = 5;
-        assert_eq!(state.handle_key(KeyEvent::new(KeyCode::Enter, ratatui::crossterm::event::KeyModifiers::NONE)), Outcome::Changed);
+        assert_eq!(
+            state.handle_key(KeyEvent::new(
+                KeyCode::Enter,
+                ratatui::crossterm::event::KeyModifiers::NONE
+            )),
+            Outcome::Changed
+        );
         assert_eq!(state.take_activated(), Some(5));
     }
 }

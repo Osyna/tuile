@@ -16,7 +16,17 @@ enum Id {
     Options,
 }
 
-const SHAPES: &[&str] = &["bars", "band", "bar", "tall", "tall-thin", "rule", "round", "prompt", "none"];
+const SHAPES: &[&str] = &[
+    "bars",
+    "band",
+    "bar",
+    "tall",
+    "tall-thin",
+    "rule",
+    "round",
+    "prompt",
+    "none",
+];
 const SEPS: &[&str] = &["chevron", "dot", "pipe", "arrow", "space"];
 
 pub struct OptionsPage {
@@ -33,10 +43,32 @@ impl Default for OptionsPage {
             OptionGroup::new(
                 "Theme",
                 vec![
-                    OptionItem::choice("dark", "Dark Theme", &["textual-dark", "nord", "dracula", "tokyo-night", "gruvbox", "catppuccin-mocha"], 0)
-                        .hint("applied live"),
-                    OptionItem::choice("light", "Light Theme", &["textual-light", "catppuccin-latte", "solarized-light"], 0),
-                    OptionItem::choice("symbols", "Symbol Preset", &["unicode", "nerd", "ascii"], 0),
+                    OptionItem::choice(
+                        "dark",
+                        "Dark Theme",
+                        &[
+                            "textual-dark",
+                            "nord",
+                            "dracula",
+                            "tokyo-night",
+                            "gruvbox",
+                            "catppuccin-mocha",
+                        ],
+                        0,
+                    )
+                    .hint("applied live"),
+                    OptionItem::choice(
+                        "light",
+                        "Light Theme",
+                        &["textual-light", "catppuccin-latte", "solarized-light"],
+                        0,
+                    ),
+                    OptionItem::choice(
+                        "symbols",
+                        "Symbol Preset",
+                        &["unicode", "nerd", "ascii"],
+                        0,
+                    ),
                     OptionItem::bool("colorblind", "Color-Blind Mode", false),
                 ],
             ),
@@ -44,14 +76,28 @@ impl Default for OptionsPage {
                 "Composer",
                 vec![
                     OptionItem::choice("shape", "Composer Shape", SHAPES, 0).hint("see preview"),
-                    OptionItem::choice("edge", "Bar Thickness", &["hair", "thin", "half", "full"], 1),
-                    OptionItem::text("placeholder", "Placeholder", "Ask anything, edit files, run tools"),
+                    OptionItem::choice(
+                        "edge",
+                        "Bar Thickness",
+                        &["hair", "thin", "half", "full"],
+                        1,
+                    ),
+                    OptionItem::text(
+                        "placeholder",
+                        "Placeholder",
+                        "Ask anything, edit files, run tools",
+                    ),
                 ],
             ),
             OptionGroup::new(
                 "Status Line",
                 vec![
-                    OptionItem::choice("preset", "Status Line Preset", &["default", "minimal", "full"], 0),
+                    OptionItem::choice(
+                        "preset",
+                        "Status Line Preset",
+                        &["default", "minimal", "full"],
+                        0,
+                    ),
                     OptionItem::choice("sep", "Status Line Separator", SEPS, 0),
                     OptionItem::bool("accent", "Session Accent", true),
                     OptionItem::bool("transparent", "Transparent Status Line", false),
@@ -61,7 +107,12 @@ impl Default for OptionsPage {
             OptionGroup::new(
                 "Display",
                 vec![
-                    OptionItem::choice("scrollback", "Resize Scrollback", &["rebuild", "keep", "clear"], 0),
+                    OptionItem::choice(
+                        "scrollback",
+                        "Resize Scrollback",
+                        &["rebuild", "keep", "clear"],
+                        0,
+                    ),
                     OptionItem::bool("headings", "Large Headings (Kitty)", true),
                     OptionItem::bool("mermaid", "Render Mermaid Diagrams", true),
                     OptionItem::bool("reactions", "Agent Reactions", true),
@@ -75,10 +126,20 @@ impl Default for OptionsPage {
             ),
             OptionGroup::new(
                 "Images",
-                vec![OptionItem::bool("autoresize", "Auto-Resize Images", true), OptionItem::bool("block", "Block Images", false), OptionItem::action("clear_cache", "Clear image cache…")],
+                vec![
+                    OptionItem::bool("autoresize", "Auto-Resize Images", true),
+                    OptionItem::bool("block", "Block Images", false),
+                    OptionItem::action("clear_cache", "Clear image cache…"),
+                ],
             ),
         ]);
-        Self { focus: Focus::new([Id::Options, Id::Groups, Id::Tabs]), tabs: TabBarState::new(0), groups: ListViewState::new(), options, composer: ComposerState::default() }
+        Self {
+            focus: Focus::new([Id::Options, Id::Groups, Id::Tabs]),
+            tabs: TabBarState::new(0),
+            groups: ListViewState::new(),
+            options,
+            composer: ComposerState::default(),
+        }
     }
 }
 
@@ -122,7 +183,7 @@ impl Page for OptionsPage {
         "Settings screen: icon tabs + group sidebar + OptionList, live composer & status-line preview"
     }
     fn icon(&self) -> &'static str {
-        "⚙"
+        "⌘"
     }
     fn bindings(&self) -> &'static [(&'static str, &'static str)] {
         &[("↑↓", "Row"), ("←→/Enter", "Change"), ("Tab", "Focus")]
@@ -135,40 +196,126 @@ impl Page for OptionsPage {
             return;
         }
         let preview_h = if inner.height >= 24 { 6 } else { 0 };
-        let [tabs_a, body, preview_a] = Layout::vertical([Constraint::Length(2), Constraint::Fill(1), Constraint::Length(preview_h)]).areas(inner);
+        let [tabs_a, body, preview_a] = Layout::vertical([
+            Constraint::Length(2),
+            Constraint::Fill(1),
+            Constraint::Length(preview_h),
+        ])
+        .areas(inner);
 
         // icon tabs
-        let tabs: Vec<TabItem> = [("◐", "Appearance"), ("◆", "Model"), ("⌨", "Interaction"), ("▤", "Context"), ("⌘", "Memory"), ("▣", "Files"), ("›_", "Shell"), ("⚒", "Tools"), ("☰", "Tasks"), ("⊕", "Providers"), ("⧉", "Plugins")]
-            .iter()
-            .map(|(i, t)| TabItem::new(*t).icon(i))
-            .collect();
-        TabBar::new(tabs).style(TabStyle::Pills).focused(self.focus.is(Id::Tabs)).now(ctx.now).theme(&th).render(Rect { height: 1, ..tabs_a }, buf, &mut self.tabs);
-        hline(buf, tabs_a.x, tabs_a.y + 1, tabs_a.width, "─", st(th.border_blurred, th.background));
+        let tabs: Vec<TabItem> = [
+            ("◔", "Appearance"),
+            ("◆", "Model"),
+            ("⊙", "Interaction"),
+            ("⊞", "Context"),
+            ("⌘", "Memory"),
+            ("◧", "Files"),
+            ("›_", "Shell"),
+            ("⊛", "Tools"),
+            ("⊡", "Tasks"),
+            ("⊕", "Providers"),
+            ("◫", "Plugins"),
+        ]
+        .iter()
+        .map(|(i, t)| TabItem::new(*t).icon(i))
+        .collect();
+        TabBar::new(tabs)
+            .style(TabStyle::Pills)
+            .focused(self.focus.is(Id::Tabs))
+            .now(ctx.now)
+            .theme(&th)
+            .render(
+                Rect {
+                    height: 1,
+                    ..tabs_a
+                },
+                buf,
+                &mut self.tabs,
+            );
+        hline(
+            buf,
+            tabs_a.x,
+            tabs_a.y + 1,
+            tabs_a.width,
+            "─",
+            st(th.border_blurred, th.background),
+        );
 
         // sidebar of groups (follows the cursor; clicking jumps)
         let side_w = 22.min(body.width / 3);
-        let [side, main] = Layout::horizontal([Constraint::Length(side_w), Constraint::Fill(1)]).areas(body);
+        let [side, main] =
+            Layout::horizontal([Constraint::Length(side_w), Constraint::Fill(1)]).areas(body);
         self.groups.cursor = self.options.group_index();
-        let entries: Vec<ListEntry> = self.options.groups.iter().map(|g| ListEntry::new(g.title.clone())).collect();
-        ListView::new(entries).highlight(ListHighlight::Bar).focused(self.focus.is(Id::Groups)).theme(&th).render(pad(side, 1, 0), buf, &mut self.groups);
+        let entries: Vec<ListEntry> = self
+            .options
+            .groups
+            .iter()
+            .map(|g| ListEntry::new(g.title.clone()))
+            .collect();
+        ListView::new(entries)
+            .highlight(ListHighlight::Bar)
+            .focused(self.focus.is(Id::Groups))
+            .theme(&th)
+            .render(pad(side, 1, 0), buf, &mut self.groups);
         for y in main.top()..main.bottom() {
             put(buf, main.x, y, "│", 1, st(th.border_blurred, th.background));
         }
 
-        OptionList::new().focused(self.focus.is(Id::Options)).theme(&th).render(pad(Rect { x: main.x + 1, width: main.width - 1, ..main }, 1, 0), buf, &mut self.options);
+        OptionList::new()
+            .focused(self.focus.is(Id::Options))
+            .theme(&th)
+            .render(
+                pad(
+                    Rect {
+                        x: main.x + 1,
+                        width: main.width - 1,
+                        ..main
+                    },
+                    1,
+                    0,
+                ),
+                buf,
+                &mut self.options,
+            );
 
         // live preview of what the Composer / Status Line options describe
         if preview_h > 0 {
-            hline(buf, preview_a.x, preview_a.y, preview_a.width, "─", st(th.border_blurred, th.background));
-            put(buf, preview_a.x, preview_a.y + 1, "Preview:", 8, st(th.text_muted, th.background));
+            hline(
+                buf,
+                preview_a.x,
+                preview_a.y,
+                preview_a.width,
+                "─",
+                st(th.border_blurred, th.background),
+            );
+            put(
+                buf,
+                preview_a.x,
+                preview_a.y + 1,
+                "Preview:",
+                8,
+                st(th.text_muted, th.background),
+            );
             let shape = self.shape();
             let composer_h = 1 + shape.vertical_chrome();
-            let field = Rect { x: preview_a.x + 1, y: preview_a.y + 2, width: preview_a.width.saturating_sub(2), height: composer_h };
+            let field = Rect {
+                x: preview_a.x + 1,
+                y: preview_a.y + 2,
+                width: preview_a.width.saturating_sub(2),
+                height: composer_h,
+            };
             let placeholder = match self.options.get("placeholder") {
                 Some(OptionValue::Text(t)) => t.clone(),
                 _ => String::new(),
             };
-            TextArea::new().shape(shape).placeholder(&placeholder).focused(true).now(ctx.now).theme(&th).render(field, buf, &mut self.composer.editor);
+            TextArea::new()
+                .shape(shape)
+                .placeholder(&placeholder)
+                .focused(true)
+                .now(ctx.now)
+                .theme(&th)
+                .render(field, buf, &mut self.composer.editor);
             let segs = [
                 StatusSegment::new("π"),
                 StatusSegment::new("Opus 5").icon("◕").color(th.warning),
@@ -188,7 +335,15 @@ impl Page for OptionsPage {
             if !self.options.bool("transparent").unwrap_or(false) {
                 line = line.bg(th.surface);
             }
-            line.render(Rect { x: field.x, y: field.bottom(), width: field.width, height: 1 }, buf);
+            line.render(
+                Rect {
+                    x: field.x,
+                    y: field.bottom(),
+                    width: field.width,
+                    height: 1,
+                },
+                buf,
+            );
         }
     }
 
@@ -234,7 +389,9 @@ impl Page for OptionsPage {
 impl OptionsPage {
     /// React to changed rows: the theme switches live, actions toast.
     fn apply(&mut self, ctx: &mut Ctx) {
-        let Some(key) = self.options.take_changed() else { return };
+        let Some(key) = self.options.take_changed() else {
+            return;
+        };
         match key.as_str() {
             "dark" | "light" => {
                 if let Some(name) = self.options.choice(&key)

@@ -65,7 +65,13 @@ pub fn put_right(buf: &mut Buffer, area: Rect, text: &str, style: Style) -> u16 
     put(buf, area.right() - w, area.y, text, w, style)
 }
 
-pub fn put_aligned(buf: &mut Buffer, area: Rect, text: &str, align: Alignment, style: Style) -> u16 {
+pub fn put_aligned(
+    buf: &mut Buffer,
+    area: Rect,
+    text: &str,
+    align: Alignment,
+    style: Style,
+) -> u16 {
     match align {
         Alignment::Left => put(buf, area.x, area.y, text, area.width, style),
         Alignment::Center => put_centered(buf, area, text, style),
@@ -113,7 +119,10 @@ pub fn blit(dst: &mut Buffer, at: Position, src: &Buffer, src_area: Rect) {
     let src_area = src_area.intersection(src.area);
     for dy in 0..src_area.height {
         for dx in 0..src_area.width {
-            let to = Position { x: at.x.saturating_add(dx), y: at.y.saturating_add(dy) };
+            let to = Position {
+                x: at.x.saturating_add(dx),
+                y: at.y.saturating_add(dy),
+            };
             if !dst.area.contains(to) {
                 continue;
             }
@@ -137,7 +146,11 @@ pub fn hbar(buf: &mut Buffer, x: u16, y: u16, width: u16, f: f32, fg: Rgb, bg: R
         let part = (cells - i as f32).clamp(0.0, 1.0);
         let idx = (part * 8.0).round() as usize;
         // full cells are painted as background: block glyphs leave seams in many fonts
-        if idx == 8 { put_cell(buf, x + i, y, " ", st(fg, fg)) } else { put_cell(buf, x + i, y, LEFT_BLOCKS[idx], st(fg, bg)) }
+        if idx == 8 {
+            put_cell(buf, x + i, y, " ", st(fg, fg))
+        } else {
+            put_cell(buf, x + i, y, LEFT_BLOCKS[idx], st(fg, bg))
+        }
     }
 }
 
@@ -147,7 +160,11 @@ pub fn vbar(buf: &mut Buffer, x: u16, y: u16, height: u16, f: f32, fg: Rgb, bg: 
     for i in 0..height {
         let part = (cells - i as f32).clamp(0.0, 1.0);
         let idx = (part * 8.0).round() as usize;
-        if idx == 8 { put_cell(buf, x, y + height - 1 - i, " ", st(fg, fg)) } else { put_cell(buf, x, y + height - 1 - i, LOWER_BLOCKS[idx], st(fg, bg)) }
+        if idx == 8 {
+            put_cell(buf, x, y + height - 1 - i, " ", st(fg, fg))
+        } else {
+            put_cell(buf, x, y + height - 1 - i, LOWER_BLOCKS[idx], st(fg, bg))
+        }
     }
 }
 
@@ -248,9 +265,18 @@ impl Border {
     /// Area inside the border.
     pub fn inner(self, area: Rect) -> Rect {
         if area.width < 2 || area.height < 2 {
-            return Rect { width: 0, height: 0, ..area };
+            return Rect {
+                width: 0,
+                height: 0,
+                ..area
+            };
         }
-        Rect { x: area.x + 1, y: area.y + 1, width: area.width - 2, height: area.height - 2 }
+        Rect {
+            x: area.x + 1,
+            y: area.y + 1,
+            width: area.width - 2,
+            height: area.height - 2,
+        }
     }
 
     /// Draw the border. `fg` is the line colour, `bg` the fill behind the glyphs.
@@ -293,9 +319,15 @@ impl Border {
                 // `█` means "solid": paint the cell background instead of drawing a glyph, so
                 // fonts show no seams and the thin `▔▁▏▕` lines terminate cleanly against it
                 if g[i] == "█" {
-                    buf[(x, y)].set_symbol(" ").set_fg(fg.color()).set_bg(fg.color());
+                    buf[(x, y)]
+                        .set_symbol(" ")
+                        .set_fg(fg.color())
+                        .set_bg(fg.color());
                 } else {
-                    buf[(x, y)].set_symbol(g[i]).set_fg(fg.color()).set_bg(bg.color());
+                    buf[(x, y)]
+                        .set_symbol(g[i])
+                        .set_fg(fg.color())
+                        .set_bg(bg.color());
                 }
             }
         }
@@ -303,7 +335,15 @@ impl Border {
 
     /// Draw the border plus a title on the top edge (title in the border colour, bold).
     /// Returns the inner area.
-    pub fn draw_titled(self, buf: &mut Buffer, area: Rect, fg: Rgb, bg: Rgb, title: &str, align: Alignment) -> Rect {
+    pub fn draw_titled(
+        self,
+        buf: &mut Buffer,
+        area: Rect,
+        fg: Rgb,
+        bg: Rgb,
+        title: &str,
+        align: Alignment,
+    ) -> Rect {
         let style = match self {
             Border::Panel => st(fg.text_on(0.9), fg).add_modifier(Modifier::BOLD),
             _ => st(fg, bg).add_modifier(Modifier::BOLD),
@@ -313,15 +353,32 @@ impl Border {
 
     /// Like [`Border::draw_titled`] with an explicit title style (e.g. a dim border with a
     /// bright title, the usual "card" look).
-    pub fn draw_titled_with(self, buf: &mut Buffer, area: Rect, fg: Rgb, bg: Rgb, title: &str, align: Alignment, title_style: Style) -> Rect {
+    pub fn draw_titled_with(
+        self,
+        buf: &mut Buffer,
+        area: Rect,
+        fg: Rgb,
+        bg: Rgb,
+        title: &str,
+        align: Alignment,
+        title_style: Style,
+    ) -> Rect {
         self.draw(buf, area, fg, bg);
         if !title.is_empty() && area.width > 4 {
-            let text = if matches!(self, Border::Panel | Border::Thick | Border::Outer | Border::Inner) {
+            let text = if matches!(
+                self,
+                Border::Panel | Border::Thick | Border::Outer | Border::Inner
+            ) {
                 title.to_string()
             } else {
                 format!(" {title} ")
             };
-            let slot = Rect { x: area.x + 1, y: area.y, width: area.width - 2, height: 1 };
+            let slot = Rect {
+                x: area.x + 1,
+                y: area.y,
+                width: area.width - 2,
+                height: 1,
+            };
             let text = truncate(&text, slot.width as usize);
             put_aligned(buf, slot, &text, align, title_style);
         }
@@ -358,7 +415,16 @@ pub enum Edge {
 
 impl Edge {
     /// Draw `height` rows of bar at `x`; `right` anchors the glyph to the cell's right side.
-    pub fn draw(self, buf: &mut Buffer, x: u16, y: u16, height: u16, right: bool, color: Rgb, bg: Rgb) {
+    pub fn draw(
+        self,
+        buf: &mut Buffer,
+        x: u16,
+        y: u16,
+        height: u16,
+        right: bool,
+        color: Rgb,
+        bg: Rgb,
+    ) {
         let (glyph, style) = match (self, right) {
             (Edge::Full, _) => (" ", st(color, color)),
             (Edge::Hair, false) => ("▏", st(color, bg)),
@@ -433,9 +499,24 @@ impl FieldShape {
                     return area;
                 }
                 hline(buf, area.x, area.y, area.width, "▔", st(color, bg));
-                hline(buf, area.x, area.bottom() - 1, area.width, "▁", st(color, bg));
+                hline(
+                    buf,
+                    area.x,
+                    area.bottom() - 1,
+                    area.width,
+                    "▁",
+                    st(color, bg),
+                );
                 edge.draw(buf, area.x, area.y + 1, area.height - 2, false, color, bg);
-                edge.draw(buf, area.right() - 1, area.y + 1, area.height - 2, true, color, bg);
+                edge.draw(
+                    buf,
+                    area.right() - 1,
+                    area.y + 1,
+                    area.height - 2,
+                    true,
+                    color,
+                    bg,
+                );
                 crate::layout::pad(area, 1, 1)
             }
             FieldShape::Bars(edge) => {
@@ -448,14 +529,25 @@ impl FieldShape {
             }
             FieldShape::Bar(edge) => {
                 edge.draw(buf, area.x, area.y, area.height, false, color, bg);
-                Rect { x: area.x + 1, width: area.width - 1, ..area }
+                Rect {
+                    x: area.x + 1,
+                    width: area.width - 1,
+                    ..area
+                }
             }
             FieldShape::Rule => {
                 if area.height < 2 {
                     return area;
                 }
                 hline(buf, area.x, area.y, area.width, "─", st(color, bg));
-                hline(buf, area.x, area.bottom() - 1, area.width, "─", st(color, bg));
+                hline(
+                    buf,
+                    area.x,
+                    area.bottom() - 1,
+                    area.width,
+                    "─",
+                    st(color, bg),
+                );
                 crate::layout::pad(area, 0, 1)
             }
             FieldShape::Round => {
@@ -463,8 +555,19 @@ impl FieldShape {
                 Border::Round.inner(area)
             }
             FieldShape::Prompt => {
-                put(buf, area.x, area.y, "❯", 1, st(color, bg).add_modifier(Modifier::BOLD));
-                Rect { x: area.x + 2, width: area.width.saturating_sub(2), ..area }
+                put(
+                    buf,
+                    area.x,
+                    area.y,
+                    "❯",
+                    1,
+                    st(color, bg).add_modifier(Modifier::BOLD),
+                );
+                Rect {
+                    x: area.x + 2,
+                    width: area.width.saturating_sub(2),
+                    ..area
+                }
             }
             FieldShape::Band => {
                 if area.height < 3 || area.width < 4 {
@@ -472,7 +575,12 @@ impl FieldShape {
                 }
                 // the caller already filled `bg` across the area; the band is that fill plus padding
                 put(buf, area.x + 1, area.y + 1, "›", 1, st(color, bg));
-                Rect { x: area.x + 3, y: area.y + 1, width: area.width - 3, height: area.height - 2 }
+                Rect {
+                    x: area.x + 3,
+                    y: area.y + 1,
+                    width: area.width - 3,
+                    height: area.height - 2,
+                }
             }
             FieldShape::None => area,
         }
@@ -481,8 +589,18 @@ impl FieldShape {
 
 /// Simple drop shadow (one cell right and below), Textual `.-shadow` look.
 pub fn shadow(buf: &mut Buffer, area: Rect, toward: Rgb, f: f32) {
-    let right = Rect { x: area.right(), y: area.y + 1, width: 1, height: area.height };
-    let bottom = Rect { x: area.x + 1, y: area.bottom(), width: area.width, height: 1 };
+    let right = Rect {
+        x: area.right(),
+        y: area.y + 1,
+        width: 1,
+        height: area.height,
+    };
+    let bottom = Rect {
+        x: area.x + 1,
+        y: area.bottom(),
+        width: area.width,
+        height: 1,
+    };
     blend_area(buf, right, toward, f);
     blend_area(buf, bottom, toward, f);
 }
@@ -542,7 +660,11 @@ pub fn truncate_start(s: &str, max: usize) -> String {
 pub fn fit(s: &str, w: usize) -> String {
     let t = truncate(s, w);
     let tw = t.width();
-    if tw < w { format!("{t}{}", " ".repeat(w - tw)) } else { t }
+    if tw < w {
+        format!("{t}{}", " ".repeat(w - tw))
+    } else {
+        t
+    }
 }
 
 /// Greedy word wrap on display width; explicit newlines respected; long words are split.
@@ -607,21 +729,36 @@ mod tests {
         let c = Rgb(0, 0, 255);
         let bg = Rgb(0, 0, 0);
         let mut buf = Buffer::empty(area);
-        assert_eq!(FieldShape::Bars(Edge::Hair).draw(&mut buf, area, c, bg), Rect::new(1, 0, 8, 3));
+        assert_eq!(
+            FieldShape::Bars(Edge::Hair).draw(&mut buf, area, c, bg),
+            Rect::new(1, 0, 8, 3)
+        );
         assert_eq!(buf[(0, 1)].symbol(), "▏");
         assert_eq!(buf[(9, 1)].symbol(), "▕");
         let mut buf = Buffer::empty(area);
-        assert_eq!(FieldShape::Bar(Edge::Full).draw(&mut buf, area, c, bg), Rect::new(1, 0, 9, 3));
+        assert_eq!(
+            FieldShape::Bar(Edge::Full).draw(&mut buf, area, c, bg),
+            Rect::new(1, 0, 9, 3)
+        );
         assert_eq!(buf[(0, 2)].bg, c.color(), "full edge is painted background");
         let mut buf = Buffer::empty(area);
-        assert_eq!(FieldShape::Rule.draw(&mut buf, area, c, bg), Rect::new(0, 1, 10, 1));
+        assert_eq!(
+            FieldShape::Rule.draw(&mut buf, area, c, bg),
+            Rect::new(0, 1, 10, 1)
+        );
         assert_eq!(buf[(5, 0)].symbol(), "─");
         assert_eq!(buf[(5, 2)].symbol(), "─");
         let mut buf = Buffer::empty(area);
-        assert_eq!(FieldShape::Prompt.draw(&mut buf, area, c, bg), Rect::new(2, 0, 8, 3));
+        assert_eq!(
+            FieldShape::Prompt.draw(&mut buf, area, c, bg),
+            Rect::new(2, 0, 8, 3)
+        );
         assert_eq!(buf[(0, 0)].symbol(), "❯");
         let mut buf = Buffer::empty(area);
-        assert_eq!(FieldShape::Band.draw(&mut buf, area, c, bg), Rect::new(3, 1, 7, 1));
+        assert_eq!(
+            FieldShape::Band.draw(&mut buf, area, c, bg),
+            Rect::new(3, 1, 7, 1)
+        );
         assert_eq!(buf[(1, 1)].symbol(), "›");
         assert_eq!(FieldShape::Band.padding(), 0);
         assert_eq!(FieldShape::Tall(Edge::Thin).vertical_chrome(), 2);
@@ -648,7 +785,14 @@ mod tests {
     fn borders_draw_inside_buffer_only() {
         let mut buf = Buffer::empty(Rect::new(0, 0, 10, 4));
         for b in Border::ALL {
-            b.draw_titled(&mut buf, Rect::new(2, 1, 20, 10), Rgb(1, 2, 3), Rgb(0, 0, 0), "Title", Alignment::Left);
+            b.draw_titled(
+                &mut buf,
+                Rect::new(2, 1, 20, 10),
+                Rgb(1, 2, 3),
+                Rgb(0, 0, 0),
+                "Title",
+                Alignment::Left,
+            );
         }
         assert_eq!(buf[(2, 1)].symbol(), Border::Blank.glyphs()[0]);
         let mut buf = Buffer::empty(Rect::new(0, 0, 10, 4));

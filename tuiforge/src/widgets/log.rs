@@ -117,8 +117,16 @@ impl LogViewState {
     }
 
     pub fn push(&mut self, level: LogLevel, text: impl Into<String>) {
-        let time = if self.timestamps { Some(local_hms()) } else { None };
-        self.lines.push_back(LogEntry { time, level, text: text.into() });
+        let time = if self.timestamps {
+            Some(local_hms())
+        } else {
+            None
+        };
+        self.lines.push_back(LogEntry {
+            time,
+            level,
+            text: text.into(),
+        });
         if let Some(max) = self.max_lines {
             while self.lines.len() > max {
                 self.lines.pop_front();
@@ -175,7 +183,10 @@ impl LogViewState {
         if self.filter.is_empty() || self.filter_mode == LogFilter::Highlight {
             self.lines.len()
         } else {
-            self.lines.iter().filter(|e| e.text.to_lowercase().contains(&self.filter.to_lowercase())).count()
+            self.lines
+                .iter()
+                .filter(|e| e.text.to_lowercase().contains(&self.filter.to_lowercase()))
+                .count()
         }
     }
 }
@@ -343,14 +354,24 @@ impl StatefulWidget for LogView {
 
         // Reserve scrollbar column
         let content_w = inner.width.saturating_sub(1);
-        let _content_area = Rect { x: inner.x, y: inner.y, width: content_w, height: inner.height };
+        let _content_area = Rect {
+            x: inner.x,
+            y: inner.y,
+            width: content_w,
+            height: inner.height,
+        };
 
         // Compute visible entries
-        let entries: Vec<&LogEntry> = if state.filter.is_empty() || state.filter_mode == LogFilter::Highlight {
-            state.lines.iter().collect()
-        } else {
-            state.lines.iter().filter(|e| e.text.to_lowercase().contains(&state.filter.to_lowercase())).collect()
-        };
+        let entries: Vec<&LogEntry> =
+            if state.filter.is_empty() || state.filter_mode == LogFilter::Highlight {
+                state.lines.iter().collect()
+            } else {
+                state
+                    .lines
+                    .iter()
+                    .filter(|e| e.text.to_lowercase().contains(&state.filter.to_lowercase()))
+                    .collect()
+            };
 
         let total = entries.len();
         let viewport = inner.height as usize;
@@ -371,16 +392,31 @@ impl StatefulWidget for LogView {
 
             // timestamp
             if self.timestamps
-                && let Some((h, m, s)) = entry.time {
-                    let ts = format!("{:02}:{:02}:{:02} ", h, m, s);
-                    put(buf, x, y, &ts, ts.len() as u16, st(th.text_muted, th.surface));
-                    x += ts.len() as u16;
-                }
+                && let Some((h, m, s)) = entry.time
+            {
+                let ts = format!("{:02}:{:02}:{:02} ", h, m, s);
+                put(
+                    buf,
+                    x,
+                    y,
+                    &ts,
+                    ts.len() as u16,
+                    st(th.text_muted, th.surface),
+                );
+                x += ts.len() as u16;
+            }
 
             // level column
             if self.level_column {
                 let level_badge = entry.level.label();
-                put(buf, x, y, level_badge, level_badge.len() as u16, st(fg, th.surface).add_modifier(Modifier::BOLD));
+                put(
+                    buf,
+                    x,
+                    y,
+                    level_badge,
+                    level_badge.len() as u16,
+                    st(fg, th.surface).add_modifier(Modifier::BOLD),
+                );
                 x += level_badge.len() as u16 + 1;
             }
 
@@ -397,11 +433,25 @@ impl StatefulWidget for LogView {
                     for mat in lower_text.match_indices(&lower_filter) {
                         let pre = &text[last..mat.0];
                         let pre_w = pre.len() as u16;
-                        put(buf, cx, y, pre, pre_w.min(remain.saturating_sub(cx - x)), st(th.text, th.surface));
+                        put(
+                            buf,
+                            cx,
+                            y,
+                            pre,
+                            pre_w.min(remain.saturating_sub(cx - x)),
+                            st(th.text, th.surface),
+                        );
                         cx += pre_w;
                         let matched = &text[mat.0..mat.0 + state.filter.len()];
                         let mat_w = matched.len() as u16;
-                        put(buf, cx, y, matched, mat_w.min(remain.saturating_sub(cx - x)), st(th.accent, th.surface).add_modifier(Modifier::BOLD));
+                        put(
+                            buf,
+                            cx,
+                            y,
+                            matched,
+                            mat_w.min(remain.saturating_sub(cx - x)),
+                            st(th.accent, th.surface).add_modifier(Modifier::BOLD),
+                        );
                         cx += mat_w;
                         last = mat.0 + state.filter.len();
                         if cx >= x + remain {
@@ -410,19 +460,33 @@ impl StatefulWidget for LogView {
                     }
                     if last < text.len() && cx < x + remain {
                         let tail = &text[last..];
-                        put(buf, cx, y, tail, remain.saturating_sub(cx - x), st(th.text, th.surface));
+                        put(
+                            buf,
+                            cx,
+                            y,
+                            tail,
+                            remain.saturating_sub(cx - x),
+                            st(th.text, th.surface),
+                        );
                     }
                 } else {
                     let display = crate::draw::truncate(text, remain as usize);
                     put(buf, x, y, &display, remain, st(th.text, th.surface));
                 }
             }
-
         }
 
         // Scrollbar
-        let sb_area = Rect { x: inner.x + content_w, y: inner.y, width: 1, height: inner.height };
-        Scrollbar::vertical(total, viewport).offset(state.scroll).theme(&th).render(sb_area, buf, &mut state.vbar);
+        let sb_area = Rect {
+            x: inner.x + content_w,
+            y: inner.y,
+            width: 1,
+            height: inner.height,
+        };
+        Scrollbar::vertical(total, viewport)
+            .offset(state.scroll)
+            .theme(&th)
+            .render(sb_area, buf, &mut state.vbar);
     }
 }
 

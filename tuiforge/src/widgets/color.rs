@@ -92,7 +92,15 @@ pub struct Swatches {
 
 impl Swatches {
     pub fn new(colors: &[Rgb]) -> Self {
-        Self { colors: colors.to_vec(), labels: Vec::new(), cell_width: 4, focused: false, enabled: true, bg: None, theme: None }
+        Self {
+            colors: colors.to_vec(),
+            labels: Vec::new(),
+            cell_width: 4,
+            focused: false,
+            enabled: true,
+            bg: None,
+            theme: None,
+        }
     }
 
     /// Focused: the selection bracket uses the cursor colour.
@@ -153,12 +161,21 @@ impl StatefulWidget for Swatches {
             if x + 1 >= area.right() {
                 break;
             }
-            let cell_rect = Rect { x, y, width: self.cell_width, height: 1 };
+            let cell_rect = Rect {
+                x,
+                y,
+                width: self.cell_width,
+                height: 1,
+            };
             state.hits[i].set_area(cell_rect);
 
             // swatch: ██ (dimmed when disabled)
             let swatch_w = self.cell_width.min(2);
-            let c = if self.enabled { *color } else { color.blend(bg, 0.6) };
+            let c = if self.enabled {
+                *color
+            } else {
+                color.blend(bg, 0.6)
+            };
             for sx in 0..swatch_w {
                 put(buf, x + sx, y, " ", 1, st(c, c));
             }
@@ -172,16 +189,35 @@ impl StatefulWidget for Swatches {
                 None
             };
             if let Some(bc) = bracket {
-                put(buf, x - 1, y, "[", 1, st(bc, bg).add_modifier(Modifier::BOLD));
+                put(
+                    buf,
+                    x - 1,
+                    y,
+                    "[",
+                    1,
+                    st(bc, bg).add_modifier(Modifier::BOLD),
+                );
                 if x + swatch_w < area.x + area.width {
-                    put(buf, x + swatch_w, y, "]", 1, st(bc, bg).add_modifier(Modifier::BOLD));
+                    put(
+                        buf,
+                        x + swatch_w,
+                        y,
+                        "]",
+                        1,
+                        st(bc, bg).add_modifier(Modifier::BOLD),
+                    );
                 }
             }
 
             // label
             if has_labels && y + 1 < area.y + area.height {
                 let label = self.labels.get(i).map(|s| s.as_str()).unwrap_or("");
-                let label_rect = Rect { x, y: y + 1, width: self.cell_width, height: 1 };
+                let label_rect = Rect {
+                    x,
+                    y: y + 1,
+                    width: self.cell_width,
+                    height: 1,
+                };
                 let display = crate::draw::truncate(label, self.cell_width as usize);
                 put_centered(buf, label_rect, &display, st(th.text_muted, bg));
             }
@@ -196,9 +232,9 @@ impl StatefulWidget for Swatches {
 /// HSL color picker state.
 #[derive(Clone, Debug)]
 pub struct ColorPickerState {
-    pub h: f32,    // 0..360
-    pub s: f32,    // 0..1
-    pub l: f32,    // 0..1
+    pub h: f32, // 0..360
+    pub s: f32, // 0..1
+    pub l: f32, // 0..1
     pub hits: Vec<HitBox>,
     pub dragging: Option<usize>, // 0=hue, 1=sl
     hue_rect: Rect,
@@ -280,13 +316,17 @@ impl Interactive for ColorPickerState {
             MouseEventKind::Down(MouseButton::Left) => {
                 if mouse_in(self.hue_rect, &m) {
                     self.dragging = Some(0);
-                    let frac = ((pos.x - self.hue_rect.x) as f32 / self.hue_rect.width as f32).clamp(0.0, 1.0);
+                    let frac = ((pos.x - self.hue_rect.x) as f32 / self.hue_rect.width as f32)
+                        .clamp(0.0, 1.0);
                     self.h = frac * 360.0;
                     return Outcome::Changed;
                 } else if mouse_in(self.sl_rect, &m) {
                     self.dragging = Some(1);
-                    let s_frac = ((pos.x - self.sl_rect.x) as f32 / self.sl_rect.width as f32).clamp(0.0, 1.0);
-                    let l_frac = 1.0 - ((pos.y - self.sl_rect.y) as f32 / self.sl_rect.height as f32).clamp(0.0, 1.0);
+                    let s_frac = ((pos.x - self.sl_rect.x) as f32 / self.sl_rect.width as f32)
+                        .clamp(0.0, 1.0);
+                    let l_frac = 1.0
+                        - ((pos.y - self.sl_rect.y) as f32 / self.sl_rect.height as f32)
+                            .clamp(0.0, 1.0);
                     self.s = s_frac;
                     self.l = l_frac;
                     return Outcome::Changed;
@@ -295,18 +335,23 @@ impl Interactive for ColorPickerState {
             MouseEventKind::Drag(MouseButton::Left) => {
                 if let Some(0) = self.dragging {
                     if mouse_in(self.hue_rect, &m) {
-                        let frac = ((pos.x - self.hue_rect.x) as f32 / self.hue_rect.width as f32).clamp(0.0, 1.0);
+                        let frac = ((pos.x - self.hue_rect.x) as f32 / self.hue_rect.width as f32)
+                            .clamp(0.0, 1.0);
                         self.h = frac * 360.0;
                         return Outcome::Changed;
                     }
                 } else if let Some(1) = self.dragging
-                    && mouse_in(self.sl_rect, &m) {
-                        let s_frac = ((pos.x - self.sl_rect.x) as f32 / self.sl_rect.width as f32).clamp(0.0, 1.0);
-                        let l_frac = 1.0 - ((pos.y - self.sl_rect.y) as f32 / self.sl_rect.height as f32).clamp(0.0, 1.0);
-                        self.s = s_frac;
-                        self.l = l_frac;
-                        return Outcome::Changed;
-                    }
+                    && mouse_in(self.sl_rect, &m)
+                {
+                    let s_frac = ((pos.x - self.sl_rect.x) as f32 / self.sl_rect.width as f32)
+                        .clamp(0.0, 1.0);
+                    let l_frac = 1.0
+                        - ((pos.y - self.sl_rect.y) as f32 / self.sl_rect.height as f32)
+                            .clamp(0.0, 1.0);
+                    self.s = s_frac;
+                    self.l = l_frac;
+                    return Outcome::Changed;
+                }
             }
             MouseEventKind::Up(MouseButton::Left) => {
                 self.dragging = None;
@@ -355,9 +400,24 @@ impl StatefulWidget for ColorPicker {
         let preview_h = 3;
         let sl_h = area.height.saturating_sub(hue_h + preview_h + 2);
 
-        let hue_rect = Rect { x: area.x, y: area.y, width: area.width, height: hue_h };
-        let sl_rect = Rect { x: area.x, y: area.y + hue_h + 1, width: area.width, height: sl_h };
-        let preview_rect = Rect { x: area.x, y: area.y + hue_h + 1 + sl_h + 1, width: area.width, height: preview_h };
+        let hue_rect = Rect {
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            height: hue_h,
+        };
+        let sl_rect = Rect {
+            x: area.x,
+            y: area.y + hue_h + 1,
+            width: area.width,
+            height: sl_h,
+        };
+        let preview_rect = Rect {
+            x: area.x,
+            y: area.y + hue_h + 1 + sl_h + 1,
+            width: area.width,
+            height: preview_h,
+        };
 
         state.hue_rect = hue_rect;
         state.sl_rect = sl_rect;
@@ -373,7 +433,14 @@ impl StatefulWidget for ColorPicker {
         // Hue cursor
         let hue_cursor_x = hue_rect.x + ((state.h / 360.0) * hue_rect.width as f32) as u16;
         if hue_cursor_x < hue_rect.x + hue_rect.width {
-            put(buf, hue_cursor_x, hue_rect.y, "┼", 1, st(th.cursor_fg, th.surface).add_modifier(Modifier::BOLD));
+            put(
+                buf,
+                hue_cursor_x,
+                hue_rect.y,
+                "┼",
+                1,
+                st(th.cursor_fg, th.surface).add_modifier(Modifier::BOLD),
+            );
         }
 
         // SL grid using half blocks
@@ -383,7 +450,14 @@ impl StatefulWidget for ColorPicker {
                 let s_frac = col as f32 / sl_rect.width.max(1) as f32;
                 let l_frac = 1.0 - (row as f32 / sl_rect.height.max(1) as f32);
                 let color = hsl_to_rgb(state.h, s_frac, l_frac);
-                put(buf, sl_rect.x + col, sl_rect.y + row, "▀", 1, st(color, color));
+                put(
+                    buf,
+                    sl_rect.x + col,
+                    sl_rect.y + row,
+                    "▀",
+                    1,
+                    st(color, color),
+                );
             }
         }
 
@@ -391,7 +465,14 @@ impl StatefulWidget for ColorPicker {
         let sl_cursor_x = sl_rect.x + (state.s * sl_rect.width as f32) as u16;
         let sl_cursor_y = sl_rect.y + ((1.0 - state.l) * sl_rect.height as f32) as u16;
         if sl_cursor_x < sl_rect.x + sl_rect.width && sl_cursor_y < sl_rect.y + sl_rect.height {
-            put(buf, sl_cursor_x, sl_cursor_y, "◆", 1, st(th.cursor_fg, th.surface).add_modifier(Modifier::BOLD));
+            put(
+                buf,
+                sl_cursor_x,
+                sl_cursor_y,
+                "◆",
+                1,
+                st(th.cursor_fg, th.surface).add_modifier(Modifier::BOLD),
+            );
         }
 
         // Preview + text
@@ -399,14 +480,40 @@ impl StatefulWidget for ColorPicker {
         let preview_w = 6;
         for py in 0..preview_h {
             for px in 0..preview_w {
-                put(buf, preview_rect.x + px, preview_rect.y + py, " ", 1, st(rgb, rgb));
+                put(
+                    buf,
+                    preview_rect.x + px,
+                    preview_rect.y + py,
+                    " ",
+                    1,
+                    st(rgb, rgb),
+                );
             }
         }
 
         let hex = format!("#{:02X}{:02X}{:02X}", rgb.0, rgb.1, rgb.2);
-        put(buf, preview_rect.x + preview_w + 2, preview_rect.y, &hex, hex.len() as u16, st(th.text, th.surface));
-        let hsl_str = format!("hsl({:.0}, {:.0}%, {:.0}%)", state.h, state.s * 100.0, state.l * 100.0);
-        put(buf, preview_rect.x + preview_w + 2, preview_rect.y + 1, &hsl_str, hsl_str.len() as u16, st(th.text_muted, th.surface));
+        put(
+            buf,
+            preview_rect.x + preview_w + 2,
+            preview_rect.y,
+            &hex,
+            hex.len() as u16,
+            st(th.text, th.surface),
+        );
+        let hsl_str = format!(
+            "hsl({:.0}, {:.0}%, {:.0}%)",
+            state.h,
+            state.s * 100.0,
+            state.l * 100.0
+        );
+        put(
+            buf,
+            preview_rect.x + preview_w + 2,
+            preview_rect.y + 1,
+            &hsl_str,
+            hsl_str.len() as u16,
+            st(th.text_muted, th.surface),
+        );
     }
 }
 
@@ -446,7 +553,11 @@ fn rgb_to_hsl(rgb: Rgb) -> (f32, f32, f32) {
     if delta < 1e-6 {
         return (0.0, 0.0, l);
     }
-    let s = if l < 0.5 { delta / (max + min) } else { delta / (2.0 - max - min) };
+    let s = if l < 0.5 {
+        delta / (max + min)
+    } else {
+        delta / (2.0 - max - min)
+    };
     let h = if (max - r).abs() < 1e-6 {
         60.0 * (((g - b) / delta) % 6.0)
     } else if (max - g).abs() < 1e-6 {
@@ -514,20 +625,42 @@ impl Widget for GradientBar {
         if let Some(pos) = self.marker {
             let marker_x = area.x + (pos.clamp(0.0, 1.0) * area.width as f32) as u16;
             if marker_x < area.x + area.width {
-                put(buf, marker_x, bar_y, "▼", 1, st(th.cursor_fg, th.surface).add_modifier(Modifier::BOLD));
+                put(
+                    buf,
+                    marker_x,
+                    bar_y,
+                    "▼",
+                    1,
+                    st(th.cursor_fg, th.surface).add_modifier(Modifier::BOLD),
+                );
             }
         }
 
         // labels
         if let Some((min, max)) = &self.labels
-            && area.height > 1 {
-                let label_y = area.y + 1;
-                put(buf, area.x, label_y, min, min.len() as u16, st(th.text_muted, th.surface));
-                let max_w = max.len() as u16;
-                if area.width > max_w {
-                    put(buf, area.x + area.width - max_w, label_y, max, max_w, st(th.text_muted, th.surface));
-                }
+            && area.height > 1
+        {
+            let label_y = area.y + 1;
+            put(
+                buf,
+                area.x,
+                label_y,
+                min,
+                min.len() as u16,
+                st(th.text_muted, th.surface),
+            );
+            let max_w = max.len() as u16;
+            if area.width > max_w {
+                put(
+                    buf,
+                    area.x + area.width - max_w,
+                    label_y,
+                    max,
+                    max_w,
+                    st(th.text_muted, th.surface),
+                );
             }
+        }
     }
 }
 
@@ -606,7 +739,14 @@ impl Widget for ThemePalette {
             let label_x = x + 3;
             if label_x < area.x + area.width {
                 let label_w = swatch_w.saturating_sub(3);
-                put(buf, label_x, y, label, label_w, st(th.text_muted, th.surface));
+                put(
+                    buf,
+                    label_x,
+                    y,
+                    label,
+                    label_w,
+                    st(th.text_muted, th.surface),
+                );
             }
         }
     }

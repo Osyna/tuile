@@ -6,19 +6,23 @@ use std::time::Instant;
 use tuiforge::prelude::*;
 
 pub mod ai;
+pub mod bigmenu;
 pub mod charts;
 pub mod content;
 pub mod controls;
 pub mod dashboard;
 pub mod data;
 pub mod feedback;
+pub mod forms;
 pub mod inputs;
 pub mod layout;
 pub mod loading;
 pub mod monitor;
 pub mod navigation;
+pub mod notifications;
 pub mod options;
 pub mod settings;
+pub mod sidebars;
 pub mod spinners;
 pub mod themes;
 pub mod welcome;
@@ -46,14 +50,26 @@ impl Ctx {
     }
     /// Standard tween duration honouring reduce-motion.
     pub fn dur(&self, ms: u64) -> Duration {
-        if self.reduce_motion { Duration::ZERO } else { Duration::from_millis(ms) }
+        if self.reduce_motion {
+            Duration::ZERO
+        } else {
+            Duration::from_millis(ms)
+        }
     }
 }
 
 /// Dim rounded card with a bright title; returns the inner rect. Used by shell-owned pages.
 pub fn card(buf: &mut Buffer, area: Rect, th: &Theme, title: &str) -> Rect {
     let style = st(th.text, th.background).add_modifier(Modifier::BOLD);
-    Border::Round.draw_titled_with(buf, area, th.border_blurred, th.background, title, Alignment::Left, style)
+    Border::Round.draw_titled_with(
+        buf,
+        area,
+        th.border_blurred,
+        th.background,
+        title,
+        Alignment::Left,
+        style,
+    )
 }
 
 pub trait Page {
@@ -89,14 +105,18 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(controls::ControlsPage::default()),
         Box::new(inputs::InputsPage::default()),
         Box::new(navigation::NavigationPage::default()),
+        Box::new(sidebars::SidebarsPage::default()),
+        Box::new(bigmenu::BigMenuPage::default()),
         Box::new(data::DataPage::default()),
         Box::new(charts::ChartsPage::default()),
         Box::new(feedback::FeedbackPage::default()),
+        Box::new(notifications::NotificationsPage::default()),
         Box::new(loading::LoadingPage::default()),
         Box::new(spinners::SpinnersPage::default()),
         Box::new(ai::AiPage::default()),
         Box::new(layout::LayoutPage::default()),
         Box::new(content::ContentPage::default()),
+        Box::new(forms::FormsPage::default()),
         Box::new(settings::SettingsPage::default()),
         Box::new(options::OptionsPage::default()),
         Box::new(themes::ThemesPage::default()),

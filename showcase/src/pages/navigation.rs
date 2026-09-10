@@ -135,11 +135,14 @@ impl Page for NavigationPage {
                 items: vec![
                     MenuItem::action(1, "New"),
                     MenuItem::action(2, "Open"),
-                    MenuItem::submenu("Recent", vec![
-                        MenuItem::action(10, "project-1.rs"),
-                        MenuItem::action(11, "project-2.rs"),
-                        MenuItem::action(12, "project-3.rs"),
-                    ]),
+                    MenuItem::submenu(
+                        "Recent",
+                        vec![
+                            MenuItem::action(10, "project-1.rs"),
+                            MenuItem::action(11, "project-2.rs"),
+                            MenuItem::action(12, "project-3.rs"),
+                        ],
+                    ),
                     MenuItem::separator(),
                     MenuItem::action(3, "Save").shortcut("^S"),
                     MenuItem::action(4, "Save As"),
@@ -172,10 +175,7 @@ impl Page for NavigationPage {
             },
             MenuDef {
                 title: "Help".to_string(),
-                items: vec![
-                    MenuItem::action(40, "Docs"),
-                    MenuItem::action(41, "About"),
-                ],
+                items: vec![MenuItem::action(40, "Docs"), MenuItem::action(41, "About")],
             },
         ];
         MenuBar::new(menus)
@@ -185,10 +185,17 @@ impl Page for NavigationPage {
 
         // breadcrumbs
         let breadcrumb_area = Rect::new(area.x, area.y + 1, area.width, 1);
-        Breadcrumbs::new(vec!["Home".to_string(), "Projects".to_string(), "tuiforge".to_string(), "showcase".to_string(), "pages".to_string(), "navigation.rs".to_string()])
-            .focused(self.focus.is(Id::Breadcrumbs))
-            .theme(th)
-            .render(breadcrumb_area, buf, &mut self.breadcrumbs);
+        Breadcrumbs::new(vec![
+            "Home".to_string(),
+            "Projects".to_string(),
+            "tuiforge".to_string(),
+            "showcase".to_string(),
+            "pages".to_string(),
+            "navigation.rs".to_string(),
+        ])
+        .focused(self.focus.is(Id::Breadcrumbs))
+        .theme(th)
+        .render(breadcrumb_area, buf, &mut self.breadcrumbs);
 
         // main content area
         let content_y = area.y + 2;
@@ -201,16 +208,39 @@ impl Page for NavigationPage {
 
         // two columns
         let col_w = content.width / 2;
-        let left = Rect::new(content.x, content.y, col_w.saturating_sub(1), content.height);
-        let right = Rect::new(content.x + col_w, content.y, content.width.saturating_sub(col_w), content.height);
+        let left = Rect::new(
+            content.x,
+            content.y,
+            col_w.saturating_sub(1),
+            content.height,
+        );
+        let right = Rect::new(
+            content.x + col_w,
+            content.y,
+            content.width.saturating_sub(col_w),
+            content.height,
+        );
 
         // LEFT column: split into cards
         let left_half = left.height / 2;
         let left_card1 = Rect::new(left.x, left.y, left.width, left_half.saturating_sub(1));
-        let left_card2 = Rect::new(left.x, left.y + left_half, left.width, left.height.saturating_sub(left_half));
+        let left_card2 = Rect::new(
+            left.x,
+            left.y + left_half,
+            left.width,
+            left.height.saturating_sub(left_half),
+        );
 
         // Tab styles card
-        let left_inner = Border::Round.draw_titled_with(buf, left_card1, th.border_blurred, th.background, "Tab styles", Alignment::Left, tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD));
+        let left_inner = Border::Round.draw_titled_with(
+            buf,
+            left_card1,
+            th.border_blurred,
+            th.background,
+            "Tab styles",
+            Alignment::Left,
+            tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD),
+        );
         let mut tab_y = left_inner.y;
 
         // Underline
@@ -221,18 +251,31 @@ impl Page for NavigationPage {
                 .focused(self.focus.is(Id::UnderlineTabs))
                 .now(ctx.now)
                 .theme(th)
-                .render(Rect::new(left_inner.x, tab_y, left_inner.width, 2), buf, &mut self.underline_tabs);
+                .render(
+                    Rect::new(left_inner.x, tab_y, left_inner.width, 2),
+                    buf,
+                    &mut self.underline_tabs,
+                );
             tab_y += 3;
         }
 
         // Boxed
         if tab_y + 2 <= left_inner.bottom() {
-            let items: Vec<TabItem> = vec!["Files".into(), "Search".into(), TabItem::new("Git").closable(true), "Debug".into()];
+            let items: Vec<TabItem> = vec![
+                "Files".into(),
+                "Search".into(),
+                TabItem::new("Git").closable(true),
+                "Debug".into(),
+            ];
             TabBar::new(items)
                 .style(TabStyle::Boxed)
                 .focused(self.focus.is(Id::BoxedTabs))
                 .theme(th)
-                .render(Rect::new(left_inner.x, tab_y, left_inner.width, 3), buf, &mut self.boxed_tabs);
+                .render(
+                    Rect::new(left_inner.x, tab_y, left_inner.width, 3),
+                    buf,
+                    &mut self.boxed_tabs,
+                );
             tab_y += 4;
         }
 
@@ -247,36 +290,66 @@ impl Page for NavigationPage {
                 .style(TabStyle::Pills)
                 .focused(self.focus.is(Id::PillsTabs))
                 .theme(th)
-                .render(Rect::new(left_inner.x, tab_y, left_inner.width, 1), buf, &mut self.pills_tabs);
+                .render(
+                    Rect::new(left_inner.x, tab_y, left_inner.width, 1),
+                    buf,
+                    &mut self.pills_tabs,
+                );
             tab_y += 2;
         }
 
         // Segmented
         if tab_y < left_inner.bottom() {
-            let items: Vec<TabItem> = vec!["Day".into(), "Week".into(), "Month".into(), "Year".into()];
+            let items: Vec<TabItem> =
+                vec!["Day".into(), "Week".into(), "Month".into(), "Year".into()];
             TabBar::new(items)
                 .style(TabStyle::Segmented)
                 .focused(self.focus.is(Id::SegmentedTabs))
                 .theme(th)
-                .render(Rect::new(left_inner.x, tab_y, left_inner.width, 1), buf, &mut self.segmented_tabs);
+                .render(
+                    Rect::new(left_inner.x, tab_y, left_inner.width, 1),
+                    buf,
+                    &mut self.segmented_tabs,
+                );
             tab_y += 2;
         }
 
         // Minimal
         if tab_y < left_inner.bottom() {
-            let items: Vec<TabItem> = vec!["Overview".into(), "Details".into(), TabItem::new("Settings").disabled(true)];
+            let items: Vec<TabItem> = vec![
+                "Overview".into(),
+                "Details".into(),
+                TabItem::new("Settings").disabled(true),
+            ];
             TabBar::new(items)
                 .style(TabStyle::Minimal)
                 .focused(self.focus.is(Id::MinimalTabs))
                 .theme(th)
-                .render(Rect::new(left_inner.x, tab_y, left_inner.width, 1), buf, &mut self.minimal_tabs);
+                .render(
+                    Rect::new(left_inner.x, tab_y, left_inner.width, 1),
+                    buf,
+                    &mut self.minimal_tabs,
+                );
         }
 
         // Lower card: TreeView and Breadcrumbs/Paginator
-        let lower_inner = Border::Round.draw_titled_with(buf, left_card2, th.border_blurred, th.background, "TreeView & Navigation", Alignment::Left, tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD));
+        let lower_inner = Border::Round.draw_titled_with(
+            buf,
+            left_card2,
+            th.border_blurred,
+            th.background,
+            "TreeView & Navigation",
+            Alignment::Left,
+            tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD),
+        );
         let tree_h = (lower_inner.height * 2) / 3;
         let tree_area = Rect::new(lower_inner.x, lower_inner.y, lower_inner.width, tree_h);
-        let nav_area = Rect::new(lower_inner.x, lower_inner.y + tree_h, lower_inner.width, lower_inner.height.saturating_sub(tree_h));
+        let nav_area = Rect::new(
+            lower_inner.x,
+            lower_inner.y + tree_h,
+            lower_inner.width,
+            lower_inner.height.saturating_sub(tree_h),
+        );
 
         // Mini tree
         TreeView::new(self.tree_roots.clone())
@@ -287,27 +360,69 @@ impl Page for NavigationPage {
 
         // Breadcrumbs
         if nav_area.height >= 3 {
-            Breadcrumbs::new(vec!["Home".to_string(), "Docs".to_string(), "API".to_string()])
-                .focused(false)
-                .theme(th)
-                .render(Rect::new(nav_area.x, nav_area.y, nav_area.width, 1), buf, &mut BreadcrumbsState::new());
-            
+            Breadcrumbs::new(vec![
+                "Home".to_string(),
+                "Docs".to_string(),
+                "API".to_string(),
+            ])
+            .focused(false)
+            .theme(th)
+            .render(
+                Rect::new(nav_area.x, nav_area.y, nav_area.width, 1),
+                buf,
+                &mut BreadcrumbsState::new(),
+            );
+
             // Paginator
             Paginator::new(20)
                 .window(1)
                 .focused(false)
                 .theme(th)
-                .render(Rect::new(nav_area.x, nav_area.y + 2, nav_area.width, 1), buf, &mut PaginatorState::new());
+                .render(
+                    Rect::new(nav_area.x, nav_area.y + 2, nav_area.width, 1),
+                    buf,
+                    &mut PaginatorState::new(),
+                );
         }
 
         // RIGHT: tabbed content on top, the btop-style big-font menu below when there is room
         let menu_h = if right.height >= 30 { 13 } else { 0 };
-        let (right, big_area) = (Rect { height: right.height - menu_h, ..right }, Rect { y: right.bottom() - menu_h, height: menu_h, ..right });
-        let right_inner = Border::Round.draw_titled_with(buf, right, th.border_blurred, th.background, "Tabbed Content", Alignment::Left, tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD));
+        let (right, big_area) = (
+            Rect {
+                height: right.height - menu_h,
+                ..right
+            },
+            Rect {
+                y: right.bottom() - menu_h,
+                height: menu_h,
+                ..right
+            },
+        );
+        let right_inner = Border::Round.draw_titled_with(
+            buf,
+            right,
+            th.border_blurred,
+            th.background,
+            "Tabbed Content",
+            Alignment::Left,
+            tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD),
+        );
         if menu_h > 0 {
-            let inner = Border::Round.draw_titled_with(buf, big_area, th.border_blurred, th.background, "Big menu (BigMenu · btop style, also on Monitor: m)", Alignment::Left, tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD));
+            let inner = Border::Round.draw_titled_with(
+                buf,
+                big_area,
+                th.border_blurred,
+                th.background,
+                "Big menu (BigMenu · btop style, also on Monitor: m)",
+                Alignment::Left,
+                tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD),
+            );
             let items = ["OPTIONS", "HELP", "QUIT"];
-            BigMenu::new(&items).gap(1).focused(self.focus.is(Id::BigMenu)).theme(th).render(inner, buf, &mut self.big_menu);
+            BigMenu::new(&items)
+                .gap(1)
+                .focused(self.focus.is(Id::BigMenu))
+                .theme(th)
+                .render(inner, buf, &mut self.big_menu);
         }
 
         let tabs_items = vec!["List".into(), "Tree".into(), "Multi-select".into()];
@@ -328,8 +443,20 @@ impl Page for NavigationPage {
                     let mut list_area = content_rect;
                     if !self.list_filter.is_empty() {
                         let filter_y = list_area.y;
-                        put(buf, list_area.x, filter_y, &format!("Filter: /{}", self.list_filter), list_area.width, tuiforge::draw::st(th.text_muted, th.surface));
-                        list_area = Rect::new(list_area.x, list_area.y + 1, list_area.width, list_area.height.saturating_sub(1));
+                        put(
+                            buf,
+                            list_area.x,
+                            filter_y,
+                            &format!("Filter: /{}", self.list_filter),
+                            list_area.width,
+                            tuiforge::draw::st(th.text_muted, th.surface),
+                        );
+                        list_area = Rect::new(
+                            list_area.x,
+                            list_area.y + 1,
+                            list_area.width,
+                            list_area.height.saturating_sub(1),
+                        );
                     }
 
                     let mut entries: Vec<ListEntry> = Vec::with_capacity(36);
@@ -337,7 +464,9 @@ impl Page for NavigationPage {
                         if i > 1 && i % 5 == 1 {
                             entries.push(ListEntry::new("").separator(true));
                         }
-                        let mut e = ListEntry::new(format!("Item {}", i)).icon("▫").detail(&format!("{}ms", i * 10));
+                        let mut e = ListEntry::new(format!("Item {}", i))
+                            .icon("◦")
+                            .detail(&format!("{}ms", i * 10));
                         if i == 15 {
                             e = e.disabled(true);
                         }
@@ -360,9 +489,12 @@ impl Page for NavigationPage {
                 2 => {
                     // Multi-select
                     let entries: Vec<ListEntry> = vec![
-                        "Option A", "Option B", "Option C", "Option D", "Option E",
-                        "Option F", "Option G", "Option H", "Option I", "Option J",
-                    ].into_iter().map(ListEntry::new).collect();
+                        "Option A", "Option B", "Option C", "Option D", "Option E", "Option F",
+                        "Option G", "Option H", "Option I", "Option J",
+                    ]
+                    .into_iter()
+                    .map(ListEntry::new)
+                    .collect();
                     ListView::new(entries)
                         .multi_select(true)
                         .focused(self.focus.is(Id::List))
@@ -380,7 +512,11 @@ impl Page for NavigationPage {
                     .window(2)
                     .focused(self.focus.is(Id::Paginator))
                     .theme(th)
-                    .render(Rect::new(right_inner.x, pag_y, right_inner.width, 1), buf, &mut self.paginator);
+                    .render(
+                        Rect::new(right_inner.x, pag_y, right_inner.width, 1),
+                        buf,
+                        &mut self.paginator,
+                    );
             }
         }
 
@@ -451,8 +587,12 @@ impl Page for NavigationPage {
 
                 // 'm' key opens context menu at cursor position
                 if matches!(k.code, KeyCode::Char('m')) && self.focus.is(Id::List) {
-                    let cursor_y = self.list.hits.y + (self.list.cursor.saturating_sub(self.list.scroll)) as u16;
-                    self.context_menu.open_at(Position { x: self.list.hits.x + 10, y: cursor_y });
+                    let cursor_y = self.list.hits.y
+                        + (self.list.cursor.saturating_sub(self.list.scroll)) as u16;
+                    self.context_menu.open_at(Position {
+                        x: self.list.hits.x + 10,
+                        y: cursor_y,
+                    });
                     return Outcome::Changed;
                 }
 
@@ -493,7 +633,10 @@ impl Page for NavigationPage {
                 } else if self.focus.is(Id::BigMenu) {
                     out |= self.big_menu.handle_key(*k);
                     if let Some(i) = self.big_menu.take_activated() {
-                        ctx.notify(format!("Big menu: {}", ["Options", "Help", "Quit"][i.min(2)]), Variant::Primary);
+                        ctx.notify(
+                            format!("Big menu: {}", ["Options", "Help", "Quit"][i.min(2)]),
+                            Variant::Primary,
+                        );
                     }
                 }
             }
@@ -519,18 +662,39 @@ impl Page for NavigationPage {
                 out |= self.big_menu.handle_mouse(*m);
                 if let Some(i) = self.big_menu.take_activated() {
                     self.focus.set(Id::BigMenu);
-                    ctx.notify(format!("Big menu: {}", ["Options", "Help", "Quit"][i.min(2)]), Variant::Primary);
+                    ctx.notify(
+                        format!("Big menu: {}", ["Options", "Help", "Quit"][i.min(2)]),
+                        Variant::Primary,
+                    );
                 }
 
                 // right-click in list opens context menu
-                if matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(ratatui::crossterm::event::MouseButton::Right)) {
-                    self.context_menu.open_at(Position { x: m.column, y: m.row });
+                if matches!(
+                    m.kind,
+                    ratatui::crossterm::event::MouseEventKind::Down(
+                        ratatui::crossterm::event::MouseButton::Right
+                    )
+                ) {
+                    self.context_menu.open_at(Position {
+                        x: m.column,
+                        y: m.row,
+                    });
                     return Outcome::Changed;
                 }
 
                 // click outside context menu closes it
-                if self.context_menu.open && matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(ratatui::crossterm::event::MouseButton::Left)) {
-                    let pos = Position { x: m.column, y: m.row };
+                if self.context_menu.open
+                    && matches!(
+                        m.kind,
+                        ratatui::crossterm::event::MouseEventKind::Down(
+                            ratatui::crossterm::event::MouseButton::Left
+                        )
+                    )
+                {
+                    let pos = Position {
+                        x: m.column,
+                        y: m.row,
+                    };
                     if !self.context_menu.area.contains(pos) {
                         self.context_menu.close();
                         return Outcome::Changed;
@@ -542,27 +706,42 @@ impl Page for NavigationPage {
 
         // handle actions
         if let Some(action) = self.menu.take_action() {
-            ctx.notify(format!("Menu action: {}", action), tuiforge::theme::Variant::Primary);
+            ctx.notify(
+                format!("Menu action: {}", action),
+                tuiforge::theme::Variant::Primary,
+            );
             out = Outcome::Changed;
         }
 
         if let Some(action) = self.context_menu.take_action() {
-            ctx.notify(format!("Context action: {}", action), tuiforge::theme::Variant::Primary);
+            ctx.notify(
+                format!("Context action: {}", action),
+                tuiforge::theme::Variant::Primary,
+            );
             out = Outcome::Changed;
         }
 
         if let Some(seg) = self.breadcrumbs.take_clicked() {
-            ctx.notify(format!("Breadcrumb: {}", seg), tuiforge::theme::Variant::Primary);
+            ctx.notify(
+                format!("Breadcrumb: {}", seg),
+                tuiforge::theme::Variant::Primary,
+            );
             out = Outcome::Changed;
         }
 
         if let Some(activated) = self.list.take_activated() {
-            ctx.notify(format!("List activated: {}", activated), tuiforge::theme::Variant::Primary);
+            ctx.notify(
+                format!("List activated: {}", activated),
+                tuiforge::theme::Variant::Primary,
+            );
             out = Outcome::Changed;
         }
 
         if let Some(activated) = self.tree.take_activated() {
-            ctx.notify(format!("Tree activated: {:?}", activated), tuiforge::theme::Variant::Primary);
+            ctx.notify(
+                format!("Tree activated: {:?}", activated),
+                tuiforge::theme::Variant::Primary,
+            );
             out = Outcome::Changed;
         }
 

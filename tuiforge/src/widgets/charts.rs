@@ -19,8 +19,10 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::Widget;
 
-use crate::draw::{bold, fill, hbar, put, put_centered, put_right, st, truncate, vbar, width as text_width};
-use crate::theme::{Rgb, Theme, Variant, gradient as color_gradient, self};
+use crate::draw::{
+    bold, fill, hbar, put, put_centered, put_right, st, truncate, vbar, width as text_width,
+};
+use crate::theme::{self, Rgb, Theme, Variant, gradient as color_gradient};
 
 // ───────────────────────────── helpers ─────────────────────────────
 
@@ -32,7 +34,15 @@ pub fn nice_bounds(min: f64, max: f64) -> (f64, f64, f64) {
     let range = max - min;
     let exp = 10_f64.powf(range.log10().floor());
     let frac = range / exp;
-    let nice_range = if frac <= 1.0 { 1.0 } else if frac <= 2.0 { 2.0 } else if frac <= 5.0 { 5.0 } else { 10.0 } * exp;
+    let nice_range = if frac <= 1.0 {
+        1.0
+    } else if frac <= 2.0 {
+        2.0
+    } else if frac <= 5.0 {
+        5.0
+    } else {
+        10.0
+    } * exp;
     let tick_spacing = nice_range / 5.0;
     let nice_min = (min / tick_spacing).floor() * tick_spacing;
     let nice_max = (max / tick_spacing).ceil() * tick_spacing;
@@ -71,7 +81,11 @@ pub struct BrailleCanvas {
 impl BrailleCanvas {
     /// Create a canvas `width_cells` × `height_cells`.
     pub fn new(width_cells: usize, height_cells: usize) -> Self {
-        Self { width: width_cells, height: height_cells, cells: vec![(0, Rgb(0, 0, 0)); width_cells * height_cells] }
+        Self {
+            width: width_cells,
+            height: height_cells,
+            cells: vec![(0, Rgb(0, 0, 0)); width_cells * height_cells],
+        }
     }
 
     /// Set a single dot at pixel coordinates (x, y); coords are in dots (width*2, height*4).
@@ -85,8 +99,14 @@ impl BrailleCanvas {
         let dy = y % 4;
         // Braille bit layout: column 0: bits 0,1,2,6; column 1: bits 3,4,5,7 (bottom to top)
         let bit = match (dx, dy) {
-            (0, 0) => 0, (0, 1) => 1, (0, 2) => 2, (0, 3) => 6,
-            (1, 0) => 3, (1, 1) => 4, (1, 2) => 5, (1, 3) => 7,
+            (0, 0) => 0,
+            (0, 1) => 1,
+            (0, 2) => 2,
+            (0, 3) => 6,
+            (1, 0) => 3,
+            (1, 1) => 4,
+            (1, 2) => 5,
+            (1, 3) => 7,
             _ => return,
         };
         let idx = cy * self.width + cx;
@@ -128,11 +148,18 @@ impl BrailleCanvas {
             for cx in 0..self.width.min(area.width as usize) {
                 let idx = cy * self.width + cx;
                 let (mask, fg) = self.cells[idx];
-                let glyph = if mask == 0 { ' ' } else { char::from_u32(0x2800 + mask as u32).unwrap_or(' ') };
+                let glyph = if mask == 0 {
+                    ' '
+                } else {
+                    char::from_u32(0x2800 + mask as u32).unwrap_or(' ')
+                };
                 let x = area.x + cx as u16;
                 let y = area.y + cy as u16;
                 if buf.area.contains(ratatui::layout::Position { x, y }) {
-                    buf[(x, y)].set_symbol(&glyph.to_string()).set_fg(fg.color()).set_bg(bg.color());
+                    buf[(x, y)]
+                        .set_symbol(&glyph.to_string())
+                        .set_fg(fg.color())
+                        .set_bg(bg.color());
                 }
             }
         }
@@ -188,16 +215,43 @@ impl<'a> SparkChart<'a> {
         }
     }
 
-    pub fn min(mut self, v: f64) -> Self { self.min = Some(v); self }
-    pub fn max(mut self, v: f64) -> Self { self.max = Some(v); self }
-    pub fn color(mut self, c: Rgb) -> Self { self.color = Some(c); self }
-    pub fn gradient(mut self, stops: &'a [Rgb]) -> Self { self.gradient_stops = Some(stops); self }
-    pub fn baseline(mut self, v: bool) -> Self { self.baseline = v; self }
+    pub fn min(mut self, v: f64) -> Self {
+        self.min = Some(v);
+        self
+    }
+    pub fn max(mut self, v: f64) -> Self {
+        self.max = Some(v);
+        self
+    }
+    pub fn color(mut self, c: Rgb) -> Self {
+        self.color = Some(c);
+        self
+    }
+    pub fn gradient(mut self, stops: &'a [Rgb]) -> Self {
+        self.gradient_stops = Some(stops);
+        self
+    }
+    pub fn baseline(mut self, v: bool) -> Self {
+        self.baseline = v;
+        self
+    }
     /// Grow downward from the top edge instead of up from the bottom.
-    pub fn mirrored(mut self, v: bool) -> Self { self.mirrored = v; self }
-    pub fn style(mut self, s: SparkStyle) -> Self { self.style = s; self }
-    pub fn show_last_value(mut self, v: bool) -> Self { self.show_last = v; self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
+    pub fn mirrored(mut self, v: bool) -> Self {
+        self.mirrored = v;
+        self
+    }
+    pub fn style(mut self, s: SparkStyle) -> Self {
+        self.style = s;
+        self
+    }
+    pub fn show_last_value(mut self, v: bool) -> Self {
+        self.show_last = v;
+        self
+    }
+    pub fn theme(mut self, th: &Theme) -> Self {
+        self.theme = Some(*th);
+        self
+    }
 }
 
 impl Widget for SparkChart<'_> {
@@ -214,21 +268,50 @@ impl Widget for SparkChart<'_> {
             return;
         }
 
-        let vals: Vec<f64> = self.values.iter().rev().take(chart_w).rev().copied().collect();
+        let vals: Vec<f64> = self
+            .values
+            .iter()
+            .rev()
+            .take(chart_w)
+            .rev()
+            .copied()
+            .collect();
         if vals.is_empty() {
             if self.baseline && area.height > 0 {
                 for x in 0..area.width {
-                    put(buf, area.x + x, area.bottom().saturating_sub(1), "▁", 1, st(th.text_disabled, th.background));
+                    put(
+                        buf,
+                        area.x + x,
+                        area.bottom().saturating_sub(1),
+                        "▁",
+                        1,
+                        st(th.text_disabled, th.background),
+                    );
                 }
             }
             return;
         }
 
-        let min = self.min.unwrap_or_else(|| vals.iter().copied().fold(f64::INFINITY, f64::min));
-        let max = self.max.unwrap_or_else(|| vals.iter().copied().fold(f64::NEG_INFINITY, f64::max));
+        let min = self
+            .min
+            .unwrap_or_else(|| vals.iter().copied().fold(f64::INFINITY, f64::min));
+        let max = self
+            .max
+            .unwrap_or_else(|| vals.iter().copied().fold(f64::NEG_INFINITY, f64::max));
 
-        let frac_of = |v: f64| if (max - min).abs() < 1e-9 { 0.5 } else { ((v - min) / (max - min)).clamp(0.0, 1.0) };
-        let color_at = |frac: f64| self.gradient_stops.map_or(self.color.unwrap_or(th.primary), |stops| color_gradient(stops, frac as f32));
+        let frac_of = |v: f64| {
+            if (max - min).abs() < 1e-9 {
+                0.5
+            } else {
+                ((v - min) / (max - min)).clamp(0.0, 1.0)
+            }
+        };
+        let color_at = |frac: f64| {
+            self.gradient_stops
+                .map_or(self.color.unwrap_or(th.primary), |stops| {
+                    color_gradient(stops, frac as f32)
+                })
+        };
 
         match self.style {
             SparkStyle::Bars => {
@@ -239,16 +322,40 @@ impl Widget for SparkChart<'_> {
                         // hang from the top: full cells painted, the partial cell uses upper eighths
                         let cells = frac as f32 * area.height as f32;
                         let full = cells.floor() as u16;
-                        fill(buf, Rect { x, y: area.y, width: 1, height: full.min(area.height) }, color_at(frac));
+                        fill(
+                            buf,
+                            Rect {
+                                x,
+                                y: area.y,
+                                width: 1,
+                                height: full.min(area.height),
+                            },
+                            color_at(frac),
+                        );
                         if full < area.height {
                             let idx = ((cells - full as f32) * 8.0).round() as usize;
                             if idx > 0 {
                                 // an upper partial is the inverse of a lower one: paint fg=bg, bg=color
-                                put(buf, x, area.y + full, crate::draw::LOWER_BLOCKS[8 - idx.min(8)], 1, st(th.background, color_at(frac)));
+                                put(
+                                    buf,
+                                    x,
+                                    area.y + full,
+                                    crate::draw::LOWER_BLOCKS[8 - idx.min(8)],
+                                    1,
+                                    st(th.background, color_at(frac)),
+                                );
                             }
                         }
                     } else {
-                        vbar(buf, x, area.y, area.height, frac as f32, color_at(frac), th.background);
+                        vbar(
+                            buf,
+                            x,
+                            area.y,
+                            area.height,
+                            frac as f32,
+                            color_at(frac),
+                            th.background,
+                        );
                     }
                 }
             }
@@ -268,10 +375,22 @@ impl Widget for SparkChart<'_> {
                     match self.style {
                         SparkStyle::Field => {
                             // every dot between the edge and the value, coloured by its own height
-                            let (lo, hi) = if self.mirrored { (0, y) } else { (y, h_dots - 1) };
+                            let (lo, hi) = if self.mirrored {
+                                (0, y)
+                            } else {
+                                (y, h_dots - 1)
+                            };
                             for dy in lo..=hi {
-                                let h = if self.mirrored { dy as f64 } else { (h_dots - 1 - dy) as f64 } / (h_dots as f64 - 1.0).max(1.0);
-                                let c = if self.gradient_stops.is_some() { color_at(h) } else { color };
+                                let h = if self.mirrored {
+                                    dy as f64
+                                } else {
+                                    (h_dots - 1 - dy) as f64
+                                } / (h_dots as f64 - 1.0).max(1.0);
+                                let c = if self.gradient_stops.is_some() {
+                                    color_at(h)
+                                } else {
+                                    color
+                                };
                                 canvas.set(i * 2, dy, c);
                                 canvas.set(i * 2 + 1, dy, c);
                             }
@@ -285,7 +404,11 @@ impl Widget for SparkChart<'_> {
                                 }
                             }
                             if self.style == SparkStyle::Area {
-                                let (lo, hi) = if self.mirrored { (0, y) } else { (y, h_dots - 1) };
+                                let (lo, hi) = if self.mirrored {
+                                    (0, y)
+                                } else {
+                                    (y, h_dots - 1)
+                                };
                                 for dy in lo..=hi {
                                     canvas.set(i * 2, dy, color.blend(th.background, 0.3));
                                     canvas.set(i * 2 + 1, dy, color.blend(th.background, 0.3));
@@ -295,7 +418,14 @@ impl Widget for SparkChart<'_> {
                     }
                     prev = Some(y);
                 }
-                canvas.render(Rect { width: chart_w as u16, ..area }, buf, th.background);
+                canvas.render(
+                    Rect {
+                        width: chart_w as u16,
+                        ..area
+                    },
+                    buf,
+                    th.background,
+                );
             }
         }
 
@@ -347,15 +477,42 @@ impl<'a> BarGraph<'a> {
         }
     }
 
-    pub fn series_names(mut self, names: &'a [&'a str]) -> Self { self.series_names = names; self }
-    pub fn colors(mut self, c: &'a [Rgb]) -> Self { self.colors = Some(c); self }
-    pub fn horizontal(mut self, v: bool) -> Self { self.horizontal = v; self }
-    pub fn show_values(mut self, v: bool) -> Self { self.show_values = v; self }
-    pub fn bar_width(mut self, w: u16) -> Self { self.bar_width = w.max(1); self }
-    pub fn gap(mut self, g: u16) -> Self { self.gap = g; self }
-    pub fn max(mut self, m: f64) -> Self { self.max_override = Some(m); self }
-    pub fn axis(mut self, v: bool) -> Self { self.axis = v; self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
+    pub fn series_names(mut self, names: &'a [&'a str]) -> Self {
+        self.series_names = names;
+        self
+    }
+    pub fn colors(mut self, c: &'a [Rgb]) -> Self {
+        self.colors = Some(c);
+        self
+    }
+    pub fn horizontal(mut self, v: bool) -> Self {
+        self.horizontal = v;
+        self
+    }
+    pub fn show_values(mut self, v: bool) -> Self {
+        self.show_values = v;
+        self
+    }
+    pub fn bar_width(mut self, w: u16) -> Self {
+        self.bar_width = w.max(1);
+        self
+    }
+    pub fn gap(mut self, g: u16) -> Self {
+        self.gap = g;
+        self
+    }
+    pub fn max(mut self, m: f64) -> Self {
+        self.max_override = Some(m);
+        self
+    }
+    pub fn axis(mut self, v: bool) -> Self {
+        self.axis = v;
+        self
+    }
+    pub fn theme(mut self, th: &Theme) -> Self {
+        self.theme = Some(*th);
+        self
+    }
 }
 
 impl Widget for BarGraph<'_> {
@@ -366,11 +523,22 @@ impl Widget for BarGraph<'_> {
         let th = self.theme.unwrap_or_else(theme::current);
         fill(buf, area, th.background);
 
-        let default_colors = [th.primary, th.secondary, th.accent, th.success, th.warning, th.error];
+        let default_colors = [
+            th.primary,
+            th.secondary,
+            th.accent,
+            th.success,
+            th.warning,
+            th.error,
+        ];
         let colors = self.colors.unwrap_or(&default_colors);
 
         let max_val = self.max_override.unwrap_or_else(|| {
-            self.groups.iter().flat_map(|g| &g.values).copied().fold(0.0, f64::max)
+            self.groups
+                .iter()
+                .flat_map(|g| &g.values)
+                .copied()
+                .fold(0.0, f64::max)
         });
         if max_val <= 0.0 {
             return;
@@ -378,25 +546,59 @@ impl Widget for BarGraph<'_> {
 
         if self.horizontal {
             // Horizontal bars: label column + bars
-            let label_w = self.groups.iter().map(|g| text_width(&g.label)).max().unwrap_or(0).min(20) as u16;
-            let chart_area = Rect { x: area.x + label_w + 1, width: area.width.saturating_sub(label_w + 1), ..area };
+            let label_w = self
+                .groups
+                .iter()
+                .map(|g| text_width(&g.label))
+                .max()
+                .unwrap_or(0)
+                .min(20) as u16;
+            let chart_area = Rect {
+                x: area.x + label_w + 1,
+                width: area.width.saturating_sub(label_w + 1),
+                ..area
+            };
             let row_h = 1 + self.gap;
             for (i, group) in self.groups.iter().enumerate() {
                 let y = area.y + (i as u16) * row_h;
                 if y >= area.bottom() {
                     break;
                 }
-                put(buf, area.x, y, &group.label, label_w, st(th.text_muted, th.background));
+                put(
+                    buf,
+                    area.x,
+                    y,
+                    &group.label,
+                    label_w,
+                    st(th.text_muted, th.background),
+                );
                 for (j, &val) in group.values.iter().enumerate() {
                     let color = colors[j % colors.len()];
                     let frac = (val / max_val).clamp(0.0, 1.0);
                     let bar_y = y + j as u16;
                     if bar_y < area.bottom() && chart_area.width > 0 {
-                        hbar(buf, chart_area.x, bar_y, chart_area.width, frac as f32, color, th.background);
+                        hbar(
+                            buf,
+                            chart_area.x,
+                            bar_y,
+                            chart_area.width,
+                            frac as f32,
+                            color,
+                            th.background,
+                        );
                         if self.show_values && chart_area.width > 6 {
                             let label = format!("{val:.0}");
-                            let lx = chart_area.x + ((frac * chart_area.width as f64) as u16).saturating_sub(label.len() as u16 + 1);
-                            put(buf, lx, bar_y, &label, chart_area.width, st(th.background, color));
+                            let lx = chart_area.x
+                                + ((frac * chart_area.width as f64) as u16)
+                                    .saturating_sub(label.len() as u16 + 1);
+                            put(
+                                buf,
+                                lx,
+                                bar_y,
+                                &label,
+                                chart_area.width,
+                                st(th.background, color),
+                            );
                         }
                     }
                 }
@@ -413,7 +615,8 @@ impl Widget for BarGraph<'_> {
             let chart_y = area.y + value_h;
 
             let n_series = self.groups.first().map(|g| g.values.len()).unwrap_or(0);
-            let group_w = self.bar_width * n_series as u16 + self.gap * (n_series.saturating_sub(1)) as u16;
+            let group_w =
+                self.bar_width * n_series as u16 + self.gap * (n_series.saturating_sub(1)) as u16;
             let total_w = self.groups.len() as u16 * (group_w + self.gap);
             let start_x = area.x + area.width.saturating_sub(total_w.min(area.width)) / 2;
 
@@ -430,27 +633,62 @@ impl Widget for BarGraph<'_> {
                     }
                     let frac = (val / max_val).clamp(0.0, 1.0);
                     for dx in 0..self.bar_width {
-                        vbar(buf, bx + dx, chart_y, chart_h, frac as f32, color, th.background);
+                        vbar(
+                            buf,
+                            bx + dx,
+                            chart_y,
+                            chart_h,
+                            frac as f32,
+                            color,
+                            th.background,
+                        );
                     }
                     if self.show_values {
                         let label = format!("{val:.0}");
                         let filled = (frac * chart_h as f64).ceil() as u16;
                         // one row above the bar's top cell; the reserved row keeps this inside `area`
                         let ly = (chart_y + chart_h - filled).saturating_sub(1).max(area.y);
-                        put_centered(buf, Rect { x: bx, y: ly, width: self.bar_width, height: 1 }, &label, st(th.text, th.background));
+                        put_centered(
+                            buf,
+                            Rect {
+                                x: bx,
+                                y: ly,
+                                width: self.bar_width,
+                                height: 1,
+                            },
+                            &label,
+                            st(th.text, th.background),
+                        );
                     }
                 }
                 // Group label
                 let ly = area.bottom().saturating_sub(label_h);
                 let label = &group.label;
                 let truncated = truncate(label, group_w as usize);
-                put_centered(buf, Rect { x: gx, y: ly, width: group_w, height: 1 }, &truncated, st(th.text_muted, th.background));
+                put_centered(
+                    buf,
+                    Rect {
+                        x: gx,
+                        y: ly,
+                        width: group_w,
+                        height: 1,
+                    },
+                    &truncated,
+                    st(th.text_muted, th.background),
+                );
             }
 
             if self.axis {
                 let baseline_y = chart_y + chart_h;
                 for x in area.x..area.right() {
-                    put(buf, x, baseline_y, "▔", 1, st(th.border_blurred, th.background));
+                    put(
+                        buf,
+                        x,
+                        baseline_y,
+                        "▔",
+                        1,
+                        st(th.border_blurred, th.background),
+                    );
                 }
             }
         }
@@ -518,15 +756,42 @@ impl<'a> LineGraph<'a> {
         }
     }
 
-    pub fn x_bounds(mut self, min: f64, max: f64) -> Self { self.x_bounds = Some((min, max)); self }
-    pub fn y_bounds(mut self, min: f64, max: f64) -> Self { self.y_bounds = Some((min, max)); self }
-    pub fn x_labels(mut self, n: usize) -> Self { self.x_labels = n; self }
-    pub fn y_labels(mut self, n: usize) -> Self { self.y_labels = n; self }
-    pub fn label_fmt(mut self, f: fn(f64) -> String) -> Self { self.label_fmt = Some(f); self }
-    pub fn grid(mut self, v: bool) -> Self { self.grid = v; self }
-    pub fn legend(mut self, p: LegendPos) -> Self { self.legend = p; self }
-    pub fn title(mut self, t: &'a str) -> Self { self.title = Some(t); self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
+    pub fn x_bounds(mut self, min: f64, max: f64) -> Self {
+        self.x_bounds = Some((min, max));
+        self
+    }
+    pub fn y_bounds(mut self, min: f64, max: f64) -> Self {
+        self.y_bounds = Some((min, max));
+        self
+    }
+    pub fn x_labels(mut self, n: usize) -> Self {
+        self.x_labels = n;
+        self
+    }
+    pub fn y_labels(mut self, n: usize) -> Self {
+        self.y_labels = n;
+        self
+    }
+    pub fn label_fmt(mut self, f: fn(f64) -> String) -> Self {
+        self.label_fmt = Some(f);
+        self
+    }
+    pub fn grid(mut self, v: bool) -> Self {
+        self.grid = v;
+        self
+    }
+    pub fn legend(mut self, p: LegendPos) -> Self {
+        self.legend = p;
+        self
+    }
+    pub fn title(mut self, t: &'a str) -> Self {
+        self.title = Some(t);
+        self
+    }
+    pub fn theme(mut self, th: &Theme) -> Self {
+        self.theme = Some(*th);
+        self
+    }
 }
 
 impl Widget for LineGraph<'_> {
@@ -587,13 +852,19 @@ impl Widget for LineGraph<'_> {
 
         // Title
         if let Some(t) = self.title {
-            put_centered(buf, Rect { height: 1, ..area }, t, bold(st(th.text, th.background)));
+            put_centered(
+                buf,
+                Rect { height: 1, ..area },
+                t,
+                bold(st(th.text, th.background)),
+            );
         }
 
         // Grid
         if self.grid && chart_area.height > 2 {
             for i in 0..=self.y_labels {
-                let y = chart_area.y + ((i as f64 / self.y_labels as f64) * chart_area.height as f64) as u16;
+                let y = chart_area.y
+                    + ((i as f64 / self.y_labels as f64) * chart_area.height as f64) as u16;
                 if y >= chart_area.bottom() {
                     continue;
                 }
@@ -621,7 +892,14 @@ impl Widget for LineGraph<'_> {
             let label = fmt(val);
             let y = chart_area.y + (frac * chart_area.height as f64) as u16;
             if y < chart_area.bottom() {
-                put(buf, area.x, y, &label, y_label_w.saturating_sub(1), st(th.text_muted, th.background));
+                put(
+                    buf,
+                    area.x,
+                    y,
+                    &label,
+                    y_label_w.saturating_sub(1),
+                    st(th.text_muted, th.background),
+                );
             }
         }
 
@@ -632,7 +910,14 @@ impl Widget for LineGraph<'_> {
             let label = fmt(val);
             let x = chart_area.x + (frac * chart_area.width as f64) as u16;
             if x < chart_area.right() {
-                put(buf, x, axis_y + 1, &label, 6, st(th.text_muted, th.background));
+                put(
+                    buf,
+                    x,
+                    axis_y + 1,
+                    &label,
+                    6,
+                    st(th.text_muted, th.background),
+                );
             }
         }
 
@@ -646,7 +931,9 @@ impl Widget for LineGraph<'_> {
             if series.points.is_empty() {
                 continue;
             }
-            let color = series.color.unwrap_or(default_colors[si % default_colors.len()]);
+            let color = series
+                .color
+                .unwrap_or(default_colors[si % default_colors.len()]);
             for i in 0..series.points.len() {
                 let (x, y) = series.points[i];
                 let px = map_range(x, x_min, x_max, 0.0, (w_dots - 1) as f64) as usize;
@@ -671,21 +958,46 @@ impl Widget for LineGraph<'_> {
         // Legend
         if self.legend != LegendPos::Hidden && !self.series.is_empty() {
             let items: Vec<_> = self.series.iter().map(|s| s.name.as_str()).collect();
-            let max_w = items.iter().map(|s| text_width(s)).max().unwrap_or(0).min(20);
+            let max_w = items
+                .iter()
+                .map(|s| text_width(s))
+                .max()
+                .unwrap_or(0)
+                .min(20);
             let leg_w = (max_w + 4) as u16;
             let leg_h = (items.len() as u16).min(chart_area.height.saturating_sub(2));
             let (lx, ly) = match self.legend {
                 LegendPos::TopLeft => (chart_area.x + 2, chart_area.y + 1),
-                LegendPos::TopRight => (chart_area.right().saturating_sub(leg_w + 2), chart_area.y + 1),
-                LegendPos::Bottom => (chart_area.x + (chart_area.width.saturating_sub(leg_w)) / 2, chart_area.bottom().saturating_sub(leg_h + 1)),
+                LegendPos::TopRight => (
+                    chart_area.right().saturating_sub(leg_w + 2),
+                    chart_area.y + 1,
+                ),
+                LegendPos::Bottom => (
+                    chart_area.x + (chart_area.width.saturating_sub(leg_w)) / 2,
+                    chart_area.bottom().saturating_sub(leg_h + 1),
+                ),
                 LegendPos::Hidden => return,
             };
-            let leg_area = Rect { x: lx, y: ly, width: leg_w, height: leg_h };
+            let leg_area = Rect {
+                x: lx,
+                y: ly,
+                width: leg_w,
+                height: leg_h,
+            };
             fill(buf, leg_area, th.panel);
             for (i, series) in self.series.iter().take(leg_h as usize).enumerate() {
-                let color = series.color.unwrap_or(default_colors[i % default_colors.len()]);
+                let color = series
+                    .color
+                    .unwrap_or(default_colors[i % default_colors.len()]);
                 put(buf, lx + 1, ly + i as u16, "●", 1, st(color, th.panel));
-                put(buf, lx + 3, ly + i as u16, &series.name, leg_w.saturating_sub(4), st(th.text, th.panel));
+                put(
+                    buf,
+                    lx + 3,
+                    ly + i as u16,
+                    &series.name,
+                    leg_w.saturating_sub(4),
+                    st(th.text, th.panel),
+                );
             }
         }
     }
@@ -704,12 +1016,26 @@ pub struct ScatterPlot<'a> {
 
 impl<'a> ScatterPlot<'a> {
     pub fn new(series: &'a [LineSeries]) -> Self {
-        Self { series, x_bounds: None, y_bounds: None, theme: None }
+        Self {
+            series,
+            x_bounds: None,
+            y_bounds: None,
+            theme: None,
+        }
     }
 
-    pub fn x_bounds(mut self, min: f64, max: f64) -> Self { self.x_bounds = Some((min, max)); self }
-    pub fn y_bounds(mut self, min: f64, max: f64) -> Self { self.y_bounds = Some((min, max)); self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
+    pub fn x_bounds(mut self, min: f64, max: f64) -> Self {
+        self.x_bounds = Some((min, max));
+        self
+    }
+    pub fn y_bounds(mut self, min: f64, max: f64) -> Self {
+        self.y_bounds = Some((min, max));
+        self
+    }
+    pub fn theme(mut self, th: &Theme) -> Self {
+        self.theme = Some(*th);
+        self
+    }
 }
 
 impl Widget for ScatterPlot<'_> {
@@ -759,14 +1085,38 @@ impl<'a> Heatmap<'a> {
         }
     }
 
-    pub fn row_labels(mut self, l: &'a [&'a str]) -> Self { self.row_labels = l; self }
-    pub fn col_labels(mut self, l: &'a [&'a str]) -> Self { self.col_labels = l; self }
-    pub fn gradient(mut self, stops: &'a [Rgb]) -> Self { self.gradient_stops = stops; self }
-    pub fn cell_width(mut self, w: u16) -> Self { self.cell_width = w.max(1); self }
-    pub fn show_values(mut self, v: bool) -> Self { self.show_values = v; self }
-    pub fn legend(mut self, v: bool) -> Self { self.legend = v; self }
-    pub fn null_color(mut self, c: Rgb) -> Self { self.null_color = c; self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
+    pub fn row_labels(mut self, l: &'a [&'a str]) -> Self {
+        self.row_labels = l;
+        self
+    }
+    pub fn col_labels(mut self, l: &'a [&'a str]) -> Self {
+        self.col_labels = l;
+        self
+    }
+    pub fn gradient(mut self, stops: &'a [Rgb]) -> Self {
+        self.gradient_stops = stops;
+        self
+    }
+    pub fn cell_width(mut self, w: u16) -> Self {
+        self.cell_width = w.max(1);
+        self
+    }
+    pub fn show_values(mut self, v: bool) -> Self {
+        self.show_values = v;
+        self
+    }
+    pub fn legend(mut self, v: bool) -> Self {
+        self.legend = v;
+        self
+    }
+    pub fn null_color(mut self, c: Rgb) -> Self {
+        self.null_color = c;
+        self
+    }
+    pub fn theme(mut self, th: &Theme) -> Self {
+        self.theme = Some(*th);
+        self
+    }
 }
 
 impl Widget for Heatmap<'_> {
@@ -778,7 +1128,11 @@ impl Widget for Heatmap<'_> {
         fill(buf, area, th.background);
 
         let default_gradient = [th.surface, th.primary, th.accent];
-        let gradient = if self.gradient_stops.is_empty() { &default_gradient } else { self.gradient_stops };
+        let gradient = if self.gradient_stops.is_empty() {
+            &default_gradient
+        } else {
+            self.gradient_stops
+        };
 
         let mut min = f64::INFINITY;
         let mut max = f64::NEG_INFINITY;
@@ -797,7 +1151,13 @@ impl Widget for Heatmap<'_> {
             max = 1.0;
         }
 
-        let row_label_w = self.row_labels.iter().map(|s| text_width(s)).max().unwrap_or(0).min(12) as u16;
+        let row_label_w = self
+            .row_labels
+            .iter()
+            .map(|s| text_width(s))
+            .max()
+            .unwrap_or(0)
+            .min(12) as u16;
         let col_label_h = if self.col_labels.is_empty() { 0 } else { 1 };
         let legend_h = if self.legend { 2 } else { 0 };
         let grid_area = Rect {
@@ -812,14 +1172,24 @@ impl Widget for Heatmap<'_> {
 
         let _rows = self.values.len();
         let cols = self.values.first().map(|r| r.len()).unwrap_or(0);
-        let cell_h = 1;  // ponytail: compact mode uses half-blocks, still 1 row per cell
+        let cell_h = 1; // ponytail: compact mode uses half-blocks, still 1 row per cell
 
         // Column labels
         if !self.col_labels.is_empty() {
             for (ci, &label) in self.col_labels.iter().take(cols).enumerate() {
                 let cx = grid_area.x + (ci as u16) * self.cell_width;
                 if cx < grid_area.right() {
-                    put_centered(buf, Rect { x: cx, y: area.y, width: self.cell_width, height: 1 }, label, st(th.text_muted, th.background));
+                    put_centered(
+                        buf,
+                        Rect {
+                            x: cx,
+                            y: area.y,
+                            width: self.cell_width,
+                            height: 1,
+                        },
+                        label,
+                        st(th.text_muted, th.background),
+                    );
                 }
             }
         }
@@ -831,7 +1201,14 @@ impl Widget for Heatmap<'_> {
                 break;
             }
             if ri < self.row_labels.len() {
-                put(buf, area.x, ry, self.row_labels[ri], row_label_w.saturating_sub(1), st(th.text_muted, th.background));
+                put(
+                    buf,
+                    area.x,
+                    ry,
+                    self.row_labels[ri],
+                    row_label_w.saturating_sub(1),
+                    st(th.text_muted, th.background),
+                );
             }
             for (ci, &val) in row.iter().enumerate() {
                 let cx = grid_area.x + (ci as u16) * self.cell_width;
@@ -841,10 +1218,19 @@ impl Widget for Heatmap<'_> {
                 let color = if val.is_nan() {
                     self.null_color
                 } else {
-                    let frac = if (max - min).abs() < 1e-9 { 0.5 } else { ((val - min) / (max - min)).clamp(0.0, 1.0) };
+                    let frac = if (max - min).abs() < 1e-9 {
+                        0.5
+                    } else {
+                        ((val - min) / (max - min)).clamp(0.0, 1.0)
+                    };
                     color_gradient(gradient, frac as f32)
                 };
-                let cell_rect = Rect { x: cx, y: ry, width: self.cell_width, height: cell_h };
+                let cell_rect = Rect {
+                    x: cx,
+                    y: ry,
+                    width: self.cell_width,
+                    height: cell_h,
+                };
                 fill(buf, cell_rect, color);
                 if self.show_values && self.cell_width >= 4 && !val.is_nan() {
                     let label = format!("{val:.0}");
@@ -865,8 +1251,22 @@ impl Widget for Heatmap<'_> {
             }
             let min_label = format!("{min:.1}");
             let max_label = format!("{max:.1}");
-            put(buf, bar_x.saturating_sub(min_label.len() as u16 + 1), ly, &min_label, 10, st(th.text_muted, th.background));
-            put(buf, bar_x + bar_w + 1, ly, &max_label, 10, st(th.text_muted, th.background));
+            put(
+                buf,
+                bar_x.saturating_sub(min_label.len() as u16 + 1),
+                ly,
+                &min_label,
+                10,
+                st(th.text_muted, th.background),
+            );
+            put(
+                buf,
+                bar_x + bar_w + 1,
+                ly,
+                &max_label,
+                10,
+                st(th.text_muted, th.background),
+            );
         }
     }
 }
@@ -885,11 +1285,21 @@ pub struct ActivityGraph<'a> {
 impl<'a> ActivityGraph<'a> {
     /// Values are 0..=4 intensity levels, one per day, up to 364 days (52 weeks).
     pub fn new(values: &'a [u8]) -> Self {
-        Self { values, levels: &[], theme: None }
+        Self {
+            values,
+            levels: &[],
+            theme: None,
+        }
     }
 
-    pub fn levels(mut self, l: &'a [Rgb]) -> Self { self.levels = l; self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
+    pub fn levels(mut self, l: &'a [Rgb]) -> Self {
+        self.levels = l;
+        self
+    }
+    pub fn theme(mut self, th: &Theme) -> Self {
+        self.theme = Some(*th);
+        self
+    }
 }
 
 impl Widget for ActivityGraph<'_> {
@@ -907,7 +1317,11 @@ impl Widget for ActivityGraph<'_> {
             th.primary.blend(th.surface, 0.25),
             th.primary,
         ];
-        let levels = if self.levels.is_empty() { &default_levels } else { self.levels };
+        let levels = if self.levels.is_empty() {
+            &default_levels
+        } else {
+            self.levels
+        };
 
         let weeks = (self.values.len() / 7).min(52);
         let cell_w = 2;
@@ -916,7 +1330,9 @@ impl Widget for ActivityGraph<'_> {
         let start_x = area.x + (area.width.saturating_sub(grid_w as u16)) / 2;
 
         // Month labels (approximate)
-        let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        let months = [
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        ];
         for (mi, &m) in months.iter().enumerate() {
             let week_offset = (mi * 4).min(weeks.saturating_sub(1));
             let mx = start_x + (week_offset * cell_w) as u16;
@@ -937,7 +1353,16 @@ impl Widget for ActivityGraph<'_> {
                 let cx = start_x + (week * cell_w) as u16;
                 let cy = area.y + 2 + day as u16;
                 if cx < area.right() && cy < area.bottom() {
-                    fill(buf, Rect { x: cx, y: cy, width: cell_w as u16, height: 1 }, color);
+                    fill(
+                        buf,
+                        Rect {
+                            x: cx,
+                            y: cy,
+                            width: cell_w as u16,
+                            height: 1,
+                        },
+                        color,
+                    );
                 }
             }
         }
@@ -1001,19 +1426,49 @@ impl<'a> Meter<'a> {
         }
     }
 
-    pub fn value(mut self, v: f32) -> Self { self.value = v.clamp(0.0, 1.0); self }
-    pub fn label(mut self, l: impl Into<String>) -> Self { self.label = Some(l.into()); self }
+    pub fn value(mut self, v: f32) -> Self {
+        self.value = v.clamp(0.0, 1.0);
+        self
+    }
+    pub fn label(mut self, l: impl Into<String>) -> Self {
+        self.label = Some(l.into());
+        self
+    }
     /// Right-aligned text after the bar (`665 GiB`).
-    pub fn suffix(mut self, s: impl Into<String>) -> Self { self.suffix = Some(s.into()); self }
-    pub fn show_percent(mut self, v: bool) -> Self { self.show_percent = v; self }
-    pub fn thresholds(mut self, t: &[(f32, Variant)]) -> Self { self.thresholds = t.to_vec(); self }
+    pub fn suffix(mut self, s: impl Into<String>) -> Self {
+        self.suffix = Some(s.into());
+        self
+    }
+    pub fn show_percent(mut self, v: bool) -> Self {
+        self.show_percent = v;
+        self
+    }
+    pub fn thresholds(mut self, t: &[(f32, Variant)]) -> Self {
+        self.thresholds = t.to_vec();
+        self
+    }
     /// Fixed bar colour (overrides thresholds; a gradient still wins).
-    pub fn color(mut self, c: Rgb) -> Self { self.color = Some(c); self }
+    pub fn color(mut self, c: Rgb) -> Self {
+        self.color = Some(c);
+        self
+    }
     /// Colour stops along the bar (LED styles colour each cell by position, solid styles by value).
-    pub fn gradient(mut self, stops: &'a [Rgb]) -> Self { self.gradient = Some(stops); self }
-    pub fn style(mut self, s: MeterStyle) -> Self { self.style = s; self }
-    pub fn compact(mut self, v: bool) -> Self { self.compact = v; self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
+    pub fn gradient(mut self, stops: &'a [Rgb]) -> Self {
+        self.gradient = Some(stops);
+        self
+    }
+    pub fn style(mut self, s: MeterStyle) -> Self {
+        self.style = s;
+        self
+    }
+    pub fn compact(mut self, v: bool) -> Self {
+        self.compact = v;
+        self
+    }
+    pub fn theme(mut self, th: &Theme) -> Self {
+        self.theme = Some(*th);
+        self
+    }
 }
 
 impl Default for Meter<'_> {
@@ -1031,9 +1486,17 @@ impl Widget for Meter<'_> {
         let bg = th.background;
         fill(buf, area, bg);
 
-        let label_w = self.label.as_ref().map(|l| text_width(l) as u16 + 1).unwrap_or(0);
+        let label_w = self
+            .label
+            .as_ref()
+            .map(|l| text_width(l) as u16 + 1)
+            .unwrap_or(0);
         let pct_w = if self.show_percent { 5 } else { 0 };
-        let suffix_w = self.suffix.as_ref().map(|s| text_width(s) as u16 + 1).unwrap_or(0);
+        let suffix_w = self
+            .suffix
+            .as_ref()
+            .map(|s| text_width(s) as u16 + 1)
+            .unwrap_or(0);
         let bar_w = area.width.saturating_sub(label_w + pct_w + suffix_w);
         if bar_w == 0 {
             return;
@@ -1045,20 +1508,54 @@ impl Widget for Meter<'_> {
         // `Label: 73% [bar] 665 GiB` - percent sits between label and bar like btop
         let mut x = area.x + label_w;
         if self.show_percent {
-            put(buf, x, area.y, &format!("{:>3.0}% ", self.value * 100.0), pct_w, st(th.text_muted, bg));
+            put(
+                buf,
+                x,
+                area.y,
+                &format!("{:>3.0}% ", self.value * 100.0),
+                pct_w,
+                st(th.text_muted, bg),
+            );
             x += pct_w;
         }
 
-        let solid = self.color.unwrap_or_else(|| self.thresholds.iter().rev().find(|&&(t, _)| self.value >= t).map(|&(_, v)| th.variant(v)).unwrap_or(th.primary));
-        let color = self.gradient.map_or(solid, |g| color_gradient(g, self.value));
+        let solid = self.color.unwrap_or_else(|| {
+            self.thresholds
+                .iter()
+                .rev()
+                .find(|&&(t, _)| self.value >= t)
+                .map(|&(_, v)| th.variant(v))
+                .unwrap_or(th.primary)
+        });
+        let color = self
+            .gradient
+            .map_or(solid, |g| color_gradient(g, self.value));
         let empty = th.text_disabled.blend(bg, 0.5);
 
         match self.style {
             MeterStyle::Line => hbar(buf, x, area.y, bar_w, self.value, color, th.panel),
             MeterStyle::Block => {
-                fill(buf, Rect { x, y: area.y, width: bar_w, height: 1 }, th.panel);
+                fill(
+                    buf,
+                    Rect {
+                        x,
+                        y: area.y,
+                        width: bar_w,
+                        height: 1,
+                    },
+                    th.panel,
+                );
                 let fill_w = (bar_w as f32 * self.value).round() as u16;
-                fill(buf, Rect { x, y: area.y, width: fill_w, height: 1 }, color);
+                fill(
+                    buf,
+                    Rect {
+                        x,
+                        y: area.y,
+                        width: fill_w,
+                        height: 1,
+                    },
+                    color,
+                );
             }
             MeterStyle::Segments(n) => {
                 let seg_w = bar_w / n.max(1);
@@ -1069,11 +1566,24 @@ impl Widget for Meter<'_> {
                         break;
                     }
                     let seg_color = if i < active { color } else { th.panel };
-                    fill(buf, Rect { x: sx, y: area.y, width: seg_w.saturating_sub(1), height: 1 }, seg_color);
+                    fill(
+                        buf,
+                        Rect {
+                            x: sx,
+                            y: area.y,
+                            width: seg_w.saturating_sub(1),
+                            height: 1,
+                        },
+                        seg_color,
+                    );
                 }
             }
             MeterStyle::Blocks | MeterStyle::Dots => {
-                let glyph = if self.style == MeterStyle::Blocks { "■" } else { "●" };
+                let glyph = if self.style == MeterStyle::Blocks {
+                    "■"
+                } else {
+                    "●"
+                };
                 let lit = (bar_w as f32 * self.value).round() as u16;
                 for i in 0..bar_w {
                     let c = if i >= lit {
@@ -1089,7 +1599,16 @@ impl Widget for Meter<'_> {
         }
 
         if let Some(s) = &self.suffix {
-            put_right(buf, Rect { y: area.y, height: 1, ..area }, s, st(th.text, bg));
+            put_right(
+                buf,
+                Rect {
+                    y: area.y,
+                    height: 1,
+                    ..area
+                },
+                s,
+                st(th.text, bg),
+            );
         }
     }
 }
@@ -1106,13 +1625,30 @@ pub struct RadialGauge {
 
 impl RadialGauge {
     pub fn new() -> Self {
-        Self { value: 0.0, label: None, thickness: 2, theme: None }
+        Self {
+            value: 0.0,
+            label: None,
+            thickness: 2,
+            theme: None,
+        }
     }
 
-    pub fn value(mut self, v: f32) -> Self { self.value = v.clamp(0.0, 1.0); self }
-    pub fn label(mut self, l: impl Into<String>) -> Self { self.label = Some(l.into()); self }
-    pub fn thickness(mut self, t: u16) -> Self { self.thickness = t.max(1); self }
-    pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(*th); self }
+    pub fn value(mut self, v: f32) -> Self {
+        self.value = v.clamp(0.0, 1.0);
+        self
+    }
+    pub fn label(mut self, l: impl Into<String>) -> Self {
+        self.label = Some(l.into());
+        self
+    }
+    pub fn thickness(mut self, t: u16) -> Self {
+        self.thickness = t.max(1);
+        self
+    }
+    pub fn theme(mut self, th: &Theme) -> Self {
+        self.theme = Some(*th);
+        self
+    }
 }
 
 impl Default for RadialGauge {
@@ -1166,9 +1702,27 @@ impl Widget for RadialGauge {
 
         // Value text
         let pct = format!("{:.0}%", self.value * 100.0);
-        put_centered(buf, Rect { y: area.y + area.height.saturating_sub(3), height: 1, ..area }, &pct, bold(st(th.text, th.background)));
+        put_centered(
+            buf,
+            Rect {
+                y: area.y + area.height.saturating_sub(3),
+                height: 1,
+                ..area
+            },
+            &pct,
+            bold(st(th.text, th.background)),
+        );
         if let Some(ref l) = self.label {
-            put_centered(buf, Rect { y: area.bottom().saturating_sub(2), height: 1, ..area }, l, st(th.text_muted, th.background));
+            put_centered(
+                buf,
+                Rect {
+                    y: area.bottom().saturating_sub(2),
+                    height: 1,
+                    ..area
+                },
+                l,
+                st(th.text_muted, th.background),
+            );
         }
     }
 }
@@ -1181,32 +1735,62 @@ mod tests {
     fn led_meter_lights_cells_by_value_and_keeps_label_percent_suffix() {
         // "Used: 73% ■■■…  665 GiB" - label(6) + pct(5) + bar + suffix(8)
         let mut buf = Buffer::empty(Rect::new(0, 0, 40, 1));
-        Meter::new().value(0.5).label("Used:").show_percent(true).suffix("665 GiB").style(MeterStyle::Blocks).render(buf.area, &mut buf);
+        Meter::new()
+            .value(0.5)
+            .label("Used:")
+            .show_percent(true)
+            .suffix("665 GiB")
+            .style(MeterStyle::Blocks)
+            .render(buf.area, &mut buf);
         let row: String = (0..40).map(|x| buf[(x, 0)].symbol().to_string()).collect();
         assert!(row.starts_with("Used:  50% ■"), "{row}");
         assert!(row.ends_with("665 GiB"), "{row}");
         let bar_w = 40 - 6 - 5 - 8;
-        let lit = (0..bar_w).filter(|i| buf[(11 + i, 0)].fg != buf[(11 + bar_w - 1, 0)].fg).count();
-        assert_eq!(lit, (bar_w as f32 * 0.5).round() as usize, "half the cells take the lit colour");
+        let lit = (0..bar_w)
+            .filter(|i| buf[(11 + i, 0)].fg != buf[(11 + bar_w - 1, 0)].fg)
+            .count();
+        assert_eq!(
+            lit,
+            (bar_w as f32 * 0.5).round() as usize,
+            "half the cells take the lit colour"
+        );
     }
 
     #[test]
     fn field_graph_mirrors_from_the_top_edge() {
         let vals = [1.0, 1.0, 1.0, 1.0];
         let mut up = Buffer::empty(Rect::new(0, 0, 2, 2));
-        SparkChart::new(&vals).min(0.0).max(1.0).style(SparkStyle::Field).render(up.area, &mut up);
+        SparkChart::new(&vals)
+            .min(0.0)
+            .max(1.0)
+            .style(SparkStyle::Field)
+            .render(up.area, &mut up);
         let mut down = Buffer::empty(Rect::new(0, 0, 2, 2));
-        SparkChart::new(&vals).min(0.0).max(1.0).style(SparkStyle::Field).mirrored(true).render(down.area, &mut down);
+        SparkChart::new(&vals)
+            .min(0.0)
+            .max(1.0)
+            .style(SparkStyle::Field)
+            .mirrored(true)
+            .render(down.area, &mut down);
         // full value fills both rows either way; a zero value lights only the edge row
         assert_ne!(up[(0, 0)].symbol(), " ");
         assert_ne!(down[(0, 1)].symbol(), " ");
         let zero = [0.0, 0.0];
         let mut z_up = Buffer::empty(Rect::new(0, 0, 1, 2));
-        SparkChart::new(&zero).min(0.0).max(1.0).style(SparkStyle::Field).render(z_up.area, &mut z_up);
+        SparkChart::new(&zero)
+            .min(0.0)
+            .max(1.0)
+            .style(SparkStyle::Field)
+            .render(z_up.area, &mut z_up);
         assert_eq!(z_up[(0, 0)].symbol(), " ");
         assert_ne!(z_up[(0, 1)].symbol(), " ");
         let mut z_down = Buffer::empty(Rect::new(0, 0, 1, 2));
-        SparkChart::new(&zero).min(0.0).max(1.0).style(SparkStyle::Field).mirrored(true).render(z_down.area, &mut z_down);
+        SparkChart::new(&zero)
+            .min(0.0)
+            .max(1.0)
+            .style(SparkStyle::Field)
+            .mirrored(true)
+            .render(z_down.area, &mut z_down);
         assert_ne!(z_down[(0, 0)].symbol(), " ");
         assert_eq!(z_down[(0, 1)].symbol(), " ");
     }
@@ -1227,7 +1811,12 @@ mod tests {
         canvas.set(1, 1, Rgb(0, 255, 0));
         canvas.line(0, 0, 7, 7, Rgb(0, 0, 255));
         // No panic on render
-        let mut buf = Buffer::empty(Rect { x: 0, y: 0, width: 4, height: 2 });
+        let mut buf = Buffer::empty(Rect {
+            x: 0,
+            y: 0,
+            width: 4,
+            height: 2,
+        });
         canvas.render(buf.area, &mut buf, Rgb(0, 0, 0));
     }
 
@@ -1235,7 +1824,12 @@ mod tests {
     fn test_spark_scaling() {
         let vals = vec![1.0, 2.0, 3.0];
         let spark = SparkChart::new(&vals);
-        let mut buf = Buffer::empty(Rect { x: 0, y: 0, width: 10, height: 3 });
+        let mut buf = Buffer::empty(Rect {
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 3,
+        });
         spark.render(buf.area, &mut buf);
         // No panic
 
@@ -1250,9 +1844,17 @@ mod tests {
 
     #[test]
     fn test_bar_narrow() {
-        let groups = vec![BarGroup { label: "A".into(), values: vec![5.0] }];
+        let groups = vec![BarGroup {
+            label: "A".into(),
+            values: vec![5.0],
+        }];
         let bar = BarGraph::new(&groups).bar_width(2);
-        let mut buf = Buffer::empty(Rect { x: 0, y: 0, width: 5, height: 5 });
+        let mut buf = Buffer::empty(Rect {
+            x: 0,
+            y: 0,
+            width: 5,
+            height: 5,
+        });
         bar.render(buf.area, &mut buf);
         // No panic
     }
@@ -1261,8 +1863,16 @@ mod tests {
     fn test_heatmap_gradient() {
         let vals = vec![vec![0.0, 0.5, 1.0], vec![f64::NAN, 0.2, 0.8]];
         let gradient = [Rgb(0, 0, 0), Rgb(255, 255, 255)];
-        let hm = Heatmap::new(&vals).gradient(&gradient).null_color(Rgb(9, 9, 9)).cell_width(2);
-        let mut buf = Buffer::empty(Rect { x: 0, y: 0, width: 20, height: 10 });
+        let hm = Heatmap::new(&vals)
+            .gradient(&gradient)
+            .null_color(Rgb(9, 9, 9))
+            .cell_width(2);
+        let mut buf = Buffer::empty(Rect {
+            x: 0,
+            y: 0,
+            width: 20,
+            height: 10,
+        });
         hm.render(buf.area, &mut buf);
         // cells are painted (bg), min → first stop, max → last stop, NaN → null colour
         assert_eq!(buf[(0, 0)].bg, Rgb(0, 0, 0).color());
@@ -1276,7 +1886,12 @@ mod tests {
     fn test_activity_grid_weeks() {
         let vals = vec![0u8; 364];
         let ag = ActivityGraph::new(&vals);
-        let mut buf = Buffer::empty(Rect { x: 0, y: 0, width: 110, height: 10 });
+        let mut buf = Buffer::empty(Rect {
+            x: 0,
+            y: 0,
+            width: 110,
+            height: 10,
+        });
         ag.render(buf.area, &mut buf);
         // No panic
     }

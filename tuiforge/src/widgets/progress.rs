@@ -33,7 +33,13 @@ pub struct ProgressState {
 
 impl Default for ProgressState {
     fn default() -> Self {
-        Self { target: 0.0, anim: Tween::default(), started: None, samples: Vec::new(), indeterminate_phase: 0.0 }
+        Self {
+            target: 0.0,
+            anim: Tween::default(),
+            started: None,
+            samples: Vec::new(),
+            indeterminate_phase: 0.0,
+        }
     }
 }
 
@@ -203,9 +209,19 @@ impl StatefulWidget for ProgressBar {
         let now = self.now.unwrap_or_else(Instant::now);
         let bg = self.background.unwrap_or(th.surface);
 
-        let pct_w = if self.show_percentage && !self.compact { 5 } else { 0 };
-        let eta_w = if self.show_eta && !self.compact { 10 } else { 0 };
-        let bar_w = area.width.saturating_sub(pct_w + eta_w + if pct_w > 0 || eta_w > 0 { 1 } else { 0 });
+        let pct_w = if self.show_percentage && !self.compact {
+            5
+        } else {
+            0
+        };
+        let eta_w = if self.show_eta && !self.compact {
+            10
+        } else {
+            0
+        };
+        let bar_w = area
+            .width
+            .saturating_sub(pct_w + eta_w + if pct_w > 0 || eta_w > 0 { 1 } else { 0 });
 
         if bar_w < 4 {
             return;
@@ -240,7 +256,11 @@ impl StatefulWidget for ProgressBar {
                 }
             } else {
                 let p = state.value(now);
-                let color = if p >= 1.0 { th.success } else { th.variant(self.variant) };
+                let color = if p >= 1.0 {
+                    th.success
+                } else {
+                    th.variant(self.variant)
+                };
                 let cells = p * bar_w as f32;
                 let full = cells.floor() as u16;
                 for dx in 0..full {
@@ -271,7 +291,10 @@ impl StatefulWidget for ProgressBar {
                 let p = state.value(now);
                 let eta_text = if let Some(d) = state.eta(now, p) {
                     let s = d.as_secs();
-                    format!("{:>9}", format!("{:02}:{:02}:{:02}", s / 3600, (s / 60) % 60, s % 60))
+                    format!(
+                        "{:>9}",
+                        format!("{:02}:{:02}:{:02}", s / 3600, (s / 60) % 60, s % 60)
+                    )
                 } else {
                     format!("{:>9}", "--:--:--")
                 };
@@ -292,7 +315,13 @@ pub struct StepProgress {
 
 impl StepProgress {
     pub fn new(total: usize) -> Self {
-        Self { total, current: 0, filled: "●", empty: "○", theme: None }
+        Self {
+            total,
+            current: 0,
+            filled: "●",
+            empty: "○",
+            theme: None,
+        }
     }
 
     pub fn current(mut self, n: usize) -> Self {
@@ -330,7 +359,11 @@ impl Widget for StepProgress {
             if x >= area.right() {
                 break;
             }
-            let glyph = if i < self.current { self.filled } else { self.empty };
+            let glyph = if i < self.current {
+                self.filled
+            } else {
+                self.empty
+            };
             let color = if i < self.current { fg } else { dim };
             put(buf, x, area.y, glyph, 1, st(color, bg));
         }

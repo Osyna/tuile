@@ -29,8 +29,13 @@ pub struct AiPage {
 impl Default for AiPage {
     fn default() -> Self {
         let mut chat = ChatState::new();
-        chat.push(ChatMessage::new(Role::System, "You are a helpful coding assistant."));
-        chat.push(ChatMessage::new(Role::User, "Can you add retries to the fetch helper?").time("14:02"));
+        chat.push(ChatMessage::new(
+            Role::System,
+            "You are a helpful coding assistant.",
+        ));
+        chat.push(
+            ChatMessage::new(Role::User, "Can you add retries to the fetch helper?").time("14:02"),
+        );
         chat.push(ChatMessage::new(Role::Assistant, "I'll add exponential backoff retries to the fetch helper:\n\n```rust\nasync fn fetch_with_retry(url: &str, max_retries: u32) -> Result<Response> {\n    let mut delay = Duration::from_millis(100);\n    for attempt in 0..max_retries {\n        match reqwest::get(url).await {\n            Ok(r) => return Ok(r),\n            Err(e) if attempt < max_retries - 1 => {\n                sleep(delay).await;\n                delay *= 2;\n            }\n            Err(e) => return Err(e),\n        }\n    }\n}\n```\n\nThis implements exponential backoff with configurable retries.").time("14:02"));
         chat.push(ChatMessage::new(Role::Tool, "cargo test\n   Compiling fetch v0.1.0\n    Finished test [unoptimized + debuginfo] target(s) in 2.34s\n\ntest fetch::tests::retry_on_failure ... ok\n\ntest result: ok. 124 passed; 0 failed").author("bash"));
 
@@ -49,7 +54,8 @@ impl Default for AiPage {
 
 impl AiPage {
     fn start_stream(&mut self, now: Instant) {
-        self.chat.push(ChatMessage::new(Role::Assistant, "").streaming(true));
+        self.chat
+            .push(ChatMessage::new(Role::Assistant, "").streaming(true));
         self.stream_started = Some(now);
         self.stream_pending = false;
     }
@@ -59,7 +65,9 @@ impl AiPage {
         if self.stream_pending {
             self.start_stream(now);
         }
-        let Some(started) = self.stream_started else { return };
+        let Some(started) = self.stream_started else {
+            return;
+        };
         let shown = revealed(self.canned_reply, elapsed(started, now), 40.0);
         if let Some(last) = self.chat.messages.last_mut() {
             last.text.clear();
@@ -72,7 +80,9 @@ impl AiPage {
     }
 
     fn resolve_approval(&mut self, ctx: &mut Ctx) -> bool {
-        let Some(choice) = self.approval.take_choice() else { return false };
+        let Some(choice) = self.approval.take_choice() else {
+            return false;
+        };
         let (msg, v) = match choice {
             ApprovalChoice::Once => ("Approved once", Variant::Success),
             ApprovalChoice::Always => ("Always allowed", Variant::Success),
@@ -95,11 +105,17 @@ impl Page for AiPage {
     }
 
     fn icon(&self) -> &'static str {
-        "✦"
+        "✶"
     }
 
     fn bindings(&self) -> &'static [(&'static str, &'static str)] {
-        &[("Enter", "Send"), ("⇧Enter", "Newline"), ("y/a/n", "Approve"), ("r", "Replay"), ("Tab", "Focus")]
+        &[
+            ("Enter", "Send"),
+            ("⇧Enter", "Newline"),
+            ("y/a/n", "Approve"),
+            ("r", "Replay"),
+            ("Tab", "Focus"),
+        ]
     }
 
     fn animating(&self, _now: Instant) -> bool {
@@ -122,8 +138,15 @@ impl Page for AiPage {
             [area, Rect::default()]
         };
         let composer_h = 5.min(left.height / 2);
-        let [chat_area, composer_area] = Layout::vertical([Constraint::Fill(1), Constraint::Length(composer_h)]).areas(pad(left, 1, 0));
-        ChatView::new().show_time(true).focused(self.focus.is(Id::Chat)).now(now).theme(&th).render(chat_area, buf, &mut self.chat);
+        let [chat_area, composer_area] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(composer_h)])
+                .areas(pad(left, 1, 0));
+        ChatView::new()
+            .show_time(true)
+            .focused(self.focus.is(Id::Chat))
+            .now(now)
+            .theme(&th)
+            .render(chat_area, buf, &mut self.chat);
         PromptComposer::new()
             .model("claude-sonnet-4")
             .attachments(&["fetch.rs"])
@@ -138,7 +161,12 @@ impl Page for AiPage {
         let mut y = right.y;
         let slot = |h: u16, y: &mut u16| -> Option<Rect> {
             (*y + h <= right.bottom()).then(|| {
-                let r = Rect { x: right.x, y: *y, width: right.width, height: h };
+                let r = Rect {
+                    x: right.x,
+                    y: *y,
+                    width: right.width,
+                    height: h,
+                };
                 *y += h;
                 r
             })
@@ -146,42 +174,98 @@ impl Page for AiPage {
 
         if let Some(r) = slot(4, &mut y) {
             let c = pad(card(buf, r, &th, "Thinking"), 1, 0);
-            Thinking::new("Thinking").now(now).theme(&th).render(Rect { height: 1, ..c }, buf);
+            Thinking::new("Thinking")
+                .now(now)
+                .theme(&th)
+                .render(Rect { height: 1, ..c }, buf);
             Thinking::new("Reading files")
                 .spinner(&spinners::SPARKLE)
                 .detail("analyzing 3 modules")
                 .started(ctx.started)
                 .now(now)
                 .theme(&th)
-                .render(Rect { y: c.y + 1, height: 1, ..c }, buf);
+                .render(
+                    Rect {
+                        y: c.y + 1,
+                        height: 1,
+                        ..c
+                    },
+                    buf,
+                );
         }
 
         if let Some(r) = slot(6, &mut y) {
             let c = pad(card(buf, r, &th, "Context"), 1, 0);
-            ContextGauge::new(TokenUsage { prompt: 12_400, completion: 3_200, limit: 200_000 })
-                .label("context")
-                .cost_usd(0.0123)
-                .theme(&th)
-                .render(Rect { height: 2, ..c }, buf);
+            ContextGauge::new(TokenUsage {
+                prompt: 12_400,
+                completion: 3_200,
+                limit: 200_000,
+            })
+            .label("context")
+            .cost_usd(0.0123)
+            .theme(&th)
+            .render(Rect { height: 2, ..c }, buf);
             // the same gauge in btop's LED style with a heat gradient (any MeterStyle works)
             let heat = [th.success, th.warning, th.error];
-            put(buf, c.x, c.y + 2, "leds", 14, st(th.text_muted, th.background));
-            ContextGauge::new(TokenUsage { prompt: 96_000, completion: 20_000, limit: 200_000 })
-                .compact(true)
-                .style(MeterStyle::Blocks)
-                .gradient(&heat)
-                .theme(&th)
-                .render(Rect { x: c.x + 15, y: c.y + 2, width: c.width.saturating_sub(15), height: 1 }, buf);
-            put(buf, c.x, c.y + 3, "near the limit", 14, st(th.text_muted, th.background));
-            ContextGauge::new(TokenUsage { prompt: 180_000, completion: 12_000, limit: 200_000 })
-                .compact(true)
-                .style(MeterStyle::Dots)
-                .theme(&th)
-                .render(Rect { x: c.x + 15, y: c.y + 3, width: c.width.saturating_sub(15), height: 1 }, buf);
+            put(
+                buf,
+                c.x,
+                c.y + 2,
+                "leds",
+                14,
+                st(th.text_muted, th.background),
+            );
+            ContextGauge::new(TokenUsage {
+                prompt: 96_000,
+                completion: 20_000,
+                limit: 200_000,
+            })
+            .compact(true)
+            .style(MeterStyle::Blocks)
+            .gradient(&heat)
+            .theme(&th)
+            .render(
+                Rect {
+                    x: c.x + 15,
+                    y: c.y + 2,
+                    width: c.width.saturating_sub(15),
+                    height: 1,
+                },
+                buf,
+            );
+            put(
+                buf,
+                c.x,
+                c.y + 3,
+                "near the limit",
+                14,
+                st(th.text_muted, th.background),
+            );
+            ContextGauge::new(TokenUsage {
+                prompt: 180_000,
+                completion: 12_000,
+                limit: 200_000,
+            })
+            .compact(true)
+            .style(MeterStyle::Dots)
+            .theme(&th)
+            .render(
+                Rect {
+                    x: c.x + 15,
+                    y: c.y + 3,
+                    width: c.width.saturating_sub(15),
+                    height: 1,
+                },
+                buf,
+            );
         }
 
         let calls = [
-            ToolCall::new("read_file").args(&[("path", "src/fetch.rs")]).status(ToolStatus::Running).now(now).theme(&th),
+            ToolCall::new("read_file")
+                .args(&[("path", "src/fetch.rs")])
+                .status(ToolStatus::Running)
+                .now(now)
+                .theme(&th),
             ToolCall::new("bash")
                 .args(&[("cmd", "cargo test")])
                 .status(ToolStatus::Done)
@@ -189,7 +273,12 @@ impl Page for AiPage {
                 .output("    Finished test in 2.34s\ntest result: ok. 124 passed")
                 .max_output_lines(2)
                 .theme(&th),
-            ToolCall::new("write_file").args(&[("path", "README.md")]).status(ToolStatus::Failed).duration_ms(12).output("Permission denied").theme(&th),
+            ToolCall::new("write_file")
+                .args(&[("path", "README.md")])
+                .status(ToolStatus::Failed)
+                .duration_ms(12)
+                .output("Permission denied")
+                .theme(&th),
         ];
         let calls_h: u16 = calls.iter().map(|c| c.height(right.width - 4)).sum::<u16>() + 2;
         if let Some(r) = slot(calls_h, &mut y) {
@@ -197,7 +286,14 @@ impl Page for AiPage {
             let mut ty = c.y;
             for call in calls {
                 let h = call.height(c.width);
-                call.render(Rect { y: ty, height: h, ..c }, buf);
+                call.render(
+                    Rect {
+                        y: ty,
+                        height: h,
+                        ..c
+                    },
+                    buf,
+                );
                 ty += h;
             }
         }
@@ -215,7 +311,14 @@ impl Page for AiPage {
                         ApprovalChoice::Always => ("✓ always allowed for bash", th.success),
                         ApprovalChoice::Deny => ("✗ denied", th.error),
                     };
-                    put(buf, c.x + 1, c.y + 1, text, c.width.saturating_sub(2), st(color, th.background).add_modifier(Modifier::BOLD));
+                    put(
+                        buf,
+                        c.x + 1,
+                        c.y + 1,
+                        text,
+                        c.width.saturating_sub(2),
+                        st(color, th.background).add_modifier(Modifier::BOLD),
+                    );
                 }
                 None => approval.render(c, buf, &mut self.approval),
             }
@@ -224,12 +327,26 @@ impl Page for AiPage {
         // what is left: the diff first (needs 8 rows), the token heat map with the remainder
         let rest = right.bottom().saturating_sub(y);
         let heat_h = 5;
-        let diff_h = if rest >= 8 + heat_h { rest - heat_h } else if rest >= 8 { rest } else { 0 };
+        let diff_h = if rest >= 8 + heat_h {
+            rest - heat_h
+        } else if rest >= 8 {
+            rest
+        } else {
+            0
+        };
         if let Some(r) = slot(diff_h, &mut y).filter(|r| r.height >= 8) {
             let diff_lines = DiffView::parse(DIFF);
             let (adds, dels) = DiffView::stats(&diff_lines);
-            let c = pad(card(buf, r, &th, &format!("Proposed edit  +{adds} −{dels}")), 1, 0);
-            DiffView::new(&diff_lines).file("src/lib.rs").line_numbers(true).theme(&th).render(c, buf);
+            let c = pad(
+                card(buf, r, &th, &format!("Proposed edit  +{adds} −{dels}")),
+                1,
+                0,
+            );
+            DiffView::new(&diff_lines)
+                .file("src/lib.rs")
+                .line_numbers(true)
+                .theme(&th)
+                .render(c, buf);
         }
         if let Some(r) = slot(heat_h, &mut y) {
             let c = pad(card(buf, r, &th, "Token confidence"), 1, 0);

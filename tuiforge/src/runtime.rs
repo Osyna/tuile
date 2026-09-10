@@ -7,7 +7,9 @@ use std::sync::LazyLock;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use ratatui::Frame;
-use ratatui::crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind};
+use ratatui::crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind,
+};
 use ratatui::crossterm::execute;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -44,7 +46,11 @@ pub struct RunOptions {
 
 impl Default for RunOptions {
     fn default() -> Self {
-        RunOptions { mouse: true, fps: 60, idle_redraw: Some(Duration::from_millis(250)) }
+        RunOptions {
+            mouse: true,
+            fps: 60,
+            idle_redraw: Some(Duration::from_millis(250)),
+        }
     }
 }
 
@@ -65,13 +71,21 @@ pub fn run_with<A: App>(app: &mut A, opts: RunOptions) -> io::Result<()> {
     result
 }
 
-fn event_loop<A: App>(terminal: &mut ratatui::DefaultTerminal, app: &mut A, opts: RunOptions) -> io::Result<()> {
+fn event_loop<A: App>(
+    terminal: &mut ratatui::DefaultTerminal,
+    app: &mut A,
+    opts: RunOptions,
+) -> io::Result<()> {
     let frame = Duration::from_secs_f64(1.0 / opts.fps.max(1) as f64);
     loop {
         let now = Instant::now();
         app.update(now);
         terminal.draw(|f| app.draw(f, now))?;
-        let wait = if app.animating(now) { frame } else { opts.idle_redraw.unwrap_or(Duration::from_secs(3600)) };
+        let wait = if app.animating(now) {
+            frame
+        } else {
+            opts.idle_redraw.unwrap_or(Duration::from_secs(3600))
+        };
         if !event::poll(wait)? {
             continue;
         }
@@ -93,14 +107,22 @@ fn event_loop<A: App>(terminal: &mut ratatui::DefaultTerminal, app: &mut A, opts
 
 /// Local time as `(hours, minutes, seconds)` — no timezone crate, uses `date +%z` once.
 pub fn local_hms() -> (u32, u32, u32) {
-    let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0) + tz_offset_secs();
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+        + tz_offset_secs();
     let day = secs.rem_euclid(86_400) as u32;
     (day / 3600, day % 3600 / 60, day % 60)
 }
 
 /// Local calendar date `(year, month, day)`.
 pub fn local_ymd() -> (i32, u32, u32) {
-    let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0) + tz_offset_secs();
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+        + tz_offset_secs();
     civil_from_days(secs.div_euclid(86_400))
 }
 
@@ -132,7 +154,9 @@ pub fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
 static TZ_OFFSET: LazyLock<i64> = LazyLock::new(|| {
     // ponytail: `date +%z` instead of a timezone crate; UTC if unavailable.
     let out = Command::new("date").arg("+%z").output().ok();
-    let s = out.and_then(|o| String::from_utf8(o.stdout).ok()).unwrap_or_default();
+    let s = out
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .unwrap_or_default();
     let s = s.trim();
     if s.len() != 5 {
         return 0;
@@ -155,6 +179,9 @@ mod tests {
     fn civil_roundtrip() {
         assert_eq!(civil_from_days(0), (1970, 1, 1));
         assert_eq!(civil_from_days(days_from_civil(2024, 2, 29)), (2024, 2, 29));
-        assert_eq!(days_from_civil(2000, 3, 1) - days_from_civil(2000, 2, 28), 2);
+        assert_eq!(
+            days_from_civil(2000, 3, 1) - days_from_civil(2000, 2, 28),
+            2
+        );
     }
 }

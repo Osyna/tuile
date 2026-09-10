@@ -42,21 +42,51 @@ impl App for Demo {
             }
         }
 
-        let [chat, status, composer] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Length(1), Constraint::Length(5)]).areas(pad(area, 1, 0));
-        ChatView::new().show_time(true).now(now).render(chat, buf, &mut self.chat);
+        let [chat, status, composer] = Layout::vertical([
+            Constraint::Fill(1),
+            Constraint::Length(1),
+            Constraint::Length(5),
+        ])
+        .areas(pad(area, 1, 0));
+        ChatView::new()
+            .show_time(true)
+            .now(now)
+            .render(chat, buf, &mut self.chat);
 
         // status line: a custom spinner while streaming, the context gauge always
-        let [left, right] = Layout::horizontal([Constraint::Length(28), Constraint::Fill(1)]).areas(status);
+        let [left, right] =
+            Layout::horizontal([Constraint::Length(28), Constraint::Fill(1)]).areas(status);
         if self.stream_from.is_some() {
-            Thinking::new("Generating").spinner(&ORBIT).started(self.started).now(now).render(left, buf);
+            Thinking::new("Generating")
+                .spinner(&ORBIT)
+                .started(self.started)
+                .now(now)
+                .render(left, buf);
         } else {
-            Spinner::new(&spinners::SPARKLE).label("idle - Enter to send").now(now).render(left, buf);
+            Spinner::new(&spinners::SPARKLE)
+                .label("idle - Enter to send")
+                .now(now)
+                .render(left, buf);
         }
-        let used = self.chat.messages.iter().map(|m| m.text.len() as u32 / 4).sum();
-        ContextGauge::new(TokenUsage { prompt: used, completion: 0, limit: 8_000 }).compact(true).render(right, buf);
+        let used = self
+            .chat
+            .messages
+            .iter()
+            .map(|m| m.text.len() as u32 / 4)
+            .sum();
+        ContextGauge::new(TokenUsage {
+            prompt: used,
+            completion: 0,
+            limit: 8_000,
+        })
+        .compact(true)
+        .render(right, buf);
 
-        PromptComposer::new().model("brand-1").focused(true).now(now).render(composer, buf, &mut self.composer);
+        PromptComposer::new()
+            .model("brand-1")
+            .focused(true)
+            .now(now)
+            .render(composer, buf, &mut self.composer);
     }
 
     fn event(&mut self, ev: Event, now: Instant) -> Flow {
@@ -69,7 +99,8 @@ impl App for Demo {
         self.composer.handle(&ev);
         if let Some(text) = self.composer.take_submitted() {
             self.chat.push(ChatMessage::new(Role::User, text));
-            self.chat.push(ChatMessage::new(Role::Assistant, "").streaming(true));
+            self.chat
+                .push(ChatMessage::new(Role::Assistant, "").streaming(true));
             self.chat.scroll_to_end();
             self.started = now;
             self.stream_from = Some(now);
@@ -85,7 +116,18 @@ impl App for Demo {
 fn main() -> std::io::Result<()> {
     theme::set(Theme::resolve(&BRAND, None));
     let mut chat = ChatState::new();
-    chat.push(ChatMessage::new(Role::System, "brand-1 · custom theme · custom spinner"));
-    chat.push(ChatMessage::new(Role::Assistant, "Ask me anything. Replies are canned, the widgets are not."));
-    run(&mut Demo { chat, composer: ComposerState::default(), started: Instant::now(), stream_from: None })
+    chat.push(ChatMessage::new(
+        Role::System,
+        "brand-1 · custom theme · custom spinner",
+    ));
+    chat.push(ChatMessage::new(
+        Role::Assistant,
+        "Ask me anything. Replies are canned, the widgets are not.",
+    ));
+    run(&mut Demo {
+        chat,
+        composer: ComposerState::default(),
+        started: Instant::now(),
+        stream_from: None,
+    })
 }

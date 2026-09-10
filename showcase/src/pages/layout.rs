@@ -3,7 +3,9 @@
 
 use tuiforge::draw::{Border, fill, put, st};
 use tuiforge::prelude::*;
-use tuiforge::widgets::{CollapsibleHeader, PanelBg, PlaceholderVariant, ScrollBars, SplitDivider, SplitSize};
+use tuiforge::widgets::{
+    CollapsibleHeader, PanelBg, PlaceholderVariant, ScrollBars, SplitDivider, SplitSize,
+};
 
 use super::{Ctx, Page, card};
 
@@ -60,27 +62,51 @@ impl Page for LayoutPage {
         "Split panes, scroll views, panels, accordion, header & footer"
     }
     fn icon(&self) -> &'static str {
-        "▣"
+        "□"
     }
     fn bindings(&self) -> &'static [(&'static str, &'static str)] {
-        &[("drag", "Dividers"), ("^←→ ^↑↓", "Resize"), ("s", "Smooth"), ("x", "Exclusive"), ("r", "Reset")]
+        &[
+            ("drag", "Dividers"),
+            ("^←→ ^↑↓", "Resize"),
+            ("s", "Smooth"),
+            ("x", "Exclusive"),
+            ("r", "Reset"),
+        ]
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
         let th = ctx.theme;
         let now = ctx.now;
         let inner = pad(area, 1, 0);
-        let [main, strip] = Layout::vertical([Constraint::Fill(1), Constraint::Length(4)]).areas(inner);
+        let [main, strip] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(4)]).areas(inner);
 
         // ── outer split: scroll view | right column ──
-        let (left, right) = SplitPane::new().direction(Direction::Horizontal).divider(SplitDivider::Line).focused(true).theme(&th).render_split(main, buf, &mut self.outer);
+        let (left, right) = SplitPane::new()
+            .direction(Direction::Horizontal)
+            .divider(SplitDivider::Line)
+            .focused(true)
+            .theme(&th)
+            .render_split(main, buf, &mut self.outer);
 
         let focused = self.focus.is(Id::Scroll);
-        let title = format!("Scroll view  ·  smooth {}  ·  {}×{}", if self.smooth { "on" } else { "off" }, DOC_WIDTH, DOC_LINES);
+        let title = format!(
+            "Scroll view  ·  smooth {}  ·  {}×{}",
+            if self.smooth { "on" } else { "off" },
+            DOC_WIDTH,
+            DOC_LINES
+        );
         let sv_area = card(buf, left, &th, &title);
         if focused {
             Border::Round.draw(buf, left, th.border, th.background);
-            put(buf, left.x + 2, left.y, &format!(" {title} "), left.width.saturating_sub(4), st(th.text, th.background).add_modifier(Modifier::BOLD));
+            put(
+                buf,
+                left.x + 2,
+                left.y,
+                &format!(" {title} "),
+                left.width.saturating_sub(4),
+                st(th.text, th.background).add_modifier(Modifier::BOLD),
+            );
         }
         ScrollView::new()
             .content_size(DOC_WIDTH, DOC_LINES as u16)
@@ -104,13 +130,33 @@ impl Page for LayoutPage {
             });
 
         // ── right column: accordion / chrome ──
-        let (top, bottom) = SplitPane::new().direction(Direction::Vertical).divider(SplitDivider::Line).focused(true).theme(&th).render_split(right, buf, &mut self.inner);
+        let (top, bottom) = SplitPane::new()
+            .direction(Direction::Vertical)
+            .divider(SplitDivider::Line)
+            .focused(true)
+            .theme(&th)
+            .render_split(right, buf, &mut self.inner);
 
-        let acc_area = card(buf, top, &th, &format!("Accordion  ·  exclusive {}", if self.exclusive { "on" } else { "off" }));
+        let acc_area = card(
+            buf,
+            top,
+            &th,
+            &format!(
+                "Accordion  ·  exclusive {}",
+                if self.exclusive { "on" } else { "off" }
+            ),
+        );
         let acc_inner = pad(acc_area, 1, 0);
         self.accordion.exclusive = self.exclusive;
         let titles = ["Overview", "Panels & borders", "Placeholders"];
-        let borders = [Border::Round, Border::Tall, Border::Double, Border::Heavy, Border::Dashed, Border::Outer];
+        let borders = [
+            Border::Round,
+            Border::Tall,
+            Border::Double,
+            Border::Heavy,
+            Border::Dashed,
+            Border::Outer,
+        ];
         Accordion::new()
             .titles(&titles)
             .exclusive(self.exclusive)
@@ -151,28 +197,58 @@ impl Page for LayoutPage {
             AppHeader::new()
                 .title("Application")
                 .subtitle("tall header with clock")
-                .icon("⚙")
+                .icon("⊛")
                 .clock(true)
                 .clock_seconds(true)
                 .tall(true)
                 .actions(&["Save", "Share", "Help"])
                 .theme(&th)
                 .render(rows[0], buf, &mut self.header);
-            AppHeader::new().title("Compact header").icon("◈").right("v0.1.0").theme(&th).render(rows[2], buf, &mut self.header2);
+            AppHeader::new()
+                .title("Compact header")
+                .icon("◈")
+                .right("v0.1.0")
+                .theme(&th)
+                .render(rows[2], buf, &mut self.header2);
             KeyFooter::new()
-                .bindings(&[("q", "Quit"), ("^s", "Save"), ("^p", "Palette"), ("F1", "Help"), ("tab", "Focus"), ("esc", "Back"), ("^b", "Sidebar")])
-                .right(if self.focus.is(Id::Footer) { "focused — click a key" } else { "Ready" })
+                .bindings(&[
+                    ("q", "Quit"),
+                    ("^s", "Save"),
+                    ("^p", "Palette"),
+                    ("F1", "Help"),
+                    ("tab", "Focus"),
+                    ("esc", "Back"),
+                    ("^b", "Sidebar"),
+                ])
+                .right(if self.focus.is(Id::Footer) {
+                    "focused — click a key"
+                } else {
+                    "Ready"
+                })
                 .theme(&th)
                 .render(rows[4], buf, &mut self.footer);
-            KeyFooter::new().bindings(&[("q", "Quit"), ("^s", "Save"), ("F1", "Help")]).compact(true).message("Saved 3 files in 120 ms", Variant::Success).theme(&th).render(rows[5], buf, &mut self.footer2);
+            KeyFooter::new()
+                .bindings(&[("q", "Quit"), ("^s", "Save"), ("F1", "Help")])
+                .compact(true)
+                .message("Saved 3 files in 120 ms", Variant::Success)
+                .theme(&th)
+                .render(rows[5], buf, &mut self.footer2);
         }
 
         // ── placeholders strip ──
         let s_in = card(buf, strip, &th, "Placeholder");
         let cells = columns(s_in, 6, 1);
         for (i, c) in cells.iter().enumerate() {
-            let v = [PlaceholderVariant::Default, PlaceholderVariant::Size, PlaceholderVariant::Text][i % 3];
-            Placeholder::new().variant(v).index(i).theme(&th).render(*c, buf, ["hero", "nav", "aside", "main", "footer", "ad"][i]);
+            let v = [
+                PlaceholderVariant::Default,
+                PlaceholderVariant::Size,
+                PlaceholderVariant::Text,
+            ][i % 3];
+            Placeholder::new().variant(v).index(i).theme(&th).render(
+                *c,
+                buf,
+                ["hero", "nav", "aside", "main", "footer", "ad"][i],
+            );
         }
         let _ = now;
     }
@@ -243,10 +319,19 @@ impl Page for LayoutPage {
                 out |= self.header.handle_mouse(m);
                 if let Some(a) = self.header.take_action() {
                     self.focus.set(Id::Header);
-                    ctx.notify(format!("Header action: {}", ["Save", "Share", "Help"].get(a).unwrap_or(&"?")), Variant::Primary);
+                    ctx.notify(
+                        format!(
+                            "Header action: {}",
+                            ["Save", "Share", "Help"].get(a).unwrap_or(&"?")
+                        ),
+                        Variant::Primary,
+                    );
                 }
                 if self.header.take_icon_click() {
-                    ctx.notify("Header icon clicked (open your palette here)", Variant::Accent);
+                    ctx.notify(
+                        "Header icon clicked (open your palette here)",
+                        Variant::Accent,
+                    );
                 }
                 out |= self.header2.handle_mouse(m);
                 out |= self.footer.handle_mouse(m);

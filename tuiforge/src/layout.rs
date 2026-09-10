@@ -8,13 +8,22 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 pub fn center(area: Rect, w: u16, h: u16) -> Rect {
     let w = w.min(area.width);
     let h = h.min(area.height);
-    Rect { x: area.x + (area.width - w) / 2, y: area.y + (area.height - h) / 2, width: w, height: h }
+    Rect {
+        x: area.x + (area.width - w) / 2,
+        y: area.y + (area.height - h) / 2,
+        width: w,
+        height: h,
+    }
 }
 
 /// Horizontal centring only, full height.
 pub fn center_h(area: Rect, w: u16) -> Rect {
     let w = w.min(area.width);
-    Rect { x: area.x + (area.width - w) / 2, width: w, ..area }
+    Rect {
+        x: area.x + (area.width - w) / 2,
+        width: w,
+        ..area
+    }
 }
 
 /// Shrink by `x` cells left/right and `y` cells top/bottom.
@@ -54,7 +63,12 @@ pub fn stack(area: Rect, heights: &[u16], gap: u16) -> Vec<Rect> {
         let last = i + 1 == heights.len();
         let avail = area.bottom().saturating_sub(y);
         let h = if last && h == 0 { avail } else { h.min(avail) };
-        out.push(Rect { x: area.x, y, width: area.width, height: h });
+        out.push(Rect {
+            x: area.x,
+            y,
+            width: area.width,
+            height: h,
+        });
         y = y.saturating_add(h + gap);
     }
     out
@@ -68,7 +82,12 @@ pub fn columns(area: Rect, n: usize, gap: u16) -> Vec<Rect> {
     let total_gap = gap * (n as u16 - 1);
     let w = area.width.saturating_sub(total_gap) / n as u16;
     (0..n as u16)
-        .map(|i| Rect { x: area.x + i * (w + gap), y: area.y, width: w, height: area.height })
+        .map(|i| Rect {
+            x: area.x + i * (w + gap),
+            y: area.y,
+            width: w,
+            height: area.height,
+        })
         .collect()
 }
 
@@ -79,9 +98,18 @@ pub fn grid(area: Rect, cols_n: usize, rows_n: usize, gap: u16) -> Vec<Vec<Rect>
     } else {
         let total_gap = gap * (rows_n as u16 - 1);
         let h = area.height.saturating_sub(total_gap) / rows_n as u16;
-        (0..rows_n as u16).map(|i| Rect { y: area.y + i * (h + gap), height: h, ..area }).collect::<Vec<_>>()
+        (0..rows_n as u16)
+            .map(|i| Rect {
+                y: area.y + i * (h + gap),
+                height: h,
+                ..area
+            })
+            .collect::<Vec<_>>()
     };
-    rows_v.into_iter().map(|r| columns(r, cols_n, gap)).collect()
+    rows_v
+        .into_iter()
+        .map(|r| columns(r, cols_n, gap))
+        .collect()
 }
 
 /// A flow layout: places fixed-size boxes left→right, wrapping to the next line.
@@ -94,7 +122,12 @@ pub fn flow(area: Rect, sizes: &[(u16, u16)], gap_x: u16, gap_y: u16) -> Vec<Rec
             y = y.saturating_add(line_h + gap_y);
             line_h = 0;
         }
-        out.push(Rect { x, y, width: w.min(area.width), height: h });
+        out.push(Rect {
+            x,
+            y,
+            width: w.min(area.width),
+            height: h,
+        });
         x = x.saturating_add(w + gap_x);
         line_h = line_h.max(h);
     }
@@ -118,7 +151,12 @@ pub fn popup_below(anchor: Rect, w: u16, h: u16, bounds: Rect) -> Rect {
     } else {
         bounds.bottom().saturating_sub(h)
     };
-    Rect { x: x.max(bounds.x), y: y.max(bounds.y), width: w, height: h }
+    Rect {
+        x: x.max(bounds.x),
+        y: y.max(bounds.y),
+        width: w,
+        height: h,
+    }
 }
 
 /// Deferred drawing queue: widgets push closures that must paint *over* everything else
@@ -149,11 +187,31 @@ pub fn direction_split(area: Rect, dir: Direction, first: u16) -> (Rect, Rect) {
     match dir {
         Direction::Horizontal => {
             let first = first.min(area.width);
-            (Rect { width: first, ..area }, Rect { x: area.x + first, width: area.width - first, ..area })
+            (
+                Rect {
+                    width: first,
+                    ..area
+                },
+                Rect {
+                    x: area.x + first,
+                    width: area.width - first,
+                    ..area
+                },
+            )
         }
         Direction::Vertical => {
             let first = first.min(area.height);
-            (Rect { height: first, ..area }, Rect { y: area.y + first, height: area.height - first, ..area })
+            (
+                Rect {
+                    height: first,
+                    ..area
+                },
+                Rect {
+                    y: area.y + first,
+                    height: area.height - first,
+                    ..area
+                },
+            )
         }
     }
 }

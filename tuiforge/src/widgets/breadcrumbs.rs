@@ -11,13 +11,13 @@
 //! ```
 
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{MouseEvent, MouseEventKind, MouseButton};
+use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 use ratatui::style::Modifier;
 use ratatui::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
-use crate::core::{mouse_pos, Interactive, Outcome};
+use crate::core::{Interactive, Outcome, mouse_pos};
 use crate::draw::{fill, put, st};
 use crate::theme::{self, Theme};
 
@@ -121,10 +121,11 @@ impl Interactive for BreadcrumbsState {
 
         // click
         if matches!(m.kind, MouseEventKind::Down(MouseButton::Left))
-            && let Some(i) = hover {
-                self.clicked = Some(i);
-                return Outcome::Changed;
-            }
+            && let Some(i) = hover
+        {
+            self.clicked = Some(i);
+            return Outcome::Changed;
+        }
 
         out
     }
@@ -147,25 +148,43 @@ impl StatefulWidget for Breadcrumbs {
 
         // compute widths
         let sep_w = self.separator.width() as u16 + 2; // space around separator
-        let seg_widths: Vec<u16> = self.segments.iter().enumerate().map(|(i, s)| {
-            let mut w = s.width() as u16;
-            if let Some(Some(icon)) = self.icons.get(i) {
-                w += icon.width() as u16 + 1;
-            }
-            w
-        }).collect();
+        let seg_widths: Vec<u16> = self
+            .segments
+            .iter()
+            .enumerate()
+            .map(|(i, s)| {
+                let mut w = s.width() as u16;
+                if let Some(Some(icon)) = self.icons.get(i) {
+                    w += icon.width() as u16 + 1;
+                }
+                w
+            })
+            .collect();
 
-        let total: u16 = seg_widths.iter().sum::<u16>() + sep_w * (self.segments.len().saturating_sub(1)) as u16;
+        let total: u16 =
+            seg_widths.iter().sum::<u16>() + sep_w * (self.segments.len().saturating_sub(1)) as u16;
 
         // collapse middle if too wide
-        let mut visible: Vec<(usize, &str)> = self.segments.iter().enumerate().map(|(i, s)| (i, s.as_str())).collect();
+        let mut visible: Vec<(usize, &str)> = self
+            .segments
+            .iter()
+            .enumerate()
+            .map(|(i, s)| (i, s.as_str()))
+            .collect();
         if total > area.width && self.segments.len() > 2 {
             // keep first and last, collapse middle to "…"
             let first_w = seg_widths[0];
             let last_w = seg_widths[self.segments.len() - 1];
             let needed = first_w + sep_w + 1 + sep_w + last_w; // "first › … › last"
             if needed <= area.width {
-                visible = vec![(0, self.segments[0].as_str()), (usize::MAX, "…"), (self.segments.len() - 1, self.segments.last().unwrap().as_str())];
+                visible = vec![
+                    (0, self.segments[0].as_str()),
+                    (usize::MAX, "…"),
+                    (
+                        self.segments.len() - 1,
+                        self.segments.last().unwrap().as_str(),
+                    ),
+                ];
             }
         }
 
@@ -178,13 +197,23 @@ impl StatefulWidget for Breadcrumbs {
             let (_fg, style) = if is_last {
                 (th.text, st(th.text, bg).add_modifier(Modifier::BOLD))
             } else if is_hover && !is_ellipsis {
-                (th.primary, st(th.primary, bg).add_modifier(Modifier::UNDERLINED))
+                (
+                    th.primary,
+                    st(th.primary, bg).add_modifier(Modifier::UNDERLINED),
+                )
             } else {
                 (th.text_muted, st(th.text_muted, bg))
             };
 
             if is_ellipsis {
-                let w = put(buf, x, area.y, seg, area.right().saturating_sub(x), st(th.text_muted, bg));
+                let w = put(
+                    buf,
+                    x,
+                    area.y,
+                    seg,
+                    area.right().saturating_sub(x),
+                    st(th.text_muted, bg),
+                );
                 x += w;
             } else {
                 let start_x = x;
@@ -194,12 +223,21 @@ impl StatefulWidget for Breadcrumbs {
                 }
                 let w = put(buf, x, area.y, seg, area.right().saturating_sub(x), style);
                 x += w;
-                state.hits.push((*i, Rect::new(start_x, area.y, x - start_x, 1)));
+                state
+                    .hits
+                    .push((*i, Rect::new(start_x, area.y, x - start_x, 1)));
             }
 
             if !is_last && x < area.right() {
                 x += 1;
-                put(buf, x, area.y, &self.separator, area.right().saturating_sub(x), st(th.text_muted, bg));
+                put(
+                    buf,
+                    x,
+                    area.y,
+                    &self.separator,
+                    area.right().saturating_sub(x),
+                    st(th.text_muted, bg),
+                );
                 x += self.separator.width() as u16 + 1;
             }
         }
@@ -366,7 +404,9 @@ impl StatefulWidget for Paginator {
         // prev arrow
         if state.page > 0 {
             let w = put(buf, x, area.y, "‹", 1, st(th.accent, bg));
-            state.hits.push((PaginatorHit::Prev, Rect::new(x, area.y, w, 1)));
+            state
+                .hits
+                .push((PaginatorHit::Prev, Rect::new(x, area.y, w, 1)));
             x += w + 1;
         }
 
@@ -388,12 +428,23 @@ impl StatefulWidget for Paginator {
                     let label_w = label.width() as u16;
                     if is_current {
                         fill(buf, Rect::new(x, area.y, label_w + 2, 1), page_bg);
-                        put(buf, x + 1, area.y, &label, label_w, st(fg, page_bg).add_modifier(Modifier::BOLD));
-                        state.hits.push((PaginatorHit::Page(p), Rect::new(x, area.y, label_w + 2, 1)));
+                        put(
+                            buf,
+                            x + 1,
+                            area.y,
+                            &label,
+                            label_w,
+                            st(fg, page_bg).add_modifier(Modifier::BOLD),
+                        );
+                        state
+                            .hits
+                            .push((PaginatorHit::Page(p), Rect::new(x, area.y, label_w + 2, 1)));
                         x += label_w + 2;
                     } else {
                         let w = put(buf, x, area.y, &label, label_w, st(fg, page_bg));
-                        state.hits.push((PaginatorHit::Page(p), Rect::new(x, area.y, w, 1)));
+                        state
+                            .hits
+                            .push((PaginatorHit::Page(p), Rect::new(x, area.y, w, 1)));
                         x += w;
                     }
 
@@ -407,11 +458,12 @@ impl StatefulWidget for Paginator {
         }
 
         // next arrow
-        if state.page < self.total - 1
-            && x < area.right() {
-                let w = put(buf, x, area.y, "›", 1, st(th.accent, bg));
-                state.hits.push((PaginatorHit::Next, Rect::new(x, area.y, w, 1)));
-            }
+        if state.page < self.total - 1 && x < area.right() {
+            let w = put(buf, x, area.y, "›", 1, st(th.accent, bg));
+            state
+                .hits
+                .push((PaginatorHit::Next, Rect::new(x, area.y, w, 1)));
+        }
     }
 }
 

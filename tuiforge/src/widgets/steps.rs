@@ -84,7 +84,13 @@ impl Steps {
         let statuses = labels
             .iter()
             .enumerate()
-            .map(|(i, _)| if i == 0 { StepStatus::Active } else { StepStatus::Pending })
+            .map(|(i, _)| {
+                if i == 0 {
+                    StepStatus::Active
+                } else {
+                    StepStatus::Pending
+                }
+            })
             .collect();
         Self {
             labels: labels.iter().map(|s| s.to_string()).collect(),
@@ -106,12 +112,16 @@ impl Steps {
         if idx < self.statuses.len() {
             for i in 0..self.statuses.len() {
                 if i < idx {
-                    if self.statuses[i] != StepStatus::Error && self.statuses[i] != StepStatus::Skipped {
+                    if self.statuses[i] != StepStatus::Error
+                        && self.statuses[i] != StepStatus::Skipped
+                    {
                         self.statuses[i] = StepStatus::Done;
                     }
                 } else if i == idx {
                     self.statuses[i] = StepStatus::Active;
-                } else if self.statuses[i] != StepStatus::Error && self.statuses[i] != StepStatus::Skipped {
+                } else if self.statuses[i] != StepStatus::Error
+                    && self.statuses[i] != StepStatus::Skipped
+                {
                     self.statuses[i] = StepStatus::Pending;
                 }
             }
@@ -170,19 +180,36 @@ impl Steps {
         }
         let span = |i: usize| -> (u16, u16) {
             let x = area.x + i as u16 * step_w;
-            let w = if i == n - 1 { area.width - i as u16 * step_w } else { step_w };
+            let w = if i == n - 1 {
+                area.width - i as u16 * step_w
+            } else {
+                step_w
+            };
             (x, w)
         };
 
         for (i, (label, status)) in self.labels.iter().zip(&self.statuses).enumerate() {
             let (x, w) = span(i);
-            state.hits[i].set_area(Rect { x, y: area.y, width: w, height: area.height });
+            state.hits[i].set_area(Rect {
+                x,
+                y: area.y,
+                width: w,
+                height: area.height,
+            });
 
             let (glyph, color) = self.step_glyph_color(*status, th);
-            let connector_color = if *status == StepStatus::Done { th.success } else { th.border_blurred };
+            let connector_color = if *status == StepStatus::Done {
+                th.success
+            } else {
+                th.border_blurred
+            };
 
             // Marker centred on the step column
-            let glyph_str = if self.numbered { format!("({})", i + 1) } else { glyph.to_string() };
+            let glyph_str = if self.numbered {
+                format!("({})", i + 1)
+            } else {
+                glyph.to_string()
+            };
             let gw = glyph_str.width() as u16;
             let gx = (x + w / 2).saturating_sub(gw / 2);
             put(buf, gx, area.y, &glyph_str, gw, st(color, th.surface));
@@ -200,7 +227,17 @@ impl Steps {
             // Label below if space
             if area.height > 1 && !self.compact {
                 let label_display = crate::draw::truncate(label, w as usize);
-                put_centered(buf, Rect { x, y: area.y + 1, width: w, height: 1 }, &label_display, st(th.text_muted, th.surface));
+                put_centered(
+                    buf,
+                    Rect {
+                        x,
+                        y: area.y + 1,
+                        width: w,
+                        height: 1,
+                    },
+                    &label_display,
+                    st(th.text_muted, th.surface),
+                );
             }
         }
     }
@@ -220,29 +257,59 @@ impl Steps {
                 if y >= area.y + area.height {
                     break;
                 }
-                let step_area = Rect { x: area.x, y, width: area.width, height: 1 };
+                let step_area = Rect {
+                    x: area.x,
+                    y,
+                    width: area.width,
+                    height: 1,
+                };
                 state.hits[i].set_area(step_area);
 
                 let (glyph, color) = self.step_glyph_color(*status, th);
                 put(buf, area.x, y, glyph, 1, st(color, th.surface));
-                let label_display = crate::draw::truncate(label, area.width.saturating_sub(3) as usize);
-                put(buf, area.x + 2, y, &label_display, area.width.saturating_sub(2), st(th.text, th.surface));
+                let label_display =
+                    crate::draw::truncate(label, area.width.saturating_sub(3) as usize);
+                put(
+                    buf,
+                    area.x + 2,
+                    y,
+                    &label_display,
+                    area.width.saturating_sub(2),
+                    st(th.text, th.surface),
+                );
             }
         } else {
             for (i, (label, status)) in self.labels.iter().zip(&self.statuses).enumerate() {
                 let y = area.y + (i as u16 * step_h);
-                let step_area = Rect { x: area.x, y, width: area.width, height: step_h };
+                let step_area = Rect {
+                    x: area.x,
+                    y,
+                    width: area.width,
+                    height: step_h,
+                };
                 state.hits[i].set_area(step_area);
 
                 let (glyph, color) = self.step_glyph_color(*status, th);
                 put(buf, area.x, y, glyph, 1, st(color, th.surface));
 
-                let label_display = crate::draw::truncate(label, area.width.saturating_sub(3) as usize);
-                put(buf, area.x + 2, y, &label_display, area.width.saturating_sub(2), st(th.text, th.surface));
+                let label_display =
+                    crate::draw::truncate(label, area.width.saturating_sub(3) as usize);
+                put(
+                    buf,
+                    area.x + 2,
+                    y,
+                    &label_display,
+                    area.width.saturating_sub(2),
+                    st(th.text, th.surface),
+                );
 
                 // connector down (except last)
                 if i < n - 1 && !self.compact {
-                    let connector_color = if *status == StepStatus::Done { th.success } else { th.border_blurred };
+                    let connector_color = if *status == StepStatus::Done {
+                        th.success
+                    } else {
+                        th.border_blurred
+                    };
                     put(buf, area.x, y + 1, "│", 1, st(connector_color, th.surface));
                 }
             }
@@ -284,7 +351,12 @@ pub struct Timeline {
 
 impl Timeline {
     pub fn new(entries: Vec<TimelineEntry>) -> Self {
-        Self { entries, compact: false, reverse: false, theme: None }
+        Self {
+            entries,
+            compact: false,
+            reverse: false,
+            theme: None,
+        }
     }
 
     pub fn compact(mut self, v: bool) -> Self {
@@ -323,7 +395,14 @@ impl ratatui::widgets::Widget for Timeline {
 
             let color = th.variant(entry.variant);
             let time_w = entry.time.len() as u16;
-            put(buf, area.x, y, &entry.time, time_w.min(area.width), st(th.text_muted, th.surface));
+            put(
+                buf,
+                area.x,
+                y,
+                &entry.time,
+                time_w.min(area.width),
+                st(th.text_muted, th.surface),
+            );
 
             let glyph_x = area.x + time_w + 1;
             if glyph_x < area.x + area.width {
@@ -333,21 +412,29 @@ impl ratatui::widgets::Widget for Timeline {
             let title_x = glyph_x + 3;
             if title_x < area.x + area.width {
                 let title_w = area.width.saturating_sub(title_x - area.x);
-                put(buf, title_x, y, &entry.title, title_w, st(th.text, th.surface));
+                put(
+                    buf,
+                    title_x,
+                    y,
+                    &entry.title,
+                    title_w,
+                    st(th.text, th.surface),
+                );
             }
             y += 1;
 
             if !self.compact
                 && let Some(desc) = &entry.description
-                    && y < area.y + area.height {
-                        put(buf, glyph_x, y, "│", 1, st(th.border_blurred, th.surface));
-                        let desc_x = glyph_x + 3;
-                        if desc_x < area.x + area.width {
-                            let desc_w = area.width.saturating_sub(desc_x - area.x);
-                            put(buf, desc_x, y, desc, desc_w, st(th.text_muted, th.surface));
-                        }
-                        y += 1;
-                    }
+                && y < area.y + area.height
+            {
+                put(buf, glyph_x, y, "│", 1, st(th.border_blurred, th.surface));
+                let desc_x = glyph_x + 3;
+                if desc_x < area.x + area.width {
+                    let desc_w = area.width.saturating_sub(desc_x - area.x);
+                    put(buf, desc_x, y, desc, desc_w, st(th.text_muted, th.surface));
+                }
+                y += 1;
+            }
 
             // connector to next (except last)
             if i < entries.len() - 1 && y < area.y + area.height {
@@ -372,7 +459,9 @@ mod tests {
 
     #[test]
     fn steps_preserves_errors() {
-        let s = Steps::new(&["A", "B", "C"]).statuses(&[StepStatus::Done, StepStatus::Error, StepStatus::Pending]).active(2);
+        let s = Steps::new(&["A", "B", "C"])
+            .statuses(&[StepStatus::Done, StepStatus::Error, StepStatus::Pending])
+            .active(2);
         assert_eq!(s.statuses[1], StepStatus::Error);
     }
 }

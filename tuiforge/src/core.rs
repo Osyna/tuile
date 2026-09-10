@@ -1,7 +1,9 @@
 //! Shared vocabulary every widget speaks: event outcomes, interaction state (`Look`),
 //! focus rings, hit boxes for mouse handling, and small key/mouse helpers.
 
-use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use ratatui::crossterm::event::{
+    Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+};
 use ratatui::layout::{Position, Rect};
 
 // ───────────────────────────── outcome ─────────────────────────────
@@ -32,7 +34,11 @@ impl Outcome {
     }
     /// `true` → `Changed`, `false` → `Consumed`.
     pub fn changed_if(flag: bool) -> Outcome {
-        if flag { Outcome::Changed } else { Outcome::Consumed }
+        if flag {
+            Outcome::Changed
+        } else {
+            Outcome::Consumed
+        }
     }
 }
 
@@ -66,7 +72,11 @@ impl Default for Look {
 }
 
 impl Look {
-    pub const PLAIN: Look = Look { focused: false, hover: false, enabled: true };
+    pub const PLAIN: Look = Look {
+        focused: false,
+        hover: false,
+        enabled: true,
+    };
 
     pub const fn new() -> Self {
         Look::PLAIN
@@ -110,14 +120,20 @@ pub struct Focus<T> {
 
 impl<T: Copy + PartialEq> Focus<T> {
     pub fn new(order: impl Into<Vec<T>>) -> Self {
-        Focus { order: order.into(), current: 0, wrap: true }
+        Focus {
+            order: order.into(),
+            current: 0,
+            wrap: true,
+        }
     }
 
     /// Replace the tab order (e.g. when a section collapses); keeps the current id if it survives.
     pub fn set_order(&mut self, order: impl Into<Vec<T>>) {
         let cur = self.current();
         self.order = order.into();
-        self.current = cur.and_then(|c| self.order.iter().position(|&x| x == c)).unwrap_or(0);
+        self.current = cur
+            .and_then(|c| self.order.iter().position(|&x| x == c))
+            .unwrap_or(0);
     }
 
     pub fn order(&self) -> &[T] {
@@ -166,7 +182,11 @@ impl<T: Copy + PartialEq> Focus<T> {
             return;
         }
         let next = self.current as i32 + d;
-        self.current = if self.wrap { next.rem_euclid(n) } else { next.clamp(0, n - 1) } as usize;
+        self.current = if self.wrap {
+            next.rem_euclid(n)
+        } else {
+            next.clamp(0, n - 1)
+        } as usize;
     }
 
     /// `Tab` / `Shift+Tab` navigation; returns `Consumed` when the key was one of those.
@@ -188,7 +208,10 @@ impl<T: Copy + PartialEq> Focus<T> {
 // ───────────────────────────── mouse ─────────────────────────────
 
 pub fn mouse_pos(m: &MouseEvent) -> Position {
-    Position { x: m.column, y: m.row }
+    Position {
+        x: m.column,
+        y: m.row,
+    }
 }
 
 pub fn mouse_in(area: Rect, m: &MouseEvent) -> bool {
@@ -305,7 +328,11 @@ impl HitBox {
 
     /// Current interaction look, combined with an externally-owned focus flag.
     pub fn look(&self, focused: bool, enabled: bool) -> Look {
-        Look { focused, hover: self.hover, enabled }
+        Look {
+            focused,
+            hover: self.hover,
+            enabled,
+        }
     }
 }
 
@@ -326,7 +353,13 @@ pub fn alt(k: &KeyEvent, c: char) -> bool {
 
 pub fn plain_char(k: &KeyEvent) -> Option<char> {
     match k.code {
-        KeyCode::Char(c) if !k.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) => Some(c),
+        KeyCode::Char(c)
+            if !k
+                .modifiers
+                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+        {
+            Some(c)
+        }
         _ => None,
     }
 }
@@ -345,7 +378,9 @@ pub fn key_label(k: &KeyEvent) -> String {
     if k.modifiers.contains(KeyModifiers::ALT) {
         s.push_str("Alt+");
     }
-    if k.modifiers.contains(KeyModifiers::SHIFT) && !matches!(k.code, KeyCode::Char(_) | KeyCode::BackTab) {
+    if k.modifiers.contains(KeyModifiers::SHIFT)
+        && !matches!(k.code, KeyCode::Char(_) | KeyCode::BackTab)
+    {
         s.push('⇧');
     }
     match k.code {
@@ -390,18 +425,35 @@ mod tests {
     use super::*;
 
     fn me(kind: MouseEventKind, x: u16, y: u16) -> MouseEvent {
-        MouseEvent { kind, column: x, row: y, modifiers: KeyModifiers::NONE }
+        MouseEvent {
+            kind,
+            column: x,
+            row: y,
+            modifiers: KeyModifiers::NONE,
+        }
     }
 
     #[test]
     fn hitbox_click_requires_press_and_release_inside() {
-        let mut h = HitBox { area: Rect::new(5, 5, 10, 3), ..Default::default() };
+        let mut h = HitBox {
+            area: Rect::new(5, 5, 10, 3),
+            ..Default::default()
+        };
         assert_eq!(h.mouse(&me(MouseEventKind::Moved, 6, 6)), Hit::HoverChanged);
         assert_eq!(h.mouse(&me(MouseEventKind::Moved, 7, 6)), Hit::None);
-        assert_eq!(h.mouse(&me(MouseEventKind::Down(MouseButton::Left), 7, 6)), Hit::Press);
-        assert_eq!(h.mouse(&me(MouseEventKind::Up(MouseButton::Left), 40, 40)), Hit::Cancel);
+        assert_eq!(
+            h.mouse(&me(MouseEventKind::Down(MouseButton::Left), 7, 6)),
+            Hit::Press
+        );
+        assert_eq!(
+            h.mouse(&me(MouseEventKind::Up(MouseButton::Left), 40, 40)),
+            Hit::Cancel
+        );
         h.mouse(&me(MouseEventKind::Down(MouseButton::Left), 7, 6));
-        assert_eq!(h.mouse(&me(MouseEventKind::Up(MouseButton::Left), 8, 7)), Hit::Click);
+        assert_eq!(
+            h.mouse(&me(MouseEventKind::Up(MouseButton::Left), 8, 7)),
+            Hit::Click
+        );
         assert_eq!(h.mouse(&me(MouseEventKind::Moved, 0, 0)), Hit::HoverChanged);
         assert!(!h.hover);
     }

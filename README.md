@@ -138,14 +138,16 @@ take an explicit `.theme(&Theme)`.
 |---|---|
 | Controls | `Button` (3D / flat / outline / ghost, compact, icon), `Checkbox` + `CheckList` (tri-state; `CheckStyle`: pill / `[x]` / `☑` / `●` / `✓` / `■`), `Switch` (animated; `SwitchStyle`: pill / slim / line / round / `ON`·`OFF` / `✓`·`✗`), `RadioGroup` (`RadioStyle`: dot / `(•)` / `✓` / `❯`), `Segmented` (`SegmentedStyle`: filled / outline / underline / text), `Slider` + `RangeSlider` (frameless by default, `.shape(..)` for a focus frame), `Stepper`, `Rating` |
 | Text entry | `Input` (selection, validation, restrict, suggester, password, prefix/suffix), `TextArea` (line numbers, undo/redo, highlighter hook, `CursorStyle` block / bar / underline / outline, blink, cursor kept visible when unfocused, `Ln, Col` indicator, click-to-position, wheel), `Select`, `Combobox` (fuzzy), `MultiSelect` (`DropdownWidth::Auto / Field / Fixed`) - all with `.shape(FieldShape)`: Textual `Tall`, thin side `Bars`/`Bar` of any `Edge` thickness, `Rule`, `Round`, `Prompt`, `Band` (Claude Code's padded `›` band), `None` |
-| Navigation | `TabBar` (underline / boxed / pills / segmented / minimal, closable, animated), `TabbedContent`, `ListView` (filter, multi-select, details), `TreeView` (guides, expand/collapse), `MenuBar` + `ContextMenu` (submenus, shortcuts), `Breadcrumbs`, `Paginator` |
+| Navigation | `TabBar` (underline / boxed / pills / segmented / minimal, closable, animated), `TabbedContent`, `Sidebar` × 10 `SidebarStyle`s (`Flat`, `Accent`, `Pill`, `Boxed`, `Tabs`, `Minimal`, `Numbered`, `Rail`, `Docked`, `Tree`; groups, badges, header/footer, `Side::Left/Right`, animated collapse to an icon rail), `ListView` (filter, multi-select, details), `TreeView` (guides, expand/collapse), `MenuBar` + `ContextMenu` (submenus, shortcuts), `Breadcrumbs`, `Paginator` |
 | Data | `DataTable` (sortable, zebra, row/cell cursor, multi-select, column resize, filter), `KeyValueList`, `Digits` (Textual big numerals) |
 | Charts | `SparkChart` (bars, braille line/area, btop dot `Field`, `mirrored`), `BarGraph` (grouped, horizontal), `LineGraph` (braille, area, grid, legend), `ScatterPlot`, `Heatmap`, `ActivityGraph`, `Meter` (line / block / segments / LED `Blocks` / `Dots`, gradient, suffix), `RadialGauge`, `BrailleCanvas` |
-| Feedback | `ProgressBar` (tweened, ETA, indeterminate), `StepProgress`, `Spinner` + `spinners::*` (all 90 [yaspin](https://github.com/pavdmyt/yaspin) / cli-spinners + 12 originals: `SPARKLE`, `RING`, `WAVE`, `EQUALIZER`, `SCANNER`, `SHIMMER`, `DNA`, `MATRIX`…), `LoadingIndicator`, `Marquee`, `Blinker`, `Toaster`/`ToastStack` (accent bar `Edge` thin/half/full, painted remaining-time strip), `Callout` (`LeftBar` / `Bar(Edge)` / `Round`), `Modal` (confirm / alert / prompt), `CommandPalette` (fuzzy), `Tooltip` |
+| Feedback | `ProgressBar` (tweened, ETA, indeterminate), `StepProgress`, `Spinner` + `spinners::*` (all 90 [yaspin](https://github.com/pavdmyt/yaspin) / cli-spinners + 12 originals: `SPARKLE`, `RING`, `WAVE`, `EQUALIZER`, `SCANNER`, `SHIMMER`, `DNA`, `MATRIX`…), `LoadingIndicator`, `Marquee`, `Blinker`, `Callout` (`LeftBar` / `Bar(Edge)` / `Round`), `Modal` (confirm / alert / prompt), `CommandPalette` (fuzzy), `Tooltip` |
+| Notifications | `Toaster`/`ToastStack` × 10 `ToastStyle`s (`Card`, `Flat`, `Minimal`, `Pill`, `Outline`, `Banner`, `Glass`, `Progress` with a live value, `Action` with inline buttons + `take_action()`, `Grouped` `+N more`), 6 `ToastPosition`s, `ToastAnim` slide / fade / pop, pause-on-hover, `dismiss(id)`; `NotificationCenter` (grouped inbox, unread dots, mark read / dismiss / clear all, filter, scroll), `Banner` (`Solid` / `Tinted` / `Outline`, action + close), `InlineAlert` (framed or `compact` one-row), `count_badge` |
 | Loading | `Loader` × 20 `LoaderStyle`s - bars: `Scanner`, `Comet`, `Sweep`, `FillDrain`, `Pulse`, `Stripes`, `Rainbow`, `Snake`, `Chase`, `Blocks`, `Wave`, `Bounce`, `Ping`, `Heartbeat`; text: `Ellipsis`, `Shimmer`, `Typewriter`; scenes: `Equalizer`, `Rain`, `Radar` (`.label`, `.color/.color2`, `.speed`); `Skeleton` (`Text` / `Card` / `Avatar` / `List` / `Table` / `Chart`, painted bars, smooth diagonal sweep); `LoadingOverlay` (dim any area, centred loader + message) |
 | AI / LLM | `ChatView` (bubbles, streaming, role bar `Edge`), `StreamText`, `Thinking` (any catalog spinner), `ContextGauge` (any `MeterStyle` + gradient, e.g. btop LEDs), `ToolCall`, `TokenHeat`, `DiffView`, `PromptComposer` (any `FieldShape`), `Approval` |
 | Layout & chrome | `SplitPane` (draggable), `ScrollView` (offscreen buffer, smooth), `Scrollbar`, `Panel` (title, right title, footer keys, badge) / card / section, `Collapsible` + `Accordion`, `AppHeader`, `KeyFooter`, `StatusLine` (segments + separators), `Placeholder` |
-| Menus & settings | `OptionList` (grouped `label  value` rows, cursor, in-place bool/choice/int cycling, group index for a sidebar), `BigText` (3-row box-drawing font) + `BigMenu` (btop's `OPTIONS / HELP / QUIT`), `CommandPalette`, `MenuBar` |
+| Forms | `Form` layout chrome returning field rects: `Stacked`, `Aligned`, `Inline`, `Floating` (label on the frame's top edge via `float_label`), `Grid` (columns, `span`), `Cards`, `Wizard`, `Compact`; `FormField` (required `*`, help, error, right hint), `Fieldset`, `FormActions` (button rects + dirty hint), `ValidationSummary`, `PasswordStrength`, `char_counter`, `validators` (`required`, `email`, `min_len`, `max_len`, `numeric`, `matches`) |
+| Menus & settings | `OptionList` (grouped `label  value` rows, cursor, in-place bool/choice/int cycling, group index for a sidebar), `BigText` × 4 `BigFont`s (`Box3` double-line, `Thin3` rounded, `Block5` painted 5×5 pixels, `Half3` half-block) + `BigTitle`, `BigMenu` × 10 `BigMenuStyle`s (`Plain`, `Arrows`, `Boxed`, `Underline` (sliding), `Glow` (sweep), `Shadow`, `Bracket`, `Horizontal`, `Cards` + descriptions, `Retro` blink), `CommandPalette`, `MenuBar` |
 | Content | `Label`, `Rule`, `Badge`, `Pill`, `KeyCap`, `Link`, `StatCard`, `Markup` (Rich-style `[b]…[/b]`), `Markdown`, `LogView`, `Calendar` + `DatePicker`, `Swatches`, `ColorPicker`, `GradientBar`, `ThemePalette`, `Steps`, `Timeline` |
 
 Foundation modules: `core` (Outcome, Look, Focus, HitBox, key helpers), `draw` (clipped text,
@@ -159,14 +161,19 @@ Regenerate the spinner catalog from `tools/spinners.json` with `python tools/gen
 
 ## Showcase
 
-`showcase/` is a 17-page gallery: Welcome, Dashboard (everything composed on one screen),
+`showcase/` is a 21-page gallery: Welcome, Dashboard (everything composed on one screen),
 Monitor (btop-style: LED meters, dot-field graphs, mirrored net graph, process tree, big-font
-menu on `m`), Controls, Inputs, Navigation, Tables, Charts, Feedback, Loading (all 20 loader
+menu on `m`), Controls, Inputs, Navigation, Sidebars (10 styles side by side; `s`/`c`/`r`/`b`
+cycle style, collapse, side, badges), Big menus (4 fonts, `Horizontal` strip, 10 vertical
+styles; `s`/`f`/`g`), Tables, Charts, Feedback, Notifications (`1`–`9`/`0` fire every toast
+style, `p`/`a` position and animation, inbox, banners, inline alerts), Loading (all 20 loader
 styles, scenes, skeletons, overlay; space pauses, `+`/`-` speed), Spinners (the whole
 catalog, filterable, with the one-liner for each), AI (chat, streaming, tool calls, context
-gauge, approvals, diffs), Layout, Content, Settings (a complete preferences form in ~300 lines),
-Options (omp-style settings screen: icon tabs + group sidebar + `OptionList`, with a live
-composer-shape / status-line preview), Themes (live primary-hue override).
+gauge, approvals, diffs), Layout, Content, Forms (six live forms: sign-in, profile grid,
+floating-label password change, wizard, filter bar, dense settings; `^f`/`^e`/`^l`), Settings
+(a complete preferences form in ~300 lines), Options (omp-style settings screen: icon tabs +
+group sidebar + `OptionList`, with a live composer-shape / status-line preview), Themes (live
+primary-hue override).
 
 Keys: `]`/`[` pages, `alt+1..9` jump, `^p` palette, `^t` theme, `^b` sidebar, `F1` help,
 `F3` reduce motion, `Tab` focus, mouse everywhere.
@@ -192,6 +199,10 @@ Headless screenshots for review/CI: `python tools/shot.py -s 130x42 -k "Tab Ente
 | ![monitor](docs/screenshots/monitor.png) | ![options](docs/screenshots/options.png) |
 | **Loading** (20 loader styles, skeletons, overlay) | **Welcome** |
 | ![loading](docs/screenshots/loading.png) | ![welcome](docs/screenshots/welcome.png) |
+| **Sidebars** (10 styles) | **Big menus** (4 fonts, 10 styles) |
+| ![sidebars](docs/screenshots/sidebars.png) | ![bigmenus](docs/screenshots/bigmenus.png) |
+| **Notifications** (toast styles, inbox, banners, alerts) | **Forms** (8 layouts, validation) |
+| ![notifications](docs/screenshots/notifications.png) | ![forms](docs/screenshots/forms.png) |
 
 ## Writing a widget
 

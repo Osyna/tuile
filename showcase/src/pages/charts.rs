@@ -225,7 +225,6 @@ impl Page for ChartsPage {
                 }).collect();
                 Heatmap::new(&data)
                     .row_labels(&["M", "T", "W", "T", "F", "S", "S"])
-                    .compact(true)
                     .legend(false)
                     .theme(th)
                     .render(hm_inner, buf);

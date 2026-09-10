@@ -417,17 +417,10 @@ impl Widget for Pill {
         let variant_color = th.variant(self.variant);
         let fg = th.variant(self.variant).text_on(0.9);
 
-        put(buf, area.x, area.y, "▐", 1, st(variant_color, th.surface));
-        let mid = area.width.saturating_sub(2);
-        for x in 1..=mid {
-            if let Some(c) = buf.cell_mut((area.x + x, area.y)) {
-                c.set_bg(variant_color.color());
-            }
-        }
-        put(buf, area.x + area.width.saturating_sub(1), area.y, "▌", 1, st(variant_color, th.surface));
-
-        let display = crate::draw::fit(&self.text, mid as usize);
-        put_centered(buf, Rect { x: area.x + 1, y: area.y, width: mid, height: 1 }, &display, st(fg, variant_color));
+        // flat painted pill: bg colour only, no half-block ends (font seams, min-contrast recolouring)
+        fill(buf, Rect { height: 1, ..area }, variant_color);
+        let display = crate::draw::fit(&self.text, area.width.saturating_sub(2) as usize);
+        put_centered(buf, Rect { height: 1, ..area }, &display, st(fg, variant_color));
     }
 }
 

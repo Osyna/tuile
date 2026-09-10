@@ -78,12 +78,15 @@ Rules:
 13. **No new dependencies.** `ratatui`, `unicode-width`, `unicode-segmentation` only.
 14. **Performance.** No per-frame heap churn beyond small `String`s; no `Instant::now()` inside
     render; precompute glyph tables as `const`.
-15. **Solid = background paint, lines = edge blocks.** Paint filled areas with `" "` + `bg`
-    (`fill`, `hbar`), never with `█`/`▐`/`▌` foreground glyphs: fonts leave seams between block
-    glyphs, and terminals with a minimum-contrast setting recolour any glyph whose fg is close to
-    its bg (this turned every pill end and `tall` border into a stray bar). Thin lines use the
-    edge-hugging eighths `▏ ▕ ▔ ▁` or box drawing. Half-blocks only for partial cells in
-    animated bars. Wide/ambiguous glyphs (`★`, emoji) get two cells.
+15. **Solid = background paint, lines = box drawing or edge eighths.** Paint filled areas with
+    `" "` + `bg` (`fill`, `hbar`, `█` entries in `Border::glyphs`), never with `█`/`▐`/`▌`
+    foreground glyphs: fonts leave seams between block glyphs, some fonts overshoot the cell
+    vertically, and terminals with a minimum-contrast setting recolour any glyph whose fg is
+    close to its bg (this turned every pill end and `tall` border into a stray bar). Accent
+    markers and side rails use box drawing (`┃`, `│`), which tiles pixel-exact everywhere; the
+    Textual-style `Tall`/`Panel`/`Wide` borders pair painted bars with a thin `▔`/`▁`/`▏`/`▕`
+    line so the corners always meet. Half-blocks only for partial cells in animated bars.
+    Wide/ambiguous glyphs (`★`, emoji) get two cells.
 
 ## Showcase page contract (`showcase/src/pages/<name>.rs`)
 

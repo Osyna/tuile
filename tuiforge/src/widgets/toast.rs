@@ -311,7 +311,7 @@ impl StatefulWidget for ToastStack {
             // Left bar in variant color
             let bar_color = th.variant(toast.variant);
             for dy in 0..r.height {
-                put(buf, r.x, r.y + dy, "▌", 1, st(bar_color, bg));
+                put(buf, r.x, r.y + dy, "┃", 1, st(bar_color, bg));
             }
 
             let text_x = r.x + 2;
@@ -443,7 +443,7 @@ impl StatefulWidget for Callout {
             CalloutBorder::LeftBar => {
                 fill(buf, area, bg);
                 for y in area.top()..area.bottom() {
-                    put(buf, area.x, y, "▌", 1, st(var_color, bg));
+                    put(buf, area.x, y, "┃", 1, st(var_color, bg));
                 }
             }
             CalloutBorder::Round => {

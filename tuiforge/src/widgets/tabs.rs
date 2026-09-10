@@ -502,7 +502,7 @@ fn render_boxed(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBa
         }
 
         let style = if is_active {
-            st(th.text, th.panel).add_modifier(Modifier::BOLD)
+            st(th.text, bg).add_modifier(Modifier::BOLD)
         } else if is_hover && !item.disabled {
             st(th.text, th.hover_bg)
         } else if item.disabled {
@@ -517,8 +517,8 @@ fn render_boxed(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut TabBa
             put(buf, x, area.y, "╭", 1, line);
             hline(buf, x + 1, area.y, w - 2, "─", line);
             put(buf, x + w - 1, area.y, "╮", 1, line);
-            put(buf, x, label_y, "│", 1, st(th.border, th.panel));
-            put(buf, x + w - 1, label_y, "│", 1, st(th.border, th.panel));
+            put(buf, x, label_y, "│", 1, line);
+            put(buf, x + w - 1, label_y, "│", 1, line);
             put(buf, x, base_y, "╯", 1, line);
             hline(buf, x + 1, base_y, w - 2, " ", st(bg, bg));
             put(buf, x + w - 1, base_y, "╰", 1, line);
@@ -658,7 +658,7 @@ fn render_minimal(builder: TabBar, area: Rect, buf: &mut Buffer, state: &mut Tab
         let is_hover = state.hover == Some(i);
 
         if is_active {
-            put(buf, x, area.y, "▎", 1, st(th.accent, bg));
+            put(buf, x, area.y, "┃", 1, st(th.accent, bg));
             x += 2;
         }
 

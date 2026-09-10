@@ -196,8 +196,8 @@ impl Page for ThemesPage {
         if ty < p_in.bottom() {
             let toast = Rect { x, y: ty, width: 40.min(p_in.width.saturating_sub(4)), height: 2 };
             fill(buf, toast, th.toast_bg);
-            put(buf, toast.x, ty, "▌", 1, st(th.success, th.toast_bg));
-            put(buf, toast.x, ty + 1, "▌", 1, st(th.success, th.toast_bg));
+            put(buf, toast.x, ty, "┃", 1, st(th.success, th.toast_bg));
+            put(buf, toast.x, ty + 1, "┃", 1, st(th.success, th.toast_bg));
             put(buf, toast.x + 2, ty, "Saved", 20, st(th.text_success, th.toast_bg).add_modifier(Modifier::BOLD));
             put(buf, toast.x + 2, ty + 1, "Settings written to disk.", toast.width - 3, st(th.text, th.toast_bg));
             let sel = Rect { x: toast.right() + 2, y: ty, width: 22.min(p_in.right().saturating_sub(toast.right() + 2)), height: 1 };

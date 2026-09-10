@@ -371,10 +371,12 @@ impl Widget for BarGraph<'_> {
             // Vertical bars
             let axis_h = if self.axis { 1 } else { 0 };
             let label_h = 1;
-            let chart_h = area.height.saturating_sub(axis_h + label_h);
+            let value_h = if self.show_values { 1 } else { 0 };
+            let chart_h = area.height.saturating_sub(axis_h + label_h + value_h);
             if chart_h == 0 {
                 return;
             }
+            let chart_y = area.y + value_h;
 
             let n_series = self.groups.first().map(|g| g.values.len()).unwrap_or(0);
             let group_w = self.bar_width * n_series as u16 + self.gap * (n_series.saturating_sub(1)) as u16;
@@ -394,14 +396,14 @@ impl Widget for BarGraph<'_> {
                     }
                     let frac = (val / max_val).clamp(0.0, 1.0);
                     for dx in 0..self.bar_width {
-                        vbar(buf, bx + dx, area.y, chart_h, frac as f32, color, th.background);
+                        vbar(buf, bx + dx, chart_y, chart_h, frac as f32, color, th.background);
                     }
-                    if self.show_values && chart_h > 3 {
+                    if self.show_values {
                         let label = format!("{val:.0}");
-                        let ly = area.y + ((1.0 - frac) * chart_h as f64).max(1.0) as u16;
-                        if ly > area.y {
-                            put_centered(buf, Rect { x: bx, y: ly, width: self.bar_width, height: 1 }, &label, st(th.text, th.background));
-                        }
+                        let filled = (frac * chart_h as f64).ceil() as u16;
+                        // one row above the bar's top cell; the reserved row keeps this inside `area`
+                        let ly = (chart_y + chart_h - filled).saturating_sub(1).max(area.y);
+                        put_centered(buf, Rect { x: bx, y: ly, width: self.bar_width, height: 1 }, &label, st(th.text, th.background));
                     }
                 }
                 // Group label
@@ -411,8 +413,8 @@ impl Widget for BarGraph<'_> {
                 put_centered(buf, Rect { x: gx, y: ly, width: group_w, height: 1 }, &truncated, st(th.text_muted, th.background));
             }
 
-            if self.axis && chart_h > 0 {
-                let baseline_y = area.y + chart_h;
+            if self.axis {
+                let baseline_y = chart_y + chart_h;
                 for x in area.x..area.right() {
                     put(buf, x, baseline_y, "▔", 1, st(th.border_blurred, th.background));
                 }
@@ -702,7 +704,6 @@ pub struct Heatmap<'a> {
     col_labels: &'a [&'a str],
     gradient_stops: &'a [Rgb],
     cell_width: u16,
-    compact: bool,
     show_values: bool,
     legend: bool,
     null_color: Rgb,
@@ -717,7 +718,6 @@ impl<'a> Heatmap<'a> {
             col_labels: &[],
             gradient_stops: &[],
             cell_width: 2,
-            compact: false,
             show_values: false,
             legend: false,
             null_color: Rgb(50, 50, 50),
@@ -729,7 +729,6 @@ impl<'a> Heatmap<'a> {
     pub fn col_labels(mut self, l: &'a [&'a str]) -> Self { self.col_labels = l; self }
     pub fn gradient(mut self, stops: &'a [Rgb]) -> Self { self.gradient_stops = stops; self }
     pub fn cell_width(mut self, w: u16) -> Self { self.cell_width = w.max(1); self }
-    pub fn compact(mut self, v: bool) -> Self { self.compact = v; self }
     pub fn show_values(mut self, v: bool) -> Self { self.show_values = v; self }
     pub fn legend(mut self, v: bool) -> Self { self.legend = v; self }
     pub fn null_color(mut self, c: Rgb) -> Self { self.null_color = c; self }
@@ -812,13 +811,7 @@ impl Widget for Heatmap<'_> {
                     color_gradient(gradient, frac as f32)
                 };
                 let cell_rect = Rect { x: cx, y: ry, width: self.cell_width, height: cell_h };
-                if self.compact {
-                    for dx in 0..self.cell_width {
-                        put(buf, cx + dx, ry, "▀", 1, st(color, th.background));
-                    }
-                } else {
-                    fill(buf, cell_rect, color);
-                }
+                fill(buf, cell_rect, color);
                 if self.show_values && self.cell_width >= 4 && !val.is_nan() {
                     let label = format!("{val:.0}");
                     put_centered(buf, cell_rect, &label, st(th.background, color));
@@ -846,23 +839,22 @@ impl Widget for Heatmap<'_> {
 
 // ───────────────────────────── activity graph ─────────────────────────────
 
-/// GitHub-style contribution grid: weeks as columns, days as rows.
+/// GitHub-style contribution grid: weeks as columns, days as rows. Cells are painted
+/// (2 cells per week: colour + gutter) so low levels stay faithful in every terminal.
 #[derive(Clone, Debug)]
 pub struct ActivityGraph<'a> {
     values: &'a [u8],
     levels: &'a [Rgb],
-    cell: &'a str,
     theme: Option<Theme>,
 }
 
 impl<'a> ActivityGraph<'a> {
     /// Values are 0..=4 intensity levels, one per day, up to 364 days (52 weeks).
     pub fn new(values: &'a [u8]) -> Self {
-        Self { values, levels: &[], cell: "■", theme: None }
+        Self { values, levels: &[], theme: None }
     }
 
     pub fn levels(mut self, l: &'a [Rgb]) -> Self { self.levels = l; self }
-    pub fn cell(mut self, c: &'a str) -> Self { self.cell = c; self }
     pub fn theme(mut self, th: &Theme) -> Self { self.theme = Some(th.clone()); self }
 }
 
@@ -911,9 +903,7 @@ impl Widget for ActivityGraph<'_> {
                 let cx = start_x + (week * cell_w) as u16;
                 let cy = area.y + 2 + day as u16;
                 if cx < area.right() && cy < area.bottom() {
-                    for dx in 0..cell_w {
-                        put(buf, cx + dx as u16, cy, self.cell, 1, st(color, th.background));
-                    }
+                    fill(buf, Rect { x: cx, y: cy, width: cell_w as u16, height: 1 }, color);
                 }
             }
         }
@@ -1192,10 +1182,15 @@ mod tests {
     fn test_heatmap_gradient() {
         let vals = vec![vec![0.0, 0.5, 1.0], vec![f64::NAN, 0.2, 0.8]];
         let gradient = [Rgb(0, 0, 0), Rgb(255, 255, 255)];
-        let hm = Heatmap::new(&vals).gradient(&gradient).compact(true);
+        let hm = Heatmap::new(&vals).gradient(&gradient).null_color(Rgb(9, 9, 9)).cell_width(2);
         let mut buf = Buffer::empty(Rect { x: 0, y: 0, width: 20, height: 10 });
         hm.render(buf.area, &mut buf);
-        // No panic
+        // cells are painted (bg), min → first stop, max → last stop, NaN → null colour
+        assert_eq!(buf[(0, 0)].bg, Rgb(0, 0, 0).color());
+        assert_eq!(buf[(1, 0)].bg, Rgb(0, 0, 0).color());
+        assert_eq!(buf[(4, 0)].bg, Rgb(255, 255, 255).color());
+        assert_eq!(buf[(0, 1)].bg, Rgb(9, 9, 9).color());
+        assert_eq!(buf[(4, 0)].symbol(), " ");
     }
 
     #[test]

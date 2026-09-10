@@ -232,7 +232,7 @@ impl KeyFooter {
 
         // Overflow indicator
         if overflow {
-            put(buf, area.right().saturating_sub(2), area.y, "…", 1, st(th.text_muted, th.panel));
+            put(buf, limit.saturating_sub(2), area.y, "…", 1, st(th.text_muted, th.panel));
         }
     }
 }

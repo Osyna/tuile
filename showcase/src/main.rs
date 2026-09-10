@@ -160,7 +160,7 @@ impl Shell {
             let style = if active { st(fg, bg).add_modifier(Modifier::BOLD) } else { st(fg, bg) };
             put(buf, row.x, y, &label, row.width, style);
             if active {
-                put(buf, row.x, y, "▌", 1, st(th.accent, bg));
+                put(buf, row.x, y, "┃", 1, st(th.accent, bg));
             }
         }
         if area.height > 16 {

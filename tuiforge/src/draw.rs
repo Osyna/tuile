@@ -234,9 +234,9 @@ impl Border {
             Border::Thick => ["█", "▀", "█", "█", "█", "█", "▄", "█"],
             Border::Hkey => ["▔", "▔", "▔", " ", " ", "▁", "▁", "▁"],
             Border::Vkey => ["▏", " ", "▕", "▏", "▕", "▏", " ", "▕"],
-            Border::Tall => ["▏", "▔", "▕", "▏", "▕", "▏", "▁", "▕"],
-            Border::Panel => ["█", "█", "█", "▏", "▕", "▏", "▁", "▕"],
-            Border::Wide => ["▁", "▁", "▁", "▏", "▕", "▔", "▔", "▔"],
+            Border::Tall => ["█", "▔", "█", "█", "█", "█", "▁", "█"],
+            Border::Panel => ["█", "█", "█", "█", "█", "█", "▁", "█"],
+            Border::Wide => ["█", "█", "█", "▏", "▕", "█", "█", "█"],
         }
     }
 
@@ -290,9 +290,13 @@ impl Border {
                 } else {
                     continue;
                 };
-                // Panel's top row is a solid bar in the line colour
-                let (fg, bg) = if self == Border::Panel && y == area.top() { (fg, fg) } else { (fg, bg) };
-                buf[(x, y)].set_symbol(g[i]).set_fg(fg.color()).set_bg(bg.color());
+                // `█` means "solid": paint the cell background instead of drawing a glyph, so
+                // fonts show no seams and the thin `▔▁▏▕` lines terminate cleanly against it
+                if g[i] == "█" {
+                    buf[(x, y)].set_symbol(" ").set_fg(fg.color()).set_bg(fg.color());
+                } else {
+                    buf[(x, y)].set_symbol(g[i]).set_fg(fg.color()).set_bg(bg.color());
+                }
             }
         }
     }
@@ -312,7 +316,7 @@ impl Border {
     pub fn draw_titled_with(self, buf: &mut Buffer, area: Rect, fg: Rgb, bg: Rgb, title: &str, align: Alignment, title_style: Style) -> Rect {
         self.draw(buf, area, fg, bg);
         if !title.is_empty() && area.width > 4 {
-            let text = if matches!(self, Border::Panel | Border::Tall | Border::Thick | Border::Outer | Border::Inner) {
+            let text = if matches!(self, Border::Panel | Border::Thick | Border::Outer | Border::Inner) {
                 title.to_string()
             } else {
                 format!(" {title} ")

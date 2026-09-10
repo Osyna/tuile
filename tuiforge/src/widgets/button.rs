@@ -19,7 +19,7 @@ use ratatui::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::{Hit, HitBox, Interactive, Look, Outcome, is_activate, is_press};
-use crate::draw::{fill, put_centered, st};
+use crate::draw::{Border, fill, put_centered, st};
 use crate::theme::{self, Theme, Variant};
 
 const BUTTON_MIN_W: u16 = 16;
@@ -249,25 +249,13 @@ impl Button {
         let fg = if look.enabled { label_base } else { label_base.blend(th.background, 0.5) };
 
         fill(buf, area, bg);
-        if area.height >= 3 && area.width >= 3 && !self.compact {
-            for x in area.left()..area.right() {
-                if let Some(c) = buf.cell_mut((x, area.y)) {
-                    c.set_symbol("▔").set_fg(border_color.color());
-                }
-                if let Some(c) = buf.cell_mut((x, area.bottom() - 1)) {
-                    c.set_symbol("▁").set_fg(border_color.color());
-                }
-            }
-            for y in (area.y + 1)..(area.bottom() - 1) {
-                if let Some(c) = buf.cell_mut((area.left(), y)) {
-                    c.set_symbol("▏").set_fg(border_color.color());
-                }
-                if let Some(c) = buf.cell_mut((area.right() - 1, y)) {
-                    c.set_symbol("▕").set_fg(border_color.color());
-                }
-            }
-        }
-        let mid = if self.compact { area } else { Rect { y: area.y + area.height / 2, height: 1, ..area } };
+        let framed = area.height >= 3 && area.width >= 3 && !self.compact;
+        let mid = if framed {
+            Border::Tall.draw(buf, area, border_color, bg);
+            Rect { x: area.x + 1, y: area.y + area.height / 2, width: area.width - 2, height: 1 }
+        } else {
+            area
+        };
         let mut style = st(fg, bg).add_modifier(Modifier::BOLD);
         if look.focused {
             style = st(bg, fg).add_modifier(Modifier::BOLD);

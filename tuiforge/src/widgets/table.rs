@@ -630,7 +630,7 @@ impl StatefulWidget for DataTable {
             }
 
             if is_selected {
-                put(buf, content.x, y, "▌", 1, st(th.accent, bg));
+                put(buf, content.x, y, "┃", 1, st(th.accent, bg));
             }
 
             let mut x = content.x;

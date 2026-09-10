@@ -14,6 +14,7 @@ pub mod data;
 pub mod feedback;
 pub mod inputs;
 pub mod layout;
+pub mod loading;
 pub mod monitor;
 pub mod navigation;
 pub mod options;
@@ -91,6 +92,7 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(data::DataPage::default()),
         Box::new(charts::ChartsPage::default()),
         Box::new(feedback::FeedbackPage::default()),
+        Box::new(loading::LoadingPage::default()),
         Box::new(spinners::SpinnersPage::default()),
         Box::new(ai::AiPage::default()),
         Box::new(layout::LayoutPage::default()),

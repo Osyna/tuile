@@ -28,6 +28,7 @@ pub mod charts;
 pub mod digits;
 pub mod table;
 // feedback & overlays
+pub mod loading;
 pub mod modal;
 pub mod palette;
 pub mod options;
@@ -67,6 +68,7 @@ pub use header::*;
 pub use input::*;
 pub use list::*;
 pub use log::*;
+pub use loading::*;
 pub use markdown::*;
 pub use menu::*;
 pub use modal::*;

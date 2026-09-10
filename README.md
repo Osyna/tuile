@@ -141,7 +141,8 @@ take an explicit `.theme(&Theme)`.
 | Navigation | `TabBar` (underline / boxed / pills / segmented / minimal, closable, animated), `TabbedContent`, `ListView` (filter, multi-select, details), `TreeView` (guides, expand/collapse), `MenuBar` + `ContextMenu` (submenus, shortcuts), `Breadcrumbs`, `Paginator` |
 | Data | `DataTable` (sortable, zebra, row/cell cursor, multi-select, column resize, filter), `KeyValueList`, `Digits` (Textual big numerals) |
 | Charts | `SparkChart` (bars, braille line/area, btop dot `Field`, `mirrored`), `BarGraph` (grouped, horizontal), `LineGraph` (braille, area, grid, legend), `ScatterPlot`, `Heatmap`, `ActivityGraph`, `Meter` (line / block / segments / LED `Blocks` / `Dots`, gradient, suffix), `RadialGauge`, `BrailleCanvas` |
-| Feedback | `ProgressBar` (tweened, ETA, indeterminate), `StepProgress`, `Spinner` + `spinners::*` (all 90 [yaspin](https://github.com/pavdmyt/yaspin) / cli-spinners + 12 originals: `SPARKLE`, `RING`, `WAVE`, `EQUALIZER`, `SCANNER`, `SHIMMER`, `DNA`, `MATRIX`…), `LoadingIndicator`, `Skeleton`, `Marquee`, `Blinker`, `Toaster`/`ToastStack` (accent bar `Edge` thin/half/full, painted remaining-time strip), `Callout` (`LeftBar` / `Bar(Edge)` / `Round`), `Modal` (confirm / alert / prompt), `CommandPalette` (fuzzy), `Tooltip` |
+| Feedback | `ProgressBar` (tweened, ETA, indeterminate), `StepProgress`, `Spinner` + `spinners::*` (all 90 [yaspin](https://github.com/pavdmyt/yaspin) / cli-spinners + 12 originals: `SPARKLE`, `RING`, `WAVE`, `EQUALIZER`, `SCANNER`, `SHIMMER`, `DNA`, `MATRIX`…), `LoadingIndicator`, `Marquee`, `Blinker`, `Toaster`/`ToastStack` (accent bar `Edge` thin/half/full, painted remaining-time strip), `Callout` (`LeftBar` / `Bar(Edge)` / `Round`), `Modal` (confirm / alert / prompt), `CommandPalette` (fuzzy), `Tooltip` |
+| Loading | `Loader` × 20 `LoaderStyle`s - bars: `Scanner`, `Comet`, `Sweep`, `FillDrain`, `Pulse`, `Stripes`, `Rainbow`, `Snake`, `Chase`, `Blocks`, `Wave`, `Bounce`, `Ping`, `Heartbeat`; text: `Ellipsis`, `Shimmer`, `Typewriter`; scenes: `Equalizer`, `Rain`, `Radar` (`.label`, `.color/.color2`, `.speed`); `Skeleton` (`Text` / `Card` / `Avatar` / `Table` / `Chart`, painted, diagonal shimmer); `LoadingOverlay` (dim any area, centred loader + message) |
 | AI / LLM | `ChatView` (bubbles, streaming, role bar `Edge`), `StreamText`, `Thinking` (any catalog spinner), `ContextGauge` (any `MeterStyle` + gradient, e.g. btop LEDs), `ToolCall`, `TokenHeat`, `DiffView`, `PromptComposer` (any `FieldShape`), `Approval` |
 | Layout & chrome | `SplitPane` (draggable), `ScrollView` (offscreen buffer, smooth), `Scrollbar`, `Panel` (title, right title, footer keys, badge) / card / section, `Collapsible` + `Accordion`, `AppHeader`, `KeyFooter`, `StatusLine` (segments + separators), `Placeholder` |
 | Menus & settings | `OptionList` (grouped `label  value` rows, cursor, in-place bool/choice/int cycling, group index for a sidebar), `BigText` (3-row box-drawing font) + `BigMenu` (btop's `OPTIONS / HELP / QUIT`), `CommandPalette`, `MenuBar` |
@@ -158,9 +159,10 @@ Regenerate the spinner catalog from `tools/spinners.json` with `python tools/gen
 
 ## Showcase
 
-`showcase/` is a 16-page gallery: Welcome, Dashboard (everything composed on one screen),
+`showcase/` is a 17-page gallery: Welcome, Dashboard (everything composed on one screen),
 Monitor (btop-style: LED meters, dot-field graphs, mirrored net graph, process tree, big-font
-menu on `m`), Controls, Inputs, Navigation, Tables, Charts, Feedback, Spinners (the whole
+menu on `m`), Controls, Inputs, Navigation, Tables, Charts, Feedback, Loading (all 20 loader
+styles, scenes, skeletons, overlay; space pauses, `+`/`-` speed), Spinners (the whole
 catalog, filterable, with the one-liner for each), AI (chat, streaming, tool calls, context
 gauge, approvals, diffs), Layout, Content, Settings (a complete preferences form in ~300 lines),
 Options (omp-style settings screen: icon tabs + group sidebar + `OptionList`, with a live
@@ -188,6 +190,8 @@ Headless screenshots for review/CI: `python tools/shot.py -s 130x42 -k "Tab Ente
 | ![ai](docs/screenshots/ai.png) | ![spinners](docs/screenshots/spinners.png) |
 | **Monitor** (btop-style) | **Options** (omp-style settings) |
 | ![monitor](docs/screenshots/monitor.png) | ![options](docs/screenshots/options.png) |
+| **Loading** (20 loader styles, skeletons, overlay) | **Welcome** |
+| ![loading](docs/screenshots/loading.png) | ![welcome](docs/screenshots/welcome.png) |
 
 ## Writing a widget
 

@@ -5,8 +5,9 @@
 //! overlays (modals, toasts, palettes, dropdowns) and an app runtime that only redraws when
 //! something moves.
 //!
-//! ```ignore
+//! ```no_run
 //! use tuiforge::prelude::*;
+//! use std::time::Instant;
 //!
 //! struct Demo { on: SwitchState }
 //!
@@ -16,8 +17,8 @@
 //!         Switch::new().now(now).focused(true).render(area, frame.buffer_mut(), &mut self.on);
 //!     }
 //!     fn event(&mut self, ev: Event, now: Instant) -> Flow {
-//!         if let Event::Key(k) = &ev && k.code == KeyCode::Char('q') { return Flow::Quit; }
-//!         self.on.now(now).handle(&ev);
+//!         if let Event::Key(k) = &ev { if k.code == KeyCode::Char('q') { return Flow::Quit; } }
+//!         self.on.handle(&ev);
 //!         Flow::Continue
 //!     }
 //!     fn animating(&self, now: Instant) -> bool { self.on.animating(now) }

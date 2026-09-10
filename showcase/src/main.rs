@@ -1,6 +1,6 @@
 //! tuiforge showcase: a gallery app where every page exercises one widget family.
 //!
-//! Run `showcase --page charts` to open directly on a page.
+//! `showcase --page charts --theme nord` opens directly on a page with a theme.
 
 mod pages;
 
@@ -14,15 +14,17 @@ use pages::{Ctx, Page};
 
 const SIDEBAR_W: u16 = 22;
 
+const HELP: &str = "Navigation\n  ] / [        next / previous page\n  alt+1..9     jump to page\n  ^b           toggle sidebar\n  ^p           command palette (pages, themes, actions)\n  ^t           next theme\n  F1           this help\n  F3           reduce motion\n  ^c / ^q      quit\n\nInside pages\n  Tab / ⇧Tab   move focus between widgets\n  arrows       move / adjust the focused widget\n  Enter/Space  activate\n  Esc          close dropdowns and dialogs\n  mouse        click, hover, drag sliders & dividers, wheel to scroll";
+
 struct Shell {
     pages: Vec<Box<dyn Page>>,
     current: usize,
     sidebar: bool,
     sidebar_hover: Option<usize>,
-    theme_idx: usize,
     ctx: Ctx,
-    /// Latest notice shown in the footer until `notice_until`.
-    notice: Option<(String, Variant, Instant)>,
+    toaster: Toaster,
+    palette: CommandPaletteState,
+    help: ModalState,
     /// Sidebar rect from the last draw (zero-width when hidden), for mouse routing.
     side_area: Rect,
 }
@@ -35,23 +37,77 @@ impl Shell {
             .unwrap_or(0);
         let now = Instant::now();
         let ctx = Ctx { theme: theme::current(), now, started: now, reduce_motion: false, notices: Vec::new(), area: Rect::default() };
-        Shell { pages, current, sidebar: true, sidebar_hover: None, theme_idx: 0, ctx, notice: None, side_area: Rect::default() }
+        let mut palette_items = Vec::new();
+        for (i, p) in pages.iter().enumerate() {
+            let mut item = PaletteItem::new(format!("Go to {}", p.title())).group("Pages").icon(p.icon());
+            if i < 9 {
+                item = item.shortcut(format!("alt+{}", i + 1));
+            }
+            palette_items.push(item.hint(p.subtitle()));
+        }
+        for spec in theme::BUILTIN {
+            palette_items.push(PaletteItem::new(format!("Theme: {}", spec.name)).group("Themes").icon(if spec.dark { "◑" } else { "◐" }));
+        }
+        palette_items.push(PaletteItem::new("Toggle sidebar").group("Actions").shortcut("^b"));
+        palette_items.push(PaletteItem::new("Toggle reduce motion").group("Actions").shortcut("F3"));
+        palette_items.push(PaletteItem::new("Show help").group("Actions").shortcut("F1"));
+        palette_items.push(PaletteItem::new("Quit").group("Actions").shortcut("^q"));
+        let mut palette = CommandPaletteState::new();
+        palette.set_items(&palette_items);
+        Shell {
+            pages,
+            current,
+            sidebar: true,
+            sidebar_hover: None,
+            ctx,
+            toaster: Toaster::new().max_visible(4),
+            palette,
+            help: ModalState::new(),
+            side_area: Rect::default(),
+        }
     }
 
     fn set_theme(&mut self, idx: usize) {
         let specs = theme::BUILTIN;
-        self.theme_idx = idx % specs.len();
-        let th = Theme::resolve(&specs[self.theme_idx], None);
+        let th = Theme::resolve(&specs[idx % specs.len()], None);
         theme::set(th.clone());
         self.ctx.theme = th;
-        let name = specs[self.theme_idx].name.to_string();
+        let name = specs[idx % specs.len()].name.to_string();
         self.ctx.notify(format!("Theme: {name}"), Variant::Primary);
+    }
+
+    /// Index of the current theme in `BUILTIN` (pages may switch themes behind our back).
+    fn theme_idx(&self) -> usize {
+        theme::BUILTIN.iter().position(|t| t.name == self.ctx.theme.name).unwrap_or(0)
     }
 
     fn goto(&mut self, idx: usize) {
         if !self.pages.is_empty() {
             self.current = idx % self.pages.len();
         }
+    }
+
+    fn run_palette_item(&mut self, idx: usize) -> Flow {
+        let n_pages = self.pages.len();
+        let n_themes = theme::BUILTIN.len();
+        match idx {
+            i if i < n_pages => self.goto(i),
+            i if i < n_pages + n_themes => self.set_theme(i - n_pages),
+            i => match i - n_pages - n_themes {
+                0 => self.sidebar = !self.sidebar,
+                1 => self.toggle_reduce_motion(),
+                2 => self.help.open(self.ctx.now),
+                _ => return Flow::Quit,
+            },
+        }
+        Flow::Continue
+    }
+
+    fn toggle_reduce_motion(&mut self) {
+        self.ctx.reduce_motion = !self.ctx.reduce_motion;
+        self.toaster = std::mem::take(&mut self.toaster).reduce_motion(self.ctx.reduce_motion);
+        let msg = if self.ctx.reduce_motion { "Reduce motion: on" } else { "Reduce motion: off" };
+        self.ctx.notify(msg, Variant::Accent);
     }
 
     fn layout(&self, area: Rect) -> (Rect, Rect, Rect, Rect) {
@@ -114,18 +170,11 @@ impl Shell {
         }
     }
 
-    fn draw_footer(&self, area: Rect, buf: &mut Buffer, now: Instant) {
+    fn draw_footer(&self, area: Rect, buf: &mut Buffer) {
         let th = &self.ctx.theme;
         fill(buf, area, th.footer_bg);
-        if let Some((msg, v, until)) = &self.notice
-            && now < *until
-        {
-            let color = th.text_variant(*v);
-            put(buf, area.x + 1, area.y, &format!("● {msg}"), area.width.saturating_sub(2), st(color, th.footer_bg).add_modifier(Modifier::BOLD));
-            return;
-        }
         let mut x = area.x + 1;
-        let mut bindings: Vec<(&str, &str)> = vec![("^c", "Quit"), ("[ ]", "Page"), ("^t", "Theme"), ("^b", "Sidebar")];
+        let mut bindings: Vec<(&str, &str)> = vec![("^p", "Palette"), ("[ ]", "Page"), ("^t", "Theme"), ("F1", "Help")];
         bindings.extend(self.pages[self.current].bindings().iter().copied());
         for (key, desc) in bindings {
             let need = key.chars().count() as u16 + desc.chars().count() as u16 + 4;
@@ -137,9 +186,16 @@ impl Shell {
         }
     }
 
-    fn drain_notices(&mut self, now: Instant) {
-        if let Some((msg, v)) = self.ctx.notices.drain(..).last() {
-            self.notice = Some((msg, v, now + Duration::from_millis(2500)));
+    fn drain_notices(&mut self) {
+        for (msg, v) in self.ctx.notices.drain(..) {
+            let title = match v {
+                Variant::Success => "Success",
+                Variant::Warning => "Warning",
+                Variant::Error => "Error",
+                Variant::Primary | Variant::Secondary | Variant::Accent => "Showcase",
+                Variant::Default => "Info",
+            };
+            self.toaster.push(Toast::new(title, &msg).variant(v).timeout(Duration::from_millis(2500)));
         }
     }
 
@@ -153,6 +209,10 @@ impl Shell {
 }
 
 impl App for Shell {
+    fn update(&mut self, now: Instant) {
+        self.toaster.tick(now);
+    }
+
     fn draw(&mut self, frame: &mut Frame, now: Instant) {
         let area = frame.area();
         let buf = frame.buffer_mut();
@@ -172,26 +232,53 @@ impl App for Shell {
         }
         let cur = self.current;
         self.pages[cur].draw(content, buf, &mut self.ctx);
-        self.drain_notices(now);
-        self.draw_footer(footer, buf, now);
+        self.drain_notices();
+        self.draw_footer(footer, buf);
+        // overlays: toasts above content, dialogs above toasts, palette on top
+        let toast_area = Rect { height: area.height.saturating_sub(1), ..area };
+        ToastStack::new().theme(&th).now(now).render(toast_area, buf, &mut self.toaster);
+        if self.help.open {
+            Modal::alert("Key bindings", HELP).width(64).icon("?").theme(&th).now(now).render(area, buf, &mut self.help);
+        }
+        CommandPalette::new().theme(&th).now(now).render(area, buf, &mut self.palette);
     }
 
     fn event(&mut self, ev: Event, now: Instant) -> Flow {
         self.ctx.now = now;
+        // modal layers first
+        if self.palette.open {
+            self.palette.handle(&ev);
+            if let Some(i) = self.palette.take_selected() {
+                self.palette.close();
+                if self.run_palette_item(i) == Flow::Quit {
+                    return Flow::Quit;
+                }
+            }
+            self.drain_notices();
+            return Flow::Continue;
+        }
+        if self.help.open {
+            self.help.handle(&ev);
+            if self.help.take_result().is_some() {
+                self.help.close();
+            }
+            return Flow::Continue;
+        }
         match &ev {
             Event::Key(k) => {
-                // shell-global chords first
                 if ctrl(k, 'c') || ctrl(k, 'q') {
                     return Flow::Quit;
                 }
-                if ctrl(k, 't') {
-                    self.set_theme(self.theme_idx + 1);
+                if ctrl(k, 'p') {
+                    self.palette.open();
+                } else if ctrl(k, 't') {
+                    self.set_theme(self.theme_idx() + 1);
                 } else if ctrl(k, 'b') {
                     self.sidebar = !self.sidebar;
+                } else if k.code == KeyCode::F(1) {
+                    self.help.open(now);
                 } else if k.code == KeyCode::F(3) {
-                    self.ctx.reduce_motion = !self.ctx.reduce_motion;
-                    let msg = if self.ctx.reduce_motion { "Reduce motion: on" } else { "Reduce motion: off" };
-                    self.ctx.notify(msg, Variant::Accent);
+                    self.toggle_reduce_motion();
                 } else if k.modifiers.contains(KeyModifiers::ALT)
                     && let KeyCode::Char(c) = k.code
                     && let Some(d) = c.to_digit(10)
@@ -206,12 +293,16 @@ impl App for Shell {
                             KeyCode::Char(']') => self.goto(self.current + 1),
                             KeyCode::Char('[') => self.goto(self.current + self.pages.len() - 1),
                             KeyCode::Char('q') => return Flow::Quit,
+                            KeyCode::Esc => self.toaster.dismiss_all(now),
                             _ => {}
                         }
                     }
                 }
             }
             Event::Mouse(m) => {
+                if self.toaster.handle_mouse(*m).is_changed() {
+                    return Flow::Continue;
+                }
                 let side = self.side_area;
                 let pos = mouse_pos(m);
                 let over = self.sidebar_item_at(side, pos);
@@ -227,12 +318,12 @@ impl App for Shell {
             }
             _ => {}
         }
-        self.drain_notices(now);
+        self.drain_notices();
         Flow::Continue
     }
 
     fn animating(&self, now: Instant) -> bool {
-        self.pages[self.current].animating(now) || self.notice.as_ref().is_some_and(|(_, _, until)| now < *until)
+        self.pages[self.current].animating(now) || self.toaster.animating(now) || self.help.open
     }
 }
 

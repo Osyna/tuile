@@ -127,8 +127,13 @@ fn thumb_span(content: usize, viewport: usize, offset: usize, len: f32) -> (f32,
 
 /// The scrollbar widget. Renders into a 1-cell-thick area; wider areas are filled.
 ///
-/// ```ignore
-/// Scrollbar::vertical(total_rows, visible_rows).offset(state.offset).render(area, buf, &mut state);
+/// ```
+/// use tuiforge::prelude::*;
+/// # let mut buf = Buffer::empty(Rect::new(0, 0, 40, 10));
+/// let mut state = ScrollbarState::new();
+/// let (total_rows, visible_rows) = (200, 10);
+/// Scrollbar::vertical(total_rows, visible_rows).offset(40).render(Rect::new(39, 0, 1, 10), &mut buf, &mut state);
+/// // later: state.handle_mouse(mouse_event) moves `state.offset` on wheel/drag
 /// ```
 #[derive(Clone, Debug)]
 pub struct Scrollbar {

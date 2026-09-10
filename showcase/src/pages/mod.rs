@@ -45,6 +45,12 @@ impl Ctx {
     }
 }
 
+/// Dim rounded card with a bright title; returns the inner rect. Used by shell-owned pages.
+pub fn card(buf: &mut Buffer, area: Rect, th: &Theme, title: &str) -> Rect {
+    let style = st(th.text, th.background).add_modifier(Modifier::BOLD);
+    Border::Round.draw_titled_with(buf, area, th.border_blurred, th.background, title, Alignment::Left, style)
+}
+
 pub trait Page {
     fn title(&self) -> &'static str;
     /// One-line blurb shown in the header.

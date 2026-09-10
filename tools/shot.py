@@ -16,6 +16,7 @@ Mouse steps (SGR sequences): `click X Y`, `down X Y`, `up X Y`, `drag X Y`, `mov
 `wheelup X Y`, `wheeldown X Y` — 0-based cell coordinates.
 """
 import argparse
+import itertools
 import os
 import re
 import subprocess
@@ -36,12 +37,20 @@ FONT_BOLD = [
 ]
 
 
+_COUNTER = itertools.count()
+
+
 class Tmux:
     def __init__(self, cmd, cols, rows):
-        self.sock = f"shot-{os.getpid()}"
+        self.sock = f"shot-{os.getpid()}-{next(_COUNTER)}"
         self.t = ["tmux", "-L", self.sock]
         shell = " ".join(_q(c) for c in cmd) + " 2>/tmp/shot-%d.err" % os.getpid()
-        subprocess.run([*self.t, "new-session", "-d", "-s", "s", "-x", str(cols), "-y", str(rows), shell], check=True)
+        # Agent shells often export NO_COLOR=1 / TERM=dumb: crossterm would then strip every
+        # colour. The tmux server (and thus the app) inherits this environment, so scrub it.
+        env = {k: v for k, v in os.environ.items() if k not in ("NO_COLOR", "TMUX", "TMUX_PANE")}
+        env["TERM"] = "xterm-256color"
+        env["COLORTERM"] = "truecolor"
+        subprocess.run([*self.t, "new-session", "-d", "-s", "s", "-x", str(cols), "-y", str(rows), shell], check=True, env=env)
         subprocess.run([*self.t, "set", "-g", "status", "off"], check=False)
         self.cols, self.rows = cols, rows
 

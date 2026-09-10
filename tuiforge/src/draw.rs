@@ -296,14 +296,21 @@ impl Border {
         }
     }
 
-    /// Draw the border plus a title on the top edge. Returns the inner area.
+    /// Draw the border plus a title on the top edge (title in the border colour, bold).
+    /// Returns the inner area.
     pub fn draw_titled(self, buf: &mut Buffer, area: Rect, fg: Rgb, bg: Rgb, title: &str, align: Alignment) -> Rect {
+        let style = match self {
+            Border::Panel => st(fg.text_on(0.9), fg).add_modifier(Modifier::BOLD),
+            _ => st(fg, bg).add_modifier(Modifier::BOLD),
+        };
+        self.draw_titled_with(buf, area, fg, bg, title, align, style)
+    }
+
+    /// Like [`Border::draw_titled`] with an explicit title style (e.g. a dim border with a
+    /// bright title, the usual "card" look).
+    pub fn draw_titled_with(self, buf: &mut Buffer, area: Rect, fg: Rgb, bg: Rgb, title: &str, align: Alignment, title_style: Style) -> Rect {
         self.draw(buf, area, fg, bg);
         if !title.is_empty() && area.width > 4 {
-            let style = match self {
-                Border::Panel => st(fg.text_on(0.9), fg).add_modifier(Modifier::BOLD),
-                _ => st(fg, bg).add_modifier(Modifier::BOLD),
-            };
             let text = if matches!(self, Border::Panel | Border::Tall | Border::Thick | Border::Outer | Border::Inner) {
                 title.to_string()
             } else {
@@ -311,7 +318,7 @@ impl Border {
             };
             let slot = Rect { x: area.x + 1, y: area.y, width: area.width - 2, height: 1 };
             let text = truncate(&text, slot.width as usize);
-            put_aligned(buf, slot, &text, align, style);
+            put_aligned(buf, slot, &text, align, title_style);
         }
         self.inner(area)
     }
@@ -406,7 +413,6 @@ pub fn wrap(text: &str, width: usize) -> Vec<String> {
                 // hard-split an over-long word
                 if !line.is_empty() {
                     out.push(std::mem::take(&mut line));
-                    lw = 0;
                 }
                 let mut chunk = String::new();
                 let mut cw = 0;

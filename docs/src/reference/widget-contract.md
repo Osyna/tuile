@@ -6,7 +6,7 @@ without reading their source. Read `tuile/src/{core,theme,anim,draw,layout}.rs` 
 
 ## Shape
 
-```rust
+```rust,ignore
 /// Builder: cheap value, consumed by `render`. Holds only configuration for THIS frame.
 pub struct Switch { on: Option<bool>, focused: bool, enabled: bool, now: Option<Instant>, theme: Option<Theme>, /* … */ }
 
@@ -105,7 +105,7 @@ Rules:
 
 ## Showcase page contract (`showcase/src/pages/<name>.rs`)
 
-```rust
+```rust,ignore
 #[derive(Default)] pub struct XxxPage { /* widget states, Focus<Id> */ }
 impl Page for XxxPage {
     fn title(&self) -> &'static str;              // fixed, matches pages/mod.rs registry

@@ -26,7 +26,7 @@ Grades after the changes; the arrow shows the move from the original audit.
 | 7 | Duplication class | 4/5 ↑2 | ×1 | moderate | The one duplicated rule is extracted; remaining clones are consistent parallel widget code |
 | 8 | AI-risk signals | 4/5 ↑2 | ×2 | emerging | CI, layering fitness function and dependency gate in place; no duplication ratchet yet |
 | 9 | Supply chain | 4/5 ↑3 | ×1 | strong | `Cargo.lock` committed, `deny.toml` enforced in CI; no SBOM |
-| 10 | Docs & decisions | 4/5 = | ×1 | expert opinion | README with gallery, `docs/WIDGET_CONTRACT.md`, 45 doc tests; no ADRs |
+| 10 | Docs & decisions | 4/5 = | ×1 | expert opinion | README with gallery, `docs/src/reference/widget-contract.md`, 45 doc tests; no ADRs |
 
 No dimensions marked n/a. Overall = 73/95 × 100 = **77**.
 

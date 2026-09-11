@@ -1,0 +1,32 @@
+[book]
+title = "tuile"
+description = "Widget library and design system for ratatui: guides, widget reference and recipes."
+authors = ["Osyna"]
+language = "en"
+src = "src"
+
+[rust]
+edition = "2024"
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/Osyna/tuile"
+edit-url-template = "https://github.com/Osyna/tuile/edit/main/docs/{path}"
+additional-css = ["theme/tuile.css"]
+no-section-label = false
+
+[output.html.playground]
+runnable = false
+
+[output.html.search]
+limit-results = 20
+use-boolean-and = true
+
+[output.html.fold]
+enable = true
+level = 1

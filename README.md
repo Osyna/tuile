@@ -1,31 +1,34 @@
 <div align="center">
-  <img src="docs/screenshots/dashboard.png" width="265"/>
-  <img src="docs/screenshots/monitor.png" width="265"/>
-  <img src="docs/screenshots/ai.png" width="265"/>
+  <img src="docs/src/screenshots/dashboard.png" width="265"/>
+  <img src="docs/src/screenshots/monitor.png" width="265"/>
+  <img src="docs/src/screenshots/ai.png" width="265"/>
 </div>
 
 <div align="center">
-  <img src="docs/screenshots/controls.png" width="265"/>
-  <img src="docs/screenshots/charts.png" width="265"/>
-  <img src="docs/screenshots/bigmenus.png" width="265"/>
+  <img src="docs/src/screenshots/controls.png" width="265"/>
+  <img src="docs/src/screenshots/charts.png" width="265"/>
+  <img src="docs/src/screenshots/bigmenus.png" width="265"/>
 </div>
 
 <h1 align="center">tuile</h1>
 
 <h6 align="center">
+    <a href="https://osyna.github.io/tuile/"><b>Documentation</b></a>
+    ·
     <a href="#-widget-catalogue">Catalogue</a>
     ·
     <a href="#-showcase">Showcase</a>
     ·
-    <a href="docs/WIDGET_CONTRACT.md">Widget contract</a>
+    <a href="https://osyna.github.io/tuile/reference/widget-contract.html">Widget contract</a>
     ·
     <a href="AUDIT.md">Code audit</a>
     ·
-    <a href="#-faq">FAQ</a>
+    <a href="https://osyna.github.io/tuile/reference/faq.html">FAQ</a>
 </h6>
 
 <div align="center">
   <a href="https://github.com/Osyna/tuile/actions/workflows/ci.yml"><img src="https://github.com/Osyna/tuile/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+  <a href="https://github.com/Osyna/tuile/actions/workflows/docs.yml"><img src="https://github.com/Osyna/tuile/actions/workflows/docs.yml/badge.svg" alt="docs"/></a>
   <img src="https://img.shields.io/badge/rust-1.88%2B-orange.svg" alt="Rust 1.88+"/>
   <img src="https://img.shields.io/badge/ratatui-0.30-blue.svg" alt="ratatui 0.30"/>
   <img src="https://img.shields.io/badge/unsafe-forbidden-success.svg" alt="unsafe forbidden"/>
@@ -191,11 +194,11 @@ theme, `^b` sidebar, `F1` help, `F3` reduce motion, `Tab` focus, mouse everywher
 
 | **Dashboard** | **Controls** |
 |---|---|
-| ![dashboard](docs/screenshots/dashboard.png) | ![controls](docs/screenshots/controls.png) |
+| ![dashboard](docs/src/screenshots/dashboard.png) | ![controls](docs/src/screenshots/controls.png) |
 | **Inputs** | **Charts** |
-| ![inputs](docs/screenshots/inputs.png) | ![charts](docs/screenshots/charts.png) |
+| ![inputs](docs/src/screenshots/inputs.png) | ![charts](docs/src/screenshots/charts.png) |
 | **AI** (a replayed harness turn) | **Monitor** (btop-style) |
-| ![ai](docs/screenshots/ai.png) | ![monitor](docs/screenshots/monitor.png) |
+| ![ai](docs/src/screenshots/ai.png) | ![monitor](docs/src/screenshots/monitor.png) |
 
 <details>
 <summary><b>The other sixteen pages.</b></summary>
@@ -204,23 +207,23 @@ theme, `^b` sidebar, `F1` help, `F3` reduce motion, `Tab` focus, mouse everywher
 
 | **Feedback** (toasts, nord) | **Settings** |
 |---|---|
-| ![toasts](docs/screenshots/toasts-nord.png) | ![settings](docs/screenshots/settings.png) |
+| ![toasts](docs/src/screenshots/toasts-nord.png) | ![settings](docs/src/screenshots/settings.png) |
 | **Navigation** | **Tables** |
-| ![navigation](docs/screenshots/navigation.png) | ![tables](docs/screenshots/tables.png) |
+| ![navigation](docs/src/screenshots/navigation.png) | ![tables](docs/src/screenshots/tables.png) |
 | **Layout** | **Content** |
-| ![layout](docs/screenshots/layout.png) | ![content](docs/screenshots/content.png) |
+| ![layout](docs/src/screenshots/layout.png) | ![content](docs/src/screenshots/content.png) |
 | **Themes** | **Command palette** (nord) |
-| ![themes](docs/screenshots/themes.png) | ![palette](docs/screenshots/palette.png) |
+| ![themes](docs/src/screenshots/themes.png) | ![palette](docs/src/screenshots/palette.png) |
 | **Spinners** (102-entry catalog) | **Loading** (20 styles, skeletons, overlay) |
-| ![spinners](docs/screenshots/spinners.png) | ![loading](docs/screenshots/loading.png) |
+| ![spinners](docs/src/screenshots/spinners.png) | ![loading](docs/src/screenshots/loading.png) |
 | **Big menus** (4 fonts, 10 styles) | **Notifications** |
-| ![bigmenus](docs/screenshots/bigmenus.png) | ![notifications](docs/screenshots/notifications.png) |
+| ![bigmenus](docs/src/screenshots/bigmenus.png) | ![notifications](docs/src/screenshots/notifications.png) |
 | **Options** (omp-style settings) | **Welcome** |
-| ![options](docs/screenshots/options.png) | ![welcome](docs/screenshots/welcome.png) |
+| ![options](docs/src/screenshots/options.png) | ![welcome](docs/src/screenshots/welcome.png) |
 | **AI Tools** | **AI Agents** |
-| ![ai-tools](docs/screenshots/ai-tools.png) | ![ai-agents](docs/screenshots/ai-agents.png) |
+| ![ai-tools](docs/src/screenshots/ai-tools.png) | ![ai-agents](docs/src/screenshots/ai-agents.png) |
 | **AI Composer** | |
-| ![ai-composer](docs/screenshots/ai-composer.png) | |
+| ![ai-composer](docs/src/screenshots/ai-composer.png) | |
 
 </details>
 
@@ -247,7 +250,7 @@ The drawing primitives are public and are the same ones every built-in widget us
 custom widget looks native: `draw::{Border, put, fill, hbar, wrap, truncate, st}` and
 `layout::{stack, columns, center, popup_below}`.
 
-[`docs/WIDGET_CONTRACT.md`](docs/WIDGET_CONTRACT.md) is the checklist every widget in this repo
+[`docs/src/reference/widget-contract.md`](docs/src/reference/widget-contract.md) is the checklist every widget in this repo
 follows: builder plus state, `Interactive`, cached rects, theme fallback, no panics at any
 size, tests per module. `tuile/src/widgets/scrollbar.rs` is the reference implementation.
 
@@ -331,7 +334,7 @@ to 250×70. Widgets that cannot fit draw nothing rather than panicking.
 
 Issues and pull requests are welcome. Before opening a PR:
 
-1. Read [`docs/WIDGET_CONTRACT.md`](docs/WIDGET_CONTRACT.md) if you are adding or changing a widget.
+1. Read [`docs/src/reference/widget-contract.md`](docs/src/reference/widget-contract.md) if you are adding or changing a widget.
 2. Run what CI runs: `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `python3 tools/check_layers.py`.
 3. A new widget needs a showcase page entry and tests that assert what a consumer observes, not how the widget is wired internally.
 

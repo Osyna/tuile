@@ -53,7 +53,7 @@
 //!   until it is drawn. Custom spinners: `SpinnerDef::new("name", ms, &frames)` or
 //!   `Spinner::frames(&frames, ms)`. Custom looks: [`draw::Border`] styles, [`theme::Variant`]s.
 //! * **Extend.** New widgets use the same public primitives ([`draw`], [`layout`], [`anim`],
-//!   [`core::HitBox`], [`core::Focus`]); see `docs/WIDGET_CONTRACT.md` in the repository.
+//!   [`core::HitBox`], [`core::Focus`]); the contract is at <https://osyna.github.io/tuile/reference/widget-contract.html>.
 //!
 //! [ratatui]: https://ratatui.rs
 

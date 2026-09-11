@@ -1,0 +1,31 @@
+/* Wider content: the widget tables in this book have long cells. */
+.content main {
+  max-width: 980px;
+}
+
+/* Screenshots are wide terminal captures; let them use the full column. */
+.content img {
+  width: 100%;
+  border-radius: 4px;
+  display: block;
+  margin: 1rem 0;
+}
+
+/* Keys and API names read better slightly tighter than the default. */
+.content code {
+  font-size: 0.88em;
+}
+
+/* Tables carry most of the reference material: keep them readable. */
+.content table {
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.content table td:first-child {
+  white-space: nowrap;
+}
+
+.content table td {
+  vertical-align: top;
+}

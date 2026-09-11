@@ -28,6 +28,8 @@ pub struct NavigationPage {
     breadcrumbs: BreadcrumbsState,
     underline_tabs: TabBarState,
     boxed_tabs: TabBarState,
+    /// Owned so the closable tab can actually be removed when its × is clicked.
+    boxed_items: Vec<TabItem>,
     pills_tabs: TabBarState,
     segmented_tabs: TabBarState,
     minimal_tabs: TabBarState,
@@ -84,6 +86,12 @@ impl NavigationPage {
             breadcrumbs: BreadcrumbsState::new(),
             underline_tabs: TabBarState::new(0),
             boxed_tabs: TabBarState::new(1),
+            boxed_items: vec![
+                "Files".into(),
+                "Search".into(),
+                TabItem::new("Git").closable(true),
+                "Debug".into(),
+            ],
             pills_tabs: TabBarState::new(0),
             segmented_tabs: TabBarState::new(2),
             minimal_tabs: TabBarState::new(0),
@@ -259,14 +267,8 @@ impl Page for NavigationPage {
         }
 
         // Boxed
-        if tab_y + 2 <= left_inner.bottom() {
-            let items: Vec<TabItem> = vec![
-                "Files".into(),
-                "Search".into(),
-                TabItem::new("Git").closable(true),
-                "Debug".into(),
-            ];
-            TabBar::new(items)
+        if tab_y + 2 <= left_inner.bottom() && !self.boxed_items.is_empty() {
+            TabBar::new(self.boxed_items.clone())
                 .style(TabStyle::Boxed)
                 .focused(self.focus.is(Id::BoxedTabs))
                 .theme(th)
@@ -645,6 +647,14 @@ impl Page for NavigationPage {
                 out |= self.breadcrumbs.handle_mouse(*m);
                 out |= self.underline_tabs.handle_mouse(*m);
                 out |= self.boxed_tabs.handle_mouse(*m);
+                if let Some(i) = self.boxed_tabs.take_closed()
+                    && i < self.boxed_items.len()
+                {
+                    let label = self.boxed_items.remove(i).label;
+                    let last = self.boxed_items.len().saturating_sub(1);
+                    self.boxed_tabs.set_active(self.boxed_tabs.active.min(last));
+                    ctx.notify(format!("Closed {label}"), Variant::Default);
+                }
                 out |= self.pills_tabs.handle_mouse(*m);
                 out |= self.segmented_tabs.handle_mouse(*m);
                 out |= self.minimal_tabs.handle_mouse(*m);

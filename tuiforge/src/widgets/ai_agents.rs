@@ -2355,19 +2355,110 @@ mod tests {
     #[test]
     fn test_token_meter_segments_sum() {
         let th = Theme::default();
+        // cache_write is 5 of 3505 tokens: proportionally it rounds to zero cells, so this
+        // input is what exercises the "every non-zero segment gets a cell" guarantee, and
+        // the rounding leftover is what exercises filling the bar exactly.
         let b = TokenBreakdown {
             input: 1000,
             output: 500,
             cache_read: 2000,
-            cache_write: 300,
+            cache_write: 5,
         };
-        let area = Rect::new(0, 0, 20, 2);
+        let area = Rect::new(0, 0, 80, 2);
         let mut buf = Buffer::empty(area);
         TokenMeter::new(b).theme(&th).render(area, &mut buf);
 
-        // Each non-zero segment should get >= 1 cell
-        // Total should equal bar width
-        // (visual test via buffer inspection would be needed for full validation)
+        let bar_width = 80u16;
+        let segments = [
+            ("input", th.primary),
+            ("output", th.accent),
+            ("cache_read", th.success),
+            ("cache_write", th.secondary),
+        ];
+
+        // Every non-zero segment gets at least one cell, and the segments together cover the
+        // bar with no background showing through. Counting every bg would just recount the row.
+        for (name, color) in segments {
+            let n = (0..bar_width)
+                .filter(|&x| buf.cell((x, 0)).is_some_and(|c| c.bg == color.color()))
+                .count();
+            assert!(n > 0, "{name} segment is missing from the bar");
+        }
+        let painted = (0..bar_width)
+            .filter(|&x| {
+                segments
+                    .iter()
+                    .any(|(_, col)| buf.cell((x, 0)).is_some_and(|c| c.bg == col.color()))
+            })
+            .count() as u16;
+        assert_eq!(
+            painted, bar_width,
+            "segments fill the bar, no gap: {painted}"
+        );
+
+        // Verify colors appear in order by checking the first cell of each color segment
+        let primary_idx = (0..bar_width)
+            .find(|&x| {
+                buf.cell((x, 0))
+                    .map(|c| c.bg == th.primary.color())
+                    .unwrap_or(false)
+            })
+            .unwrap();
+        let accent_idx = (0..bar_width)
+            .find(|&x| {
+                buf.cell((x, 0))
+                    .map(|c| c.bg == th.accent.color())
+                    .unwrap_or(false)
+            })
+            .unwrap();
+        let success_idx = (0..bar_width)
+            .find(|&x| {
+                buf.cell((x, 0))
+                    .map(|c| c.bg == th.success.color())
+                    .unwrap_or(false)
+            })
+            .unwrap();
+        let secondary_idx = (0..bar_width)
+            .find(|&x| {
+                buf.cell((x, 0))
+                    .map(|c| c.bg == th.secondary.color())
+                    .unwrap_or(false)
+            })
+            .unwrap();
+        assert!(
+            primary_idx < accent_idx,
+            "input (primary) before output (accent)"
+        );
+        assert!(
+            accent_idx < success_idx,
+            "output (accent) before cache_read (success)"
+        );
+        assert!(
+            success_idx < secondary_idx,
+            "cache_read (success) before cache_write (secondary)"
+        );
+        // Legend row (y=1) should show segments and total
+        let legend_row: String = (0..area.width)
+            .filter_map(|x| buf.cell((x, 1)).map(|c| c.symbol().to_string()))
+            .collect();
+        // All segment labels should appear
+        assert!(
+            legend_row.contains("input"),
+            "legend should show input: {legend_row}"
+        );
+        assert!(
+            legend_row.contains("output"),
+            "legend should show output: {legend_row}"
+        );
+        assert!(
+            legend_row.contains("cache"),
+            "legend should show cache segments: {legend_row}"
+        );
+        // Total label appears (3800 formats as "3.8k" or might show as "total 3k" depending on formatting)
+        assert!(
+            legend_row.contains("total") || legend_row.contains("3"),
+            "legend should show total: {legend_row}"
+        );
     }
 
     #[test]
@@ -2391,24 +2482,98 @@ mod tests {
 
     #[test]
     fn test_agent_lanes_autoscroll() {
-        let lane =
-            Lane::new("Test").span(LaneSpan::new(0.0, Some(10.0), AgentStatus::Running, "test"));
-        let lanes = vec![lane];
+        // Create multiple lanes to test vertical capacity and horizontal time scrolling
+        let lanes = vec![
+            Lane::new("Lane0").span(LaneSpan::new(
+                0.0,
+                Some(10.0),
+                AgentStatus::Running,
+                "span0",
+            )),
+            Lane::new("Lane1").span(LaneSpan::new(2.0, Some(8.0), AgentStatus::Done, "span1")),
+            Lane::new("Lane2").span(LaneSpan::new(
+                5.0,
+                Some(35.0),
+                AgentStatus::Running,
+                "span2",
+            )),
+            Lane::new("Lane3").span(LaneSpan::new(10.0, None, AgentStatus::Running, "span3")),
+            Lane::new("Lane4").span(LaneSpan::new(15.0, Some(30.0), AgentStatus::Done, "span4")),
+        ];
 
-        // Clock at 5s, window 30s -> view_start = 0
+        // Area: 50 wide, 5 high -> lane_height = 5-1 = 4, so only 4 of 5 lanes fit
         let area = Rect::new(0, 0, 50, 5);
         let mut buf = Buffer::empty(area);
+
+        // First render: Clock at 5s, window 30s -> scroll_threshold = 24, view_start = 0
         AgentLanes::new(&lanes)
             .clock(5.0)
             .window(30.0)
             .render(area, &mut buf);
 
-        // Clock at 30s -> view_start = 30 - 24 = 6
+        // Check visible lanes: first 4 lanes fit (Lane0-Lane3), Lane4 is cut off
+        let visible_lanes: Vec<String> = (0..area.height.saturating_sub(1))
+            .filter_map(|y| {
+                let row: String = (0..14)
+                    .filter_map(|x| buf.cell((x, y)).map(|c| c.symbol().to_string()))
+                    .collect();
+                if row.contains("Lane") {
+                    Some(row.trim().to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert_eq!(
+            visible_lanes.len(),
+            4,
+            "only 4 lanes fit in height 5: {:?}",
+            visible_lanes
+        );
+        assert!(
+            visible_lanes.iter().any(|l| l.contains("Lane0")),
+            "Lane0 visible: {:?}",
+            visible_lanes
+        );
+        assert!(
+            visible_lanes.iter().any(|l| l.contains("Lane3")),
+            "Lane3 visible: {:?}",
+            visible_lanes
+        );
+
+        // Time axis at bottom should show early times (0s, 5s visible with view_start=0)
+        let axis_y = area.height.saturating_sub(1);
+        let axis_early: String = (0..area.width)
+            .filter_map(|x| buf.cell((x, axis_y)).map(|c| c.symbol().to_string()))
+            .collect();
+        assert!(
+            axis_early.contains("0s") || axis_early.contains("5s"),
+            "early times visible at clock=5: {axis_early}"
+        );
+
+        // Second render: Clock at 30s -> view_start = 30 - 24 = 6, so 0s scrolls out left
+        buf.reset();
         AgentLanes::new(&lanes)
             .clock(30.0)
             .window(30.0)
             .render(area, &mut buf);
-        // (visual validation needed)
+
+        let axis_late: String = (0..area.width)
+            .filter_map(|x| buf.cell((x, axis_y)).map(|c| c.symbol().to_string()))
+            .collect();
+
+        // With view_start=6, first visible tick is 10s, so the "0s" tick label should be scrolled out
+        // (Check for "0s" at start or with leading space to avoid matching "10s")
+        let has_0s_label = axis_late.starts_with("0s") || axis_late.contains(" 0s");
+        assert!(
+            !has_0s_label,
+            "0s tick scrolled out at clock=30, view_start=6: {axis_late}"
+        );
+        assert!(
+            axis_late.contains("10s") || axis_late.contains("15s") || axis_late.contains("20s"),
+            "later times visible at clock=30: {axis_late}"
+        );
     }
 
     #[test]

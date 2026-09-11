@@ -884,32 +884,90 @@ mod tests {
     #[test]
     fn banner_styles_render() {
         let area = Rect::new(0, 0, 80, 2);
-        let mut buf = Buffer::empty(area);
-        let mut state = BannerState::new();
 
-        let styles = [
+        let mut tinted_row = String::new();
+        let mut outline_row = String::new();
+
+        for style in [
             BannerStyle::Solid,
             BannerStyle::Tinted,
             BannerStyle::Outline,
-        ];
-        for style in styles {
+        ] {
+            let mut buf = Buffer::empty(area);
+            let mut state = BannerState::new();
             Banner::new("Test")
                 .style(style)
                 .render(area, &mut buf, &mut state);
+
+            let row: String = (0..area.width)
+                .map(|x| buf[(x, 0)].symbol().to_string())
+                .collect();
+            assert!(row.contains("Test"), "{style:?}: title missing in {row}");
+
+            match style {
+                BannerStyle::Tinted => tinted_row = row,
+                BannerStyle::Outline => outline_row = row,
+                _ => {}
+            }
         }
+
+        // Styles differ: Outline has border glyphs, Tinted has edge rail
+        assert!(
+            outline_row.contains("╭") || outline_row.contains("╮"),
+            "Outline should have border: {outline_row}"
+        );
+        assert!(
+            tinted_row.contains("▌") || tinted_row.contains("▎"),
+            "Tinted should have edge rail: {tinted_row}"
+        );
     }
 
     #[test]
     fn inline_alert_compact_and_full() {
         let area = Rect::new(0, 0, 40, 5);
-        let mut buf = Buffer::empty(area);
 
+        let mut buf_full = Buffer::empty(area);
         InlineAlert::new("Title", "Message")
             .compact(false)
-            .render(area, &mut buf);
+            .render(area, &mut buf_full);
+
+        let mut buf_compact = Buffer::empty(area);
         InlineAlert::new("Title", "Message")
             .compact(true)
-            .render(area, &mut buf);
+            .render(area, &mut buf_compact);
+
+        // Compact uses one row, full uses multiple
+        let compact_row0: String = (0..area.width)
+            .map(|x| buf_compact[(x, 0)].symbol().to_string())
+            .collect();
+        let full_row0: String = (0..area.width)
+            .map(|x| buf_full[(x, 0)].symbol().to_string())
+            .collect();
+        let full_row1: String = (0..area.width)
+            .map(|x| buf_full[(x, 1)].symbol().to_string())
+            .collect();
+
+        // Compact: everything on row 0, row 1 empty
+        assert!(
+            compact_row0.contains("Title"),
+            "compact should show title on row 0: {}",
+            compact_row0
+        );
+        assert!(
+            compact_row0.contains("Message"),
+            "compact should show message on row 0: {}",
+            compact_row0
+        );
+
+        // Full: has border on row 0, content below
+        assert!(
+            full_row0.contains("╭") || full_row0.contains("╮"),
+            "full should have border on row 0: {full_row0}"
+        );
+        assert!(
+            full_row1.contains("Title"),
+            "full should show title on row 1: {full_row1}"
+        );
     }
 
     #[test]
@@ -918,8 +976,16 @@ mod tests {
         let mut buf = Buffer::empty(area);
         let th = theme::current();
 
-        count_badge(&mut buf, 0, 0, 0, &th); // Should not draw
+        count_badge(&mut buf, 0, 0, 0, &th);
+        let row0: String = (0..5).map(|x| buf[(x, 0)].symbol().to_string()).collect();
+        assert!(row0.trim().is_empty(), "count 0 should not draw: {row0}");
+
         count_badge(&mut buf, 0, 1, 5, &th);
-        count_badge(&mut buf, 0, 2, 150, &th); // Should show 99+
+        let row1: String = (0..5).map(|x| buf[(x, 1)].symbol().to_string()).collect();
+        assert!(row1.contains('5'), "count 5 should show: {row1}");
+
+        count_badge(&mut buf, 0, 2, 150, &th);
+        let row2: String = (0..6).map(|x| buf[(x, 2)].symbol().to_string()).collect();
+        assert!(row2.contains("99+"), "count 150 should show 99+: {row2}");
     }
 }

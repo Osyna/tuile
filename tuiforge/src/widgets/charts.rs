@@ -1810,7 +1810,6 @@ mod tests {
         canvas.set(0, 0, Rgb(255, 0, 0));
         canvas.set(1, 1, Rgb(0, 255, 0));
         canvas.line(0, 0, 7, 7, Rgb(0, 0, 255));
-        // No panic on render
         let mut buf = Buffer::empty(Rect {
             x: 0,
             y: 0,
@@ -1818,6 +1817,13 @@ mod tests {
             height: 2,
         });
         canvas.render(buf.area, &mut buf, Rgb(0, 0, 0));
+
+        // Cell (0,0) has plotted points → braille glyph
+        let cell_00 = buf[(0, 0)].symbol();
+        assert_ne!(cell_00, " ", "cell (0,0) has dots: {cell_00}");
+        // Cell (2,0) is away from the diagonal → blank
+        let cell_20 = buf[(2, 0)].symbol();
+        assert_eq!(cell_20, " ", "cell (2,0) untouched: {cell_20}");
     }
 
     #[test]
@@ -1831,8 +1837,18 @@ mod tests {
             height: 3,
         });
         spark.render(buf.area, &mut buf);
-        // No panic
 
+        // Bar height must rise with the value: vbar paints a full cell as bg, so counting
+        // coloured cells per column gives min=0 < mid < max=3 for values 1, 2, 3.
+        let th = theme::current();
+        let filled = |x: u16| {
+            (0..3)
+                .filter(|&y| buf[(x, y)].bg != th.background.color())
+                .count()
+        };
+        let (lo, mid, hi) = (filled(0), filled(1), filled(2));
+        assert!(lo < mid && mid < hi, "heights must rise: {lo} {mid} {hi}");
+        assert_eq!(hi, 3, "the maximum fills the column: {hi}");
         let empty: Vec<f64> = vec![];
         let spark = SparkChart::new(&empty).baseline(true);
         spark.render(buf.area, &mut buf);
@@ -1841,13 +1857,16 @@ mod tests {
         let spark = SparkChart::new(&nans);
         spark.render(buf.area, &mut buf);
     }
-
     #[test]
     fn test_bar_narrow() {
-        let groups = vec![BarGroup {
-            label: "A".into(),
-            values: vec![5.0],
-        }];
+        // Four groups of 2-cell bars need 12 cells; the area gives 5.
+        let groups: Vec<BarGroup> = ["A", "B", "C", "D"]
+            .iter()
+            .map(|l| BarGroup {
+                label: (*l).into(),
+                values: vec![5.0],
+            })
+            .collect();
         let bar = BarGraph::new(&groups).bar_width(2);
         let mut buf = Buffer::empty(Rect {
             x: 0,
@@ -1856,7 +1875,15 @@ mod tests {
             height: 5,
         });
         bar.render(buf.area, &mut buf);
-        // No panic
+
+        // The contract at this size is: no panic, and the bars that fit are still painted.
+        // Off-edge groups are clipped by `put`/`vbar`, so their absence is not observable here.
+        let th = theme::current();
+        let painted = (0..5)
+            .flat_map(|x| (0..5).map(move |y| (x, y)))
+            .filter(|&(x, y)| buf[(x, y)].bg != th.background.color())
+            .count();
+        assert!(painted > 0, "bars that fit are drawn: {painted} cells");
     }
 
     #[test]
@@ -1884,7 +1911,10 @@ mod tests {
 
     #[test]
     fn test_activity_grid_weeks() {
-        let vals = vec![0u8; 364];
+        // 364 days = 52 weeks
+        let mut vals = vec![0u8; 364];
+        vals[0] = 0; // level 0
+        vals[7] = 4; // level 4 (max)
         let ag = ActivityGraph::new(&vals);
         let mut buf = Buffer::empty(Rect {
             x: 0,
@@ -1893,6 +1923,29 @@ mod tests {
             height: 10,
         });
         ag.render(buf.area, &mut buf);
-        // No panic
+        // 52 weeks * 2 cells/week = 104 cells wide (centered in 110)
+        // start_x = (110 - 104) / 2 = 3
+        // Grid starts at cy = area.y + 2 (after month labels)
+        let start_x = 3;
+        let grid_y = 2;
+
+        // Day 0 (week 0, day 0) at (start_x, grid_y + 0)
+        let day0_bg = buf[(start_x, grid_y)].bg;
+
+        // Day 7 (week 1, day 0) at (start_x + 2, grid_y + 0)
+        let day7_bg = buf[(start_x + 2, grid_y)].bg;
+
+        // Different levels get different colors
+        assert_ne!(
+            day0_bg, day7_bg,
+            "level 0 and level 4 have different colors: {:?} vs {:?}",
+            day0_bg, day7_bg
+        );
+
+        // All 52 weeks are drawn: the last column is painted, the cell past it is not.
+        let last_week_x = start_x + 51 * 2;
+        let bg = theme::current().background.color();
+        assert_ne!(buf[(last_week_x, grid_y)].bg, bg, "week 52 is painted");
+        assert_eq!(buf[(last_week_x + 2, grid_y)].bg, bg, "no 53rd week");
     }
 }

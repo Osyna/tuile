@@ -1308,15 +1308,28 @@ mod tests {
 
     #[test]
     fn every_font_renders_all_chars() {
-        let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:!?-/";
-        for font in [
-            BigFont::Box3,
-            BigFont::Block5,
-            BigFont::Half3,
-            BigFont::Thin3,
-        ] {
-            let mut buf = Buffer::empty(Rect::new(0, 0, 200, font.rows()));
-            BigText::new(chars).font(font).render(buf.area, &mut buf);
+        // Both glyph tables back the four fonts: Box3/Thin3 read `glyph_box3`, Block5/Half3
+        // read `glyph_px5`. Asserting on the tables catches a blank or fallback glyph exactly,
+        // which a buffer comparison cannot: unsupported chars render as `?`, not as blanks.
+        let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:!-/";
+        let unsupported = '\u{2603}';
+        let box3_fallback = glyph_box3(unsupported);
+        let px5_fallback = glyph_px5(unsupported);
+
+        for c in chars.chars() {
+            let b3 = glyph_box3(c);
+            assert!(
+                b3.iter().any(|row| row.trim() != ""),
+                "Box3 glyph for '{c}' is blank"
+            );
+            assert_ne!(b3, box3_fallback, "Box3 has no glyph for '{c}'");
+
+            let p5 = glyph_px5(c);
+            assert!(
+                p5.iter().any(|row| row.contains('#')),
+                "px5 glyph for '{c}' has no lit pixel"
+            );
+            assert_ne!(p5, px5_fallback, "px5 has no glyph for '{c}'");
         }
     }
 

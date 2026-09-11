@@ -200,9 +200,10 @@ impl TabBarState {
         }
     }
 
-    pub fn set_active(&mut self, i: usize, _now: Instant, _dur: Duration) {
+    /// Select tab `i`. The underline and pill tweens retarget on the next render, which is
+    /// where the actual tab geometry is known.
+    pub fn set_active(&mut self, i: usize) {
         self.active = i;
-        // tweens updated in render based on actual layout
     }
 
     pub fn take_closed(&mut self) -> Option<usize> {

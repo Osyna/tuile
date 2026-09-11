@@ -392,11 +392,27 @@ mod tests {
     fn header_tall_mode() {
         let mut state = AppHeaderState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 80, 3));
+        let area = buf.area;
         AppHeader::new()
             .title("Test")
             .subtitle("Sub")
             .tall(true)
-            .render(buf.area, &mut buf, &mut state);
+            .render(area, &mut buf, &mut state);
+
+        // In tall mode, title is on row 0 and subtitle is on row 1
+        let row0: String = (0..area.width)
+            .map(|x| buf[(x, 0)].symbol().to_string())
+            .collect();
+        let row1: String = (0..area.width)
+            .map(|x| buf[(x, 1)].symbol().to_string())
+            .collect();
+
+        assert!(row0.contains("Test"), "{row0}");
+        assert!(row1.contains("Sub"), "{row1}");
+        assert!(
+            !row0.contains("Sub"),
+            "title row should not contain subtitle: {row0}"
+        );
     }
 
     #[test]

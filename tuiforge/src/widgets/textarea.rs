@@ -1192,19 +1192,58 @@ mod tests {
         state.cursor = (0, 2);
         let area = Rect::new(0, 0, 20, 5);
 
-        // Test each cursor style doesn't panic
-        for style in [
-            CursorStyle::Block,
-            CursorStyle::Bar,
-            CursorStyle::Underline,
-            CursorStyle::Outline,
-        ] {
-            let mut buf = Buffer::empty(area);
-            TextArea::new()
-                .cursor(style)
-                .focused(true)
-                .render(area, &mut buf, &mut state);
-        }
+        let th = theme::current();
+
+        // Block: the cell takes the cursor colour roles, not merely fg != bg (true of any text).
+        let mut buf = Buffer::empty(area);
+        TextArea::new()
+            .cursor(CursorStyle::Block)
+            .focused(true)
+            .render(area, &mut buf, &mut state);
+        let text_x = state.hit.area.x;
+        let text_y = state.hit.area.y;
+        let block_cell = buf.cell((text_x + 2, text_y)).unwrap();
+        assert_eq!(block_cell.bg, th.cursor_bg.color(), "{block_cell:?}");
+        assert_eq!(block_cell.fg, th.cursor_fg.color(), "{block_cell:?}");
+
+        // Bar: vertical bar glyph
+        let mut buf = Buffer::empty(area);
+        TextArea::new()
+            .cursor(CursorStyle::Bar)
+            .focused(true)
+            .render(area, &mut buf, &mut state);
+        let bar_cell = buf.cell((text_x + 2, text_y)).unwrap();
+        assert_eq!(
+            bar_cell.symbol(),
+            "▎",
+            "Bar cursor should be ▎: {}",
+            bar_cell.symbol()
+        );
+
+        // Underline: modifier
+        let mut buf = Buffer::empty(area);
+        TextArea::new()
+            .cursor(CursorStyle::Underline)
+            .focused(true)
+            .render(area, &mut buf, &mut state);
+        let underline_cell = buf.cell((text_x + 2, text_y)).unwrap();
+        assert!(
+            underline_cell.modifier.contains(Modifier::UNDERLINED),
+            "Underline cursor should have UNDERLINED: {underline_cell:?}"
+        );
+
+        // Outline: background changes
+        let mut buf = Buffer::empty(area);
+        TextArea::new()
+            .cursor(CursorStyle::Outline)
+            .focused(true)
+            .render(area, &mut buf, &mut state);
+        let outline_cell = buf.cell((text_x + 2, text_y)).unwrap();
+        assert_eq!(
+            outline_cell.bg,
+            th.cursor_blurred_bg.color(),
+            "Outline cursor should have cursor_blurred_bg: {outline_cell:?}"
+        );
     }
 
     #[test]

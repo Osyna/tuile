@@ -439,7 +439,7 @@ impl Edge {
     }
 }
 
-/// Frame of a text field: the shapes omp's composer offers, with Textual's `tall` as default.
+/// Frame drawn around a text field; `Tall` is Textual's default.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FieldShape {
     /// Side bars of the given thickness plus thin `▔`/`▁` lines above and below.

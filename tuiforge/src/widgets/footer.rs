@@ -314,25 +314,56 @@ mod tests {
     fn footer_renders_bindings() {
         let mut state = KeyFooterState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 80, 1));
+        let area = buf.area;
         KeyFooter::new()
             .bindings(&[("q", "Quit"), ("^S", "Save")])
-            .render(buf.area, &mut buf, &mut state);
+            .render(area, &mut buf, &mut state);
+        let row: String = (0..area.width)
+            .map(|x| buf[(x, 0)].symbol().to_string())
+            .collect();
+        assert!(row.contains("q"), "{row}");
+        assert!(row.contains("Quit"), "{row}");
+        assert!(row.contains("^S"), "{row}");
+        assert!(row.contains("Save"), "{row}");
     }
 
     #[test]
     fn footer_compact_mode() {
         let mut state = KeyFooterState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 80, 1));
+        let area = buf.area;
+
+        // Render normal mode
+        KeyFooter::new()
+            .bindings(&[("q", "Quit"), ("^S", "Save")])
+            .render(area, &mut buf, &mut state);
+        let normal_row: String = (0..area.width)
+            .map(|x| buf[(x, 0)].symbol().to_string())
+            .collect();
+
+        // Render compact mode
+        let mut buf2 = Buffer::empty(Rect::new(0, 0, 80, 1));
         KeyFooter::new()
             .bindings(&[("q", "Quit"), ("^S", "Save")])
             .compact(true)
-            .render(buf.area, &mut buf, &mut state);
+            .render(area, &mut buf2, &mut state);
+        let compact_row: String = (0..area.width)
+            .map(|x| buf2[(x, 0)].symbol().to_string())
+            .collect();
+
+        // Compact mode should drop descriptions
+        assert_ne!(normal_row, compact_row, "compact should differ from normal");
+        assert!(!compact_row.contains("Quit"), "{compact_row}");
+        assert!(!compact_row.contains("Save"), "{compact_row}");
+        assert!(compact_row.contains("q"), "{compact_row}");
+        assert!(compact_row.contains("^S"), "{compact_row}");
     }
 
     #[test]
     fn footer_overflow_drops_low_priority() {
         let mut state = KeyFooterState::new();
         let mut buf = Buffer::empty(Rect::new(0, 0, 30, 1));
+        let area = buf.area;
         let bindings = vec![
             FooterBinding::new("q", "Quit").priority(255),
             FooterBinding::new("^S", "Save").priority(200),
@@ -341,8 +372,13 @@ mod tests {
         ];
         KeyFooter::new()
             .bindings_full(bindings)
-            .render(buf.area, &mut buf, &mut state);
-        // Lower priority bindings should be dropped first
+            .render(area, &mut buf, &mut state);
+        let row: String = (0..area.width)
+            .map(|x| buf[(x, 0)].symbol().to_string())
+            .collect();
+        assert!(row.contains("Quit"), "{row}");
+        assert!(!row.contains("Info"), "{row}");
+        assert!(row.contains("…"), "{row}");
     }
 
     #[test]

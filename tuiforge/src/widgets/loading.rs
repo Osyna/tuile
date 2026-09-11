@@ -1178,14 +1178,40 @@ mod tests {
     #[test]
     fn every_style_renders_in_one_row_and_a_block() {
         for style in LoaderStyle::ALL {
-            for (w, h) in [(3u16, 1u16), (12, 1), (40, 1), (40, 6), (7, 3)] {
-                let area = Rect::new(0, 0, w, h);
-                let mut buf = Buffer::empty(area);
-                Loader::new(style)
-                    .label("Loading")
-                    .elapsed(0.37)
-                    .render(area, &mut buf);
-                Loader::new(style).elapsed(3.91).render(area, &mut buf);
+            // Single row: should draw something
+            let area = Rect::new(0, 0, 40, 1);
+            let mut buf = Buffer::empty(area);
+            Loader::new(style).elapsed(0.37).render(area, &mut buf);
+
+            let has_content = (0..area.width).any(|x| {
+                buf.cell((x, 0))
+                    .is_some_and(|c| c.symbol() != " " || c.bg != ratatui::style::Color::Reset)
+            });
+            assert!(has_content, "{style:?} should draw something in 1 row");
+
+            // Multi-row block. The expected set is named here, not taken from `multi_row()`,
+            // so a change to that classification has to be made deliberately in both places.
+            let area = Rect::new(0, 0, 40, 6);
+            let mut buf = Buffer::empty(area);
+            Loader::new(style).elapsed(0.37).render(area, &mut buf);
+
+            let rows_used = (0..area.height)
+                .filter(|&y| {
+                    (0..area.width).any(|x| {
+                        buf.cell((x, y)).is_some_and(|c| {
+                            c.symbol() != " " || c.bg != ratatui::style::Color::Reset
+                        })
+                    })
+                })
+                .count();
+            let fills_block = matches!(
+                style,
+                LoaderStyle::Equalizer | LoaderStyle::Rain | LoaderStyle::Radar
+            );
+            if fills_block {
+                assert!(rows_used > 1, "{style:?} fills the block, used {rows_used}");
+            } else {
+                assert_eq!(rows_used, 1, "{style:?} stays on one row, used {rows_used}");
             }
         }
     }

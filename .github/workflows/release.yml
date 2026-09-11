@@ -1,0 +1,60 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build and attach binaries to
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  binaries:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release -p showcase --target ${{ matrix.target }}
+
+      - name: Package (unix)
+        if: runner.os != 'Windows'
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          name="tuile-showcase-$tag-${{ matrix.target }}"
+          mkdir "$name"
+          cp target/${{ matrix.target }}/release/showcase LICENSE README.md "$name/"
+          tar czf "$name.tar.gz" "$name"
+
+      - name: Package (windows)
+        if: runner.os == 'Windows'
+        run: |
+          $tag = "${{ github.event.inputs.tag || github.ref_name }}"
+          $name = "tuile-showcase-$tag-${{ matrix.target }}"
+          New-Item -ItemType Directory -Path $name | Out-Null
+          Copy-Item target/${{ matrix.target }}/release/showcase.exe, LICENSE, README.md $name
+          Compress-Archive -Path $name -DestinationPath "$name.zip"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: |
+            tuile-showcase-*.tar.gz
+            tuile-showcase-*.zip
+          fail_on_unmatched_files: false

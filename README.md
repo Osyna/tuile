@@ -62,12 +62,29 @@ is still warm. Both fit: the library tiles a terminal, and it is shaped over rat
   with side bars in four thicknesses
 - **Zero `unsafe`** (compiler-enforced), no panics at any terminal size, 260 tests
 
-## ⚡ Quick start
+## ⚡ Install
+
+As a library:
 
 ```toml
 [dependencies]
-tuile = { git = "https://github.com/Osyna/tuile" }   # re-exports ratatui + crossterm
+tuile = "0.1"                                        # re-exports ratatui + crossterm
 ```
+
+Before the first crates.io release lands, or to track main:
+
+```toml
+tuile = { git = "https://github.com/Osyna/tuile" }
+```
+
+To run the gallery without cloning, download a build for your platform from the
+[latest release](https://github.com/Osyna/tuile/releases/latest), or build it yourself:
+
+```
+cargo install --git https://github.com/Osyna/tuile showcase
+```
+
+## ⚡ Quick start
 
 ```rust
 use tuile::prelude::*;

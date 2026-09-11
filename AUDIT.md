@@ -5,26 +5,32 @@ Archetype: **library** (v0.1.0, unpublished, repository and keywords set for cra
 
 ## Verdict
 
-**64/100 — Strained**
+**77/100 — Solid** (was 64/100 — Strained before the changes below)
 
-The code itself is in good shape: zero `unsafe`, zero module cycles across 51 modules, clippy clean at `--all-targets`, 253 tests running in 0.01s, and every buffer write clipped through `area.intersection`. The problem is that none of it is enforced. There is no CI, no `deny.toml`, no advisory scanning, and no layering check, so the entire quality bar exists only because a human remembers to run the commands — and the repo is about to be published to crates.io, where that stops being a private matter. Fix the guardrails first (P0-1 through P0-3, roughly two hours total); they are what keeps the other eight dimensions from decaying silently.
+The code was already in good shape: zero `unsafe`, zero module cycles across 51 modules, clippy clean, tests running in hundredths of a second, every buffer write clipped through `area.intersection`. What was missing was enforcement — none of it was checked by anything except a human remembering to run the commands, on a crate about to be published. That is now closed: CI runs format, clippy `-D warnings`, the full suite and a layering check on every push; `cargo-deny` gates advisories, licences and sources; `unsafe` is forbidden by the compiler.
+
+What remains is not guardrail work. The two severe hotspots are unchanged, the public API still passes primitives where newtypes would carry the invariant, and there are no property tests for the pure functions. None of those is urgent, and all three are in P2.
 
 ## Scorecard
 
+Grades after the changes; the arrow shows the move from the original audit.
+
 | # | Dimension | Grade | Weight | Evidence | Finding |
 |---|-----------|-------|--------|----------|---------|
-| 1 | Coupling & cycles | 3/5 | ×3 | strong | 0 module cycles, clean one-way foundation layer, but one large crate with no layering enforcement |
-| 2 | Hotspot concentration | 3/5 | ×3 | strong | 2 severe hotspots (`charts.rs`, `toggle.rs`); both tested; churn signal weak on a 2-day history |
-| 3 | Change locality & cohesion | 4/5 | ×2 | strong | Package-by-feature; exactly one cross-directory co-change pair |
-| 4 | Cognitive load | 3/5 | ×2 | moderate | Narrow, consistent widget interface, but 5 files over 2,000 lines and a crate-wide clippy allow |
-| 5 | Test design quality | 4/5 | ×2 | moderate | 208 lib + 45 doc tests, fast and deterministic; no integration tests against the public API |
-| 6 | Boundary correctness | 4/5 | ×2 | moderate | No `unsafe`, no unguarded `unwrap`, all slicing char-safe; `forbid(unsafe_code)` not set |
-| 7 | Duplication class | 2/5 | ×1 | moderate | `word_boundary` — one rule stated identically in two hotspot files |
-| 8 | AI-risk signals | 2/5 | ×2 | emerging | No CI, no fitness functions, no duplication gate; 73,101 added vs 10,209 deleted lines |
-| 9 | Supply chain | 3/5 | ×1 | strong | `Cargo.lock` committed, 3 direct deps current; no `cargo-deny`, `cargo-audit`, or SBOM |
-| 10 | Docs & decisions | 4/5 | ×1 | expert opinion | README with gallery, `docs/WIDGET_CONTRACT.md`, 45 doc tests; no ADRs |
+| 1 | Coupling & cycles | 4/5 ↑3 | ×3 | strong | 0 cycles, one-way foundation layer, now checked in CI; still one large crate rather than a workspace split |
+| 2 | Hotspot concentration | 3/5 = | ×3 | strong | 2 severe hotspots (`charts.rs`, `toggle.rs`); both tested; churn signal weak on a 2-day history |
+| 3 | Change locality & cohesion | 4/5 = | ×2 | strong | Package-by-feature; exactly one cross-directory co-change pair |
+| 4 | Cognitive load | 4/5 ↑3 | ×2 | moderate | Narrow, consistent widget interface; each complex signature now carries its reason. 5 files still over 2,000 lines |
+| 5 | Test design quality | 4/5 = | ×2 | moderate | 209 lib + 6 integration + 45 doc tests, fast and deterministic; no property tests yet |
+| 6 | Boundary correctness | 4/5 = | ×2 | moderate | `unsafe` now forbidden by the compiler; primitives still cross the public API unparsed |
+| 7 | Duplication class | 4/5 ↑2 | ×1 | moderate | The one duplicated rule is extracted; remaining clones are consistent parallel widget code |
+| 8 | AI-risk signals | 4/5 ↑2 | ×2 | emerging | CI, layering fitness function and dependency gate in place; no duplication ratchet yet |
+| 9 | Supply chain | 4/5 ↑3 | ×1 | strong | `Cargo.lock` committed, `deny.toml` enforced in CI; no SBOM |
+| 10 | Docs & decisions | 4/5 = | ×1 | expert opinion | README with gallery, `docs/WIDGET_CONTRACT.md`, 45 doc tests; no ADRs |
 
-No dimensions marked n/a. Overall = 61/95 × 100 = **64**.
+No dimensions marked n/a. Overall = 73/95 × 100 = **77**.
+
+Dimension 1 is 4 rather than 5 because the check is textual (`tools/check_layers.py` parses `use` paths) rather than compiler-enforced; a workspace split would earn the 5. Dimension 5 is held at 4 by the absent property tests, and dimension 6 by the primitive-heavy public API — both are P2 items below, not oversights.
 
 ## What was measured
 
@@ -143,9 +149,33 @@ Builder methods return `Self` and are trivially misused by discarding the result
 | `spinners.rs:177` frame set containing `- – —` | Looks like the em-dash rule being violated | It is animation data: a spinner whose frames are a growing dash. |
 | The 9 `self.expect(c)?` calls in `ai_tools.rs` | Read as panicking `Option::expect` | They are calls to the JSON parser's own `expect` method, which returns `Result` and propagates with `?`. |
 
+## Changes applied
+
+All P0 and P1 items were executed on 2026-09-11, one concern per commit, each verified before the next began.
+
+| Commit | Item | What changed | Verified by |
+|---|---|---|---|
+| `0da485b` | P0-1 | CI: `fmt --check`, `clippy -D warnings`, `cargo test --workspace` | All three run locally before committing; the job asserts the existing state |
+| `c078e2a` | P0-2 | `deny.toml` + `cargo-deny` CI job | `cargo deny check` → advisories, bans, licences, sources all ok |
+| `ab17d59` | P0-3 | `#![forbid(unsafe_code)]` | Workspace builds; 253 tests pass |
+| `1ce17ec` | P1-1 | `core::word_boundary` replaces the two copies | New direct test; inverting the rule fails it |
+| `c7da3c6` | P1-2 | `tools/check_layers.py` in CI | Fails on an injected foundation→widget import and on an injected cycle; passes clean |
+| `a90fff7` | P1-3 | `tuiforge/tests/public_api.rs`, 6 tests | Breaking tab selection and the checkbox toggle each fail one |
+| `d01d86e` | P1-4 | 16 targeted clippy allows replace the crate-wide one | A new eight-argument function in `draw.rs` is now rejected |
+
+Three things worth recording for the next run.
+
+**`layered-crate` could not be used.** It is the right tool for P1-2, but it generates a test package under `target/` whose manifest cannot inherit `workspace.package`, so it fails on any workspace using inherited fields. `tools/check_layers.py` does the two checks that matter — no foundation→widget imports, no module cycles — and was verified against both injected violations. It is textual and does not resolve re-export chains; that limitation is written at the top of the script.
+
+**The public-API tests found two API gaps immediately**, which is the argument for having them: there is no `Theme::by_name` (the function is `theme::builtin`), and `CheckboxState` exposes `.value`, not `.checked`. Both were discovered by writing a consumer-shaped test, and neither was visible from inside the crate.
+
+**`showcase` already carries `publish = false`**, answering half of open question 1. Its path dependency on `tuiforge` needed an explicit version: a bare path dependency is a wildcard requirement, which `cargo-deny`'s bans check rejects.
+
+Findings F-01, F-02, F-03, F-04, F-05 and F-06 are resolved. F-07 (`#[must_use]` / `#[non_exhaustive]`) remains open and is the first P2 item.
+
 ## Change plan
 
-Prioritised by `impact × (1 / effort)`, hotspots first. Total P0 effort is roughly two hours.
+Prioritised by `impact × (1 / effort)`, hotspots first. **P0 and P1 are done** — see Changes applied above for the commits and how each was verified. They are kept here so the next run can diff against the original reasoning. P2 is outstanding.
 
 ### P0 — do first
 
@@ -222,58 +252,24 @@ Prioritised by `impact × (1 / effort)`, hotspots first. Total P0 effort is roug
 - **An `AGENTS.md`** recording the build/test/screenshot commands and the widget contract rules. The contract doc already carries the rules; this is the pointer that makes them findable.
 - **ADRs** for the two decisions this codebase has already made implicitly and would otherwise re-litigate: background paint instead of foreground block glyphs, and two-cell handling for ambiguous-width glyphs.
 
-## Guardrails to install
+## Guardrails in place
 
-```yaml
-# .github/workflows/ci.yml
-name: ci
-on:
-  push: { branches: [main] }
-  pull_request:
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with: { components: rustfmt, clippy }
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
-  deny:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v2
-```
+All three live in the repository now; read the files rather than this section, which only records what exists and why.
 
-```toml
-# deny.toml
-[advisories]
-yanked = "deny"
+| Guardrail | File | Catches |
+|---|---|---|
+| Format, lint, test | `.github/workflows/ci.yml` job `check` | Any unformatted file, any clippy warning, any failing test |
+| Module layering | `tools/check_layers.py`, run by the same job | A foundation module importing a widget; any module cycle |
+| Dependency policy | `deny.toml`, CI job `deny` | Yanked crates, unlisted licences, unknown registries or git sources, wildcard requirements |
 
-[licenses]
-allow = ["MIT", "Apache-2.0", "Unicode-3.0", "BSD-3-Clause"]
+The licence allow-list was built from what the tree actually resolves (`MIT`, `Apache-2.0`, `Apache-2.0 WITH LLVM-exception`, `Unicode-3.0`, `Zlib` — the last for `foldhash`). Allowances for licences no other crate uses were removed: an unmatched allowance is a warning and, worse, pre-approves something nobody checked.
 
-[bans]
-multiple-versions = "warn"   # hashbrown is currently duplicated via kasuari
-
-[sources]
-unknown-registry = "deny"
-unknown-git = "deny"
-```
-
-```toml
-# Cargo.toml — replace the crate-level allow with versioned lint policy (P1-4)
-[workspace.lints.clippy]
-unwrap_used = "warn"
-```
+Not installed, and deliberately: a duplication ratchet. The current figure is 3.5 blocks per 1,000 lines, but with two days of history there is no trend to ratchet against. Set the threshold once the repository has a few months of commits.
 
 ## Open questions
 
-1. Is `showcase` intended to ship as a published binary, or is it a development gallery? If the latter, it should be excluded from the release profile and marked `publish = false`, which also removes it from the audit surface next run.
-2. Is the AI harness family (`ai.rs`, `ai_compose.rs`, `ai_agents.rs`, `ai_tools.rs` — 11,000 lines, a third of the library) intended to stay in the core crate, or become a `tuiforge-ai` crate? A workspace split would make the layering compiler-enforced for free and parallelise compilation, which is the one structural change with a concrete argument behind it.
+1. Should the AI harness family (`ai.rs`, `ai_compose.rs`, `ai_agents.rs`, `ai_tools.rs` — 11,000 lines, a third of the library) stay in the core crate or become a `tuiforge-ai` crate? A workspace split would make the layering compiler-enforced instead of textually checked, and would parallelise compilation. It is the one structural change with a concrete argument behind it.
+2. Is the 2,000-line-plus file size in the `ai*` modules and `toggle.rs` comfortable to work in? The co-change data says their parts move together, so there is no evidence-backed split line — but the person editing them has better information than the tool does.
 
 ## Methodology and caveats
 

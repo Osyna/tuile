@@ -957,7 +957,8 @@ impl StatefulWidget for BigMenu<'_> {
                 area.x
             };
             for i in first..len {
-                let (label, sp) = Self::fit(self.label(i), self.font, area.right().saturating_sub(x));
+                let (label, sp) =
+                    Self::fit(self.label(i), self.font, area.right().saturating_sub(x));
                 let w = BigText::width_of(label, self.font, sp);
                 if w == 0 {
                     break;
@@ -1074,7 +1075,12 @@ impl StatefulWidget for BigMenu<'_> {
                     } else {
                         th.background.blend(th.text, 0.08)
                     };
-                    let plate = Rect { x: text.x + 1, y: text.y + 1, ..text }.intersection(buf.area);
+                    let plate = Rect {
+                        x: text.x + 1,
+                        y: text.y + 1,
+                        ..text
+                    }
+                    .intersection(buf.area);
                     BigText::new(label)
                         .font(self.font)
                         .spacing(sp)
@@ -1261,9 +1267,15 @@ mod tests {
         assert_eq!(BigText::new("HI").width(), 5);
         assert_eq!(BigText::new("HI").spacing(0).width(), 4);
         let mut buf = Buffer::empty(Rect::new(0, 0, 10, 3));
-        BigText::new("HI").font(BigFont::Box3).render(buf.area, &mut buf);
+        BigText::new("HI")
+            .font(BigFont::Box3)
+            .render(buf.area, &mut buf);
         assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "┳");
-        assert_eq!(buf.cell((3, 1)).unwrap().symbol(), " ", "gap column stays empty");
+        assert_eq!(
+            buf.cell((3, 1)).unwrap().symbol(),
+            " ",
+            "gap column stays empty"
+        );
         assert_eq!(buf.cell((4, 1)).unwrap().symbol(), "┃");
     }
 

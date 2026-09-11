@@ -2,11 +2,9 @@
 
 use std::time::{Duration, Instant};
 
-use tuiforge::prelude::*;
-use tuiforge::widgets::ai_agents::*;
-use tuiforge::widgets::charts::SparkStyle;
+use tuiforge::draw::Border;
 use tuiforge::layout::{pad, stack};
-use tuiforge::draw::{fill, Border};
+use tuiforge::prelude::*;
 
 use super::{Ctx, Page, card};
 
@@ -65,11 +63,19 @@ impl Default for AiAgentsPage {
             ModelInfo::new("claude-sonnet-4", "anthropic")
                 .context(200000)
                 .prices(3.0, 15.0)
-                .caps(vec![Capability::Vision, Capability::Tools, Capability::Reasoning]),
+                .caps(vec![
+                    Capability::Vision,
+                    Capability::Tools,
+                    Capability::Reasoning,
+                ]),
             ModelInfo::new("claude-opus-4", "anthropic")
                 .context(200000)
                 .prices(15.0, 75.0)
-                .caps(vec![Capability::Vision, Capability::Tools, Capability::Reasoning]),
+                .caps(vec![
+                    Capability::Vision,
+                    Capability::Tools,
+                    Capability::Reasoning,
+                ]),
             ModelInfo::new("claude-haiku-4", "anthropic")
                 .context(200000)
                 .prices(0.8, 4.0)
@@ -161,7 +167,7 @@ impl AiAgentsPage {
         if t >= 3.0 {
             let builder_status = if t >= 22.0 {
                 AgentStatus::Done
-            } else if t >= 12.0 && t < 15.0 {
+            } else if (12.0..15.0).contains(&t) {
                 AgentStatus::Waiting
             } else {
                 AgentStatus::Running
@@ -240,7 +246,7 @@ impl AiAgentsPage {
         // Builder
         if t >= 3.0 {
             let mut builder = Lane::new("Builder");
-            
+
             // Running 3-12s
             if t > 3.0 {
                 builder = builder.span(LaneSpan::new(
@@ -250,7 +256,7 @@ impl AiAgentsPage {
                     "building",
                 ));
             }
-            
+
             // Waiting 12-15s
             if t > 12.0 {
                 builder = builder.span(LaneSpan::new(
@@ -260,7 +266,7 @@ impl AiAgentsPage {
                     "waiting",
                 ));
             }
-            
+
             // Running 15-22s
             if t > 15.0 {
                 builder = builder.span(LaneSpan::new(
@@ -270,7 +276,7 @@ impl AiAgentsPage {
                     "finalizing",
                 ));
             }
-            
+
             lanes.push(builder);
         }
 
@@ -294,12 +300,7 @@ impl AiAgentsPage {
 
     fn get_context_segments(&self, t: f32) -> Vec<ContextSegment> {
         let compacted = self.compaction_trigger.is_some()
-            && self
-                .compaction_trigger
-                .unwrap()
-                .elapsed()
-                .as_secs_f32()
-                > 6.0;
+            && self.compaction_trigger.unwrap().elapsed().as_secs_f32() > 6.0;
 
         if compacted {
             // After compaction
@@ -307,7 +308,7 @@ impl AiAgentsPage {
             let tools = (6000.0 + t * 100.0) as u32;
             let files = (12000.0 + t * 200.0) as u32;
             let history = (9000.0 + t * 150.0) as u32;
-            
+
             vec![
                 ContextSegment::new("system", system),
                 ContextSegment::new("tools", tools),
@@ -321,7 +322,7 @@ impl AiAgentsPage {
             } else {
                 78.0
             };
-            
+
             let total = (200000.0 * pct / 100.0) as u32;
             let system = (total as f32 * 0.05) as u32;
             let tools = (total as f32 * 0.15) as u32;
@@ -362,14 +363,14 @@ impl Page for AiAgentsPage {
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
         let th = &ctx.theme;
-        
+
         // Initialize scenario
         if self.scenario_start.is_none() {
             self.scenario_start = Some(ctx.now);
         }
-        
+
         let t = self.scenario_time(ctx);
-        
+
         // Restart scenario at ~40s
         if t > 40.0 {
             self.scenario_start = Some(ctx.now);
@@ -388,15 +389,17 @@ impl Page for AiAgentsPage {
         // Shift throughput data every 250ms
         let shift_interval = 0.25;
         let expected_shifts = (t / shift_interval) as usize;
-        while self.throughput_shift < expected_shifts && self.throughput_shift < self.throughput_data.len() {
+        while self.throughput_shift < expected_shifts
+            && self.throughput_shift < self.throughput_data.len()
+        {
             self.throughput_shift += 1;
         }
 
         // Reduced layout for small screens
         if area.width < 90 || area.height < 30 {
-            let rows = stack(area, &vec![0u16, 0u16], 1);
-            
-            if let Some(top) = rows.get(0) {
+            let rows = stack(area, &[0u16, 0u16], 1);
+
+            if let Some(top) = rows.first() {
                 let agents_area = card(buf, *top, th, "Agents");
                 AgentTree::new()
                     .show_tasks(true)
@@ -404,20 +407,20 @@ impl Page for AiAgentsPage {
                     .theme(th)
                     .render(agents_area, buf, &mut self.tree);
             }
-            
+
             if let Some(bottom) = rows.get(1) {
                 let tokens_area = card(buf, *bottom, th, "Tokens & Cost");
                 let inner = pad(tokens_area, 1, 1);
-                
+
                 if inner.height >= 4 {
-                    let rows = stack(inner, &vec![2u16, 2u16], 1);
-                    
-                    if let Some(r) = rows.get(0) {
+                    let rows = stack(inner, &[2u16, 2u16], 1);
+
+                    if let Some(r) = rows.first() {
                         TokenMeter::new(self.get_token_breakdown(t))
                             .theme(th)
                             .render(*r, buf);
                     }
-                    
+
                     if let Some(r) = rows.get(1) {
                         CostMeter::new()
                             .spent(0.42 + t * 0.04)
@@ -430,57 +433,62 @@ impl Page for AiAgentsPage {
                     }
                 }
             }
-            
+
             return;
         }
 
         // Full layout: left column (tree + lanes), right column (stats + details)
-        let cols = [
-            Constraint::Percentage(46),
-            Constraint::Percentage(54),
-        ];
+        let cols = [Constraint::Percentage(46), Constraint::Percentage(54)];
         let [left, right] = Layout::horizontal(cols).areas(area);
 
-        // Left column
-        let left_rows = stack(left, &vec![0u16, 0u16], 1);
-        
-        // Agents tree
-        if let Some(tree_area) = left_rows.get(0) {
-            let agents_inner = card(buf, *tree_area, th, "Agents");
-            let focused = self.focus.is(Id::Tree);
-            
-            AgentTree::new()
-                .show_tasks(true)
-                .now(ctx.now)
-                .theme(th)
-                .render(agents_inner, buf, &mut self.tree);
-                
-            if focused {
-                Border::Round.draw(buf, *tree_area, th.primary, th.background);
-            }
-        }
+        // Left column: tree sized to its rows (2 per node), lanes sized to their content, then a
+        // live turn timer strip in whatever is left
+        let tree_rows = self.tree.visible_len() as u16 * 2;
+        let lanes_h = lanes.len() as u16 + 1 + 2; // rows + axis + frame
+        let [tree_area, lanes_area, rest] = Layout::vertical([
+            Constraint::Length((tree_rows + 2).min(left.height.saturating_sub(lanes_h + 3))),
+            Constraint::Length(lanes_h),
+            Constraint::Fill(1),
+        ])
+        .areas(left);
 
-        // Lanes
-        if let Some(lanes_area) = left_rows.get(1) {
-            let lanes_inner = card(buf, *lanes_area, th, "Lanes");
-            
-            AgentLanes::new(&lanes)
-                .clock(t)
-                .window(30.0)
+        let agents_inner = card(buf, tree_area, th, "Agents");
+        AgentTree::new()
+            .show_tasks(true)
+            .focused(self.focus.is(Id::Tree))
+            .now(ctx.now)
+            .theme(th)
+            .render(agents_inner, buf, &mut self.tree);
+
+        let lanes_inner = card(buf, lanes_area, th, "Lanes");
+        AgentLanes::new(&lanes)
+            .clock(t)
+            .window(30.0)
+            .now(ctx.now)
+            .theme(th)
+            .render(lanes_inner, buf);
+        if rest.height >= 3 {
+            let inner = card(buf, rest, th, "Turn");
+            let [timer_row, _] =
+                Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(inner);
+            ElapsedTimer::new()
+                .since(self.scenario_start.unwrap_or(ctx.now))
                 .now(ctx.now)
+                .running(t < 30.0)
+                .label(if t < 30.0 { "running" } else { "finished" })
                 .theme(th)
-                .render(lanes_inner, buf);
+                .render(timer_row, buf);
         }
 
         // Right column
         use ratatui::layout::{Constraint, Layout};
-        
+
         let right_constraints = [
-            Constraint::Length(3),   // TurnStats
-            Constraint::Length(7),   // Tokens & Cost
-            Constraint::Length(7),   // Context
-            Constraint::Length(8),   // Throughput
-            Constraint::Fill(1),     // Sessions + Models
+            Constraint::Length(3), // TurnStats
+            Constraint::Length(7), // Tokens & Cost
+            Constraint::Length(6), // Context
+            Constraint::Length(7), // Throughput
+            Constraint::Fill(1),   // Sessions + Models
         ];
         let right_rows: [Rect; 5] = Layout::vertical(right_constraints).areas(right);
 
@@ -498,8 +506,12 @@ impl Page for AiAgentsPage {
         // Tokens & Cost
         {
             let inner = card(buf, right_rows[1], th, "Tokens & Cost");
-            let token_rows = stack(inner, &vec![2u16, 2u16], 1);
-            
+            let token_rows = stack(inner, &[2u16, 2u16], 1);
+            if let Some(r) = token_rows.first() {
+                TokenMeter::new(self.get_token_breakdown(t))
+                    .theme(th)
+                    .render(*r, buf);
+            }
             if let Some(r) = token_rows.get(1) {
                 let cost = (0.42 + t * 0.04).min(1.80);
                 CostMeter::new()
@@ -516,14 +528,9 @@ impl Page for AiAgentsPage {
         // Context
         {
             let inner = card(buf, right_rows[2], th, "Context");
-            
+
             let show_banner = self.compaction_trigger.is_some()
-                && self
-                    .compaction_trigger
-                    .unwrap()
-                    .elapsed()
-                    .as_secs_f32()
-                    < 6.0;
+                && self.compaction_trigger.unwrap().elapsed().as_secs_f32() < 6.0;
 
             if show_banner {
                 CompactionBanner::new(78.0, 31.0, 94000)
@@ -543,7 +550,7 @@ impl Page for AiAgentsPage {
         // Throughput
         {
             let inner = card(buf, right_rows[3], th, "Throughput");
-            
+
             let visible_count = 40.min(self.throughput_data.len());
             let start = self.throughput_shift.saturating_sub(visible_count);
             let end = self.throughput_shift.max(visible_count);
@@ -552,7 +559,7 @@ impl Page for AiAgentsPage {
             } else {
                 vec![42.0]
             };
-            
+
             RateGraph::new(&visible)
                 .label("tok/s")
                 .max(80.0)
@@ -562,22 +569,19 @@ impl Page for AiAgentsPage {
 
         // Bottom row: Sessions + Models
         {
-            let cols = [
-                Constraint::Percentage(50),
-                Constraint::Percentage(50),
-            ];
+            let cols = [Constraint::Percentage(50), Constraint::Percentage(50)];
             let [sessions_area, models_area] = Layout::horizontal(cols).areas(right_rows[4]);
 
             // Sessions
             {
                 let inner = card(buf, sessions_area, th, "Sessions");
                 let focused = self.focus.is(Id::Sessions);
-                
+
                 SessionList::new()
                     .two_line(true)
                     .theme(th)
                     .render(inner, buf, &mut self.sessions);
-                    
+
                 if focused {
                     Border::Round.draw(buf, sessions_area, th.primary, th.background);
                 }
@@ -587,11 +591,11 @@ impl Page for AiAgentsPage {
             {
                 let inner = card(buf, models_area, th, "Models");
                 let focused = self.focus.is(Id::Models);
-                
+
                 ModelPicker::new()
                     .theme(th)
                     .render(inner, buf, &mut self.models);
-                    
+
                 if focused {
                     Border::Round.draw(buf, models_area, th.primary, th.background);
                 }
@@ -600,8 +604,8 @@ impl Page for AiAgentsPage {
     }
 
     fn event(&mut self, ev: &Event, ctx: &mut Ctx) -> Outcome {
-        let th = &ctx.theme;
-        
+        let _th = &ctx.theme;
+
         match ev {
             Event::Key(k) if is_press(k) => {
                 match k.code {
@@ -638,38 +642,38 @@ impl Page for AiAgentsPage {
                     None => Outcome::Ignored,
                 };
 
-                if let Some(idx) = self.sessions.take_activated() {
-                    if let Some(entry) = self.sessions.entries.get(idx) {
-                        ctx.notify(&format!("Opened session: {}", entry.title), Variant::Default);
-                    }
+                if let Some(idx) = self.sessions.take_activated()
+                    && let Some(entry) = self.sessions.entries.get(idx)
+                {
+                    ctx.notify(format!("Opened session: {}", entry.title), Variant::Default);
                 }
 
-                if let Some(idx) = self.models.take_selected() {
-                    if let Some(model) = self.models.models.get(idx) {
-                        ctx.notify(&format!("Selected model: {}", model.id), Variant::Default);
-                    }
+                if let Some(idx) = self.models.take_selected()
+                    && let Some(model) = self.models.models.get(idx)
+                {
+                    ctx.notify(format!("Selected model: {}", model.id), Variant::Default);
                 }
 
                 return out;
             }
             Event::Mouse(m) => {
                 let mut out = Outcome::Ignored;
-                out = out | self.tree.handle_mouse(*m);
-                out = out | self.sessions.handle_mouse(*m);
-                out = out | self.models.handle_mouse(*m);
+                out |= self.tree.handle_mouse(*m);
+                out |= self.sessions.handle_mouse(*m);
+                out |= self.models.handle_mouse(*m);
 
                 // Focus on click
                 if self.tree.hit.hover && matches!(m.kind, MouseEventKind::Down(_)) {
                     self.focus.set(Id::Tree);
-                    out = out | Outcome::Consumed;
+                    out |= Outcome::Consumed;
                 }
                 if self.sessions.hit.hover && matches!(m.kind, MouseEventKind::Down(_)) {
                     self.focus.set(Id::Sessions);
-                    out = out | Outcome::Consumed;
+                    out |= Outcome::Consumed;
                 }
                 if self.models.hit.hover && matches!(m.kind, MouseEventKind::Down(_)) {
                     self.focus.set(Id::Models);
-                    out = out | Outcome::Consumed;
+                    out |= Outcome::Consumed;
                 }
 
                 return out;

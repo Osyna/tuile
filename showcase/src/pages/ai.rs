@@ -3,9 +3,9 @@
 use std::time::{Duration, Instant};
 use tuiforge::prelude::*;
 use tuiforge::widgets::ai::{
-    Approval, ApprovalChoice, ApprovalState, ApprovalStyle, ChatBlock, ChatMessage, ChatState, ChatView,
-    ComposerState, ContextGauge, PromptComposer, Role, StreamCursor, StreamText, Thinking, TokenHeat,
-    TokenUsage, ToolStatus, TypingIndicator,
+    Approval, ApprovalChoice, ApprovalState, ApprovalStyle, ChatBlock, ChatMessage, ChatState,
+    ChatView, ComposerState, ContextGauge, PromptComposer, Role, StreamCursor, StreamText,
+    Thinking, TokenHeat, TokenUsage, ToolStatus, TypingIndicator,
 };
 
 use super::{Ctx, Page, card};
@@ -66,8 +66,11 @@ return Ok(r),\n            Err(e) if attempt + 1 < max => {\n                sle
 const FINAL: &str = "Tests pass: **124 ok**, the retry path is covered by `fetch::tests::retry_on_failure`. \
 The `write_file` step was denied, so `README.md` is unchanged - say the word and I'll add the usage note.";
 
-const TOOLS: [(&str, &str); 3] =
-    [("read_file", "src/fetch.rs"), ("bash", "cargo test --workspace"), ("write_file", "README.md · permission denied")];
+const TOOLS: [(&str, &str); 3] = [
+    ("read_file", "src/fetch.rs"),
+    ("bash", "cargo test --workspace"),
+    ("write_file", "README.md · permission denied"),
+];
 
 pub struct AiPage {
     focus: Focus<Id>,
@@ -118,9 +121,13 @@ impl Default for AiPage {
 impl AiPage {
     /// Seconds into the turn, excluding time spent waiting for the approval.
     fn clock(&self, now: Instant) -> f32 {
-        let Some(started) = self.started else { return 0.0 };
+        let Some(started) = self.started else {
+            return 0.0;
+        };
         let paused = self.paused
-            + self.pause_start.map_or(0.0, |p| now.saturating_duration_since(p).as_secs_f32());
+            + self
+                .pause_start
+                .map_or(0.0, |p| now.saturating_duration_since(p).as_secs_f32());
         now.saturating_duration_since(started).as_secs_f32() - paused
     }
 
@@ -139,28 +146,46 @@ impl AiPage {
     fn apply(&mut self, step: Step, now: Instant) {
         match step {
             Step::Ask => {
-                self.chat.push(ChatMessage::new(Role::System, "").block(ChatBlock::Divider("14:02".into())));
                 self.chat.push(
-                    ChatMessage::new(Role::User, "Add retries to the fetch helper and run the tests")
-                        .author("irvin")
-                        .time("14:02"),
+                    ChatMessage::new(Role::System, "").block(ChatBlock::Divider("14:02".into())),
+                );
+                self.chat.push(
+                    ChatMessage::new(
+                        Role::User,
+                        "Add retries to the fetch helper and run the tests",
+                    )
+                    .author("irvin")
+                    .time("14:02"),
                 );
             }
             Step::Typing => self.typing = true,
             Step::ThinkStart => {
                 self.typing = false;
                 self.think_started = Some(now);
-                let msg = ChatMessage::new(Role::Assistant, "").author("Claude").time("14:02").block(
-                    ChatBlock::Thinking { text: String::new(), secs: 0.0, collapsed: false, streaming: true },
-                );
+                let msg = ChatMessage::new(Role::Assistant, "")
+                    .author("Claude")
+                    .time("14:02")
+                    .block(ChatBlock::Thinking {
+                        text: String::new(),
+                        secs: 0.0,
+                        collapsed: false,
+                        streaming: true,
+                    });
                 self.chat.begin_stream(msg, THOUGHT.to_string(), now);
             }
             Step::ThinkDone => {
                 // finish the thought stream whatever it revealed so far, then fold it
                 self.chat.stream_tick(now + Duration::from_secs(3600), 60.0);
-                let secs = self.think_started.map_or(3.1, |t| now.saturating_duration_since(t).as_secs_f32());
-                if let Some(ChatBlock::Thinking { secs: s, collapsed, .. }) =
-                    self.chat.messages.last_mut().and_then(|m| m.blocks.last_mut())
+                let secs = self
+                    .think_started
+                    .map_or(3.1, |t| now.saturating_duration_since(t).as_secs_f32());
+                if let Some(ChatBlock::Thinking {
+                    secs: s, collapsed, ..
+                }) = self
+                    .chat
+                    .messages
+                    .last_mut()
+                    .and_then(|m| m.blocks.last_mut())
                 {
                     *s = secs;
                     *collapsed = true;
@@ -176,9 +201,18 @@ impl AiPage {
             }
             Step::Tool(i, status) => {
                 let (name, summary) = TOOLS[i];
-                let msg = self.chat.messages.last_mut().expect("assistant message exists");
+                let msg = self
+                    .chat
+                    .messages
+                    .last_mut()
+                    .expect("assistant message exists");
                 let existing = msg.blocks.iter_mut().find_map(|b| match b {
-                    ChatBlock::ToolCall { name: n, status: s, duration_ms, .. } if n == name => Some((s, duration_ms)),
+                    ChatBlock::ToolCall {
+                        name: n,
+                        status: s,
+                        duration_ms,
+                        ..
+                    } if n == name => Some((s, duration_ms)),
                     _ => None,
                 });
                 match existing {
@@ -198,7 +232,10 @@ impl AiPage {
             }
             Step::Code => {
                 if let Some(m) = self.chat.messages.last_mut() {
-                    m.blocks.push(ChatBlock::Code { lang: Some("rust".into()), text: CODE.into() });
+                    m.blocks.push(ChatBlock::Code {
+                        lang: Some("rust".into()),
+                        text: CODE.into(),
+                    });
                 }
             }
             Step::AskApproval => {
@@ -207,7 +244,10 @@ impl AiPage {
                 self.pause_start = Some(now);
             }
             Step::Final => {
-                let msg = ChatMessage::new(Role::Assistant, "").author("Claude").time("14:03").block(ChatBlock::Text(String::new()));
+                let msg = ChatMessage::new(Role::Assistant, "")
+                    .author("Claude")
+                    .time("14:03")
+                    .block(ChatBlock::Text(String::new()));
                 self.chat.begin_stream(msg, FINAL.to_string(), now);
             }
         }
@@ -233,7 +273,10 @@ impl AiPage {
         }
         self.chat.stream_tick(now, 60.0);
         // loop the replay a few seconds after the final answer lands
-        if self.next_step >= SCRIPT.len() && !self.chat.messages.last().is_some_and(|m| m.streaming) && t > 32.0 {
+        if self.next_step >= SCRIPT.len()
+            && !self.chat.messages.last().is_some_and(|m| m.streaming)
+            && t > 32.0
+        {
             self.restart(now);
         }
     }
@@ -246,7 +289,9 @@ impl AiPage {
             }
             let (msg, v) = match choice {
                 ApprovalChoice::Once => ("bash allowed once", Variant::Success),
-                ApprovalChoice::Always => ("bash always allowed for this session", Variant::Primary),
+                ApprovalChoice::Always => {
+                    ("bash always allowed for this session", Variant::Primary)
+                }
                 ApprovalChoice::Deny => ("bash denied", Variant::Error),
             };
             ctx.notify(msg, v);
@@ -271,7 +316,14 @@ impl Page for AiPage {
     }
 
     fn bindings(&self) -> &'static [(&'static str, &'static str)] {
-        &[("Tab", "Focus"), ("↑↓ G", "Scroll / follow"), ("y/a/n", "Approve"), ("t", "Compact"), ("r", "Replay"), ("Enter", "Send")]
+        &[
+            ("Tab", "Focus"),
+            ("↑↓ G", "Scroll / follow"),
+            ("y/a/n", "Approve"),
+            ("t", "Compact"),
+            ("r", "Replay"),
+            ("Enter", "Send"),
+        ]
     }
 
     fn animating(&self, _now: Instant) -> bool {
@@ -297,16 +349,19 @@ impl Page for AiPage {
         let (left, right) = if reduced {
             (area, Rect::ZERO)
         } else {
-            let [l, r] = Layout::horizontal([Constraint::Percentage(62), Constraint::Fill(1)]).areas(area);
+            let [l, r] =
+                Layout::horizontal([Constraint::Percentage(62), Constraint::Fill(1)]).areas(area);
             (l, r)
         };
 
         // ── conversation + docked rows + composer ──
         let composer_h = 3;
-        let [conv_area, composer_area] = Layout::vertical([Constraint::Fill(1), Constraint::Length(composer_h)]).areas(left);
+        let [conv_area, composer_area] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(composer_h)]).areas(left);
         let inner = card(buf, conv_area, &th, "Conversation");
-        let dock_h = if self.approval_open { 1 } else if self.typing { 1 } else { 0 };
-        let [chat_area, dock] = Layout::vertical([Constraint::Fill(1), Constraint::Length(dock_h)]).areas(inner);
+        let dock_h = u16::from(self.approval_open || self.typing);
+        let [chat_area, dock] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(dock_h)]).areas(inner);
         ChatView::new()
             .bubbles(true)
             .show_time(true)
@@ -325,7 +380,11 @@ impl Page for AiPage {
                     .theme(&th)
                     .render(dock, buf, &mut self.inline_approval);
             } else {
-                TypingIndicator::new().label("Claude is typing").now(now).theme(&th).render(dock, buf);
+                TypingIndicator::new()
+                    .label("Claude is typing")
+                    .now(now)
+                    .theme(&th)
+                    .render(dock, buf);
             }
         }
         PromptComposer::new()
@@ -355,12 +414,23 @@ impl Page for AiPage {
         .areas(right);
 
         let inner = card(buf, approvals, &th, "Approval styles");
-        let [card_a, _gap, banner_a] =
-            Layout::vertical([Constraint::Length(card_h), Constraint::Length(1), Constraint::Length(2)]).areas(inner);
+        let [card_a, _gap, banner_a] = Layout::vertical([
+            Constraint::Length(card_h),
+            Constraint::Length(1),
+            Constraint::Length(2),
+        ])
+        .areas(inner);
         let focus_right = !self.approval_open && self.focus.is(Id::Approval);
         match self.resolved[0] {
             Some((_, choice)) => {
-                put(buf, card_a.x + 1, card_a.y + 1, &format!("rm -rf target → {choice:?}"), card_a.width.saturating_sub(2), st(th.text_muted, th.background));
+                put(
+                    buf,
+                    card_a.x + 1,
+                    card_a.y + 1,
+                    &format!("rm -rf target → {choice:?}"),
+                    card_a.width.saturating_sub(2),
+                    st(th.text_muted, th.background),
+                );
             }
             None => danger
                 .focused(focus_right && self.approval_focus == 0)
@@ -370,7 +440,14 @@ impl Page for AiPage {
         }
         match self.resolved[1] {
             Some((_, choice)) => {
-                put(buf, banner_a.x + 1, banner_a.y, &format!("git push → {choice:?}"), banner_a.width.saturating_sub(2), st(th.text_muted, th.background));
+                put(
+                    buf,
+                    banner_a.x + 1,
+                    banner_a.y,
+                    &format!("git push → {choice:?}"),
+                    banner_a.width.saturating_sub(2),
+                    st(th.text_muted, th.background),
+                );
             }
             None => Approval::new("Push 3 commits to origin/main?")
                 .command("git push origin main")
@@ -393,8 +470,19 @@ impl Page for AiPage {
         let sample = "Streaming tokens arrive a few at a time; the cursor style is yours to pick.";
         for ((label, cursor, fade, words), row) in demos.iter().zip(rows.iter()) {
             let label_w = 17;
-            put(buf, row.x, row.y, label, label_w, st(th.text_muted, th.background));
-            let text_area = Rect { x: row.x + label_w, width: row.width.saturating_sub(label_w), ..*row };
+            put(
+                buf,
+                row.x,
+                row.y,
+                label,
+                label_w,
+                st(th.text_muted, th.background),
+            );
+            let text_area = Rect {
+                x: row.x + label_w,
+                width: row.width.saturating_sub(label_w),
+                ..*row
+            };
             StreamText::new(sample)
                 .elapsed(phase)
                 .cps(if *words { 22.0 } else { 18.0 })
@@ -406,22 +494,42 @@ impl Page for AiPage {
         }
 
         let inner = card(buf, context, &th, "Context");
-        let [gauge, heat] = Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(inner);
+        let [gauge, heat] =
+            Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(inner);
         let used = 15_600 + (self.clock(now) * 900.0) as u32;
-        ContextGauge::new(TokenUsage { prompt: used, completion: 3_100, limit: 200_000 })
-            .compact(true)
-            .cost_usd(0.0123 + self.clock(now) * 0.0004)
-            .theme(&th)
-            .render(gauge, buf);
+        ContextGauge::new(TokenUsage {
+            prompt: used,
+            completion: 3_100,
+            limit: 200_000,
+        })
+        .compact(true)
+        .cost_usd(0.0123 + self.clock(now) * 0.0004)
+        .theme(&th)
+        .render(gauge, buf);
         let tokens: [(&str, f32); 9] = [
-            ("The", 0.98), (" retry", 0.61), (" logic", 0.93), (" is", 0.99), (" now", 0.72), (" in", 0.97), (" place", 0.55),
-            (" with", 0.9), (" backoff.", 0.34),
+            ("The", 0.98),
+            (" retry", 0.61),
+            (" logic", 0.93),
+            (" is", 0.99),
+            (" now", 0.72),
+            (" in", 0.97),
+            (" place", 0.55),
+            (" with", 0.9),
+            (" backoff.", 0.34),
         ];
-        TokenHeat::new(&tokens).legend(true).theme(&th).render(heat, buf);
+        TokenHeat::new(&tokens)
+            .legend(true)
+            .theme(&th)
+            .render(heat, buf);
 
         let inner = card(buf, thinking, &th, "Thinking");
         let rows: [Rect; 2] = Layout::vertical([Constraint::Length(1); 2]).areas(inner);
-        Thinking::new("Thinking").elapsed(self.clock(now) % 9.0).elapsed_label(true).now(now).theme(&th).render(rows[0], buf);
+        Thinking::new("Thinking")
+            .elapsed(self.clock(now) % 9.0)
+            .elapsed_label(true)
+            .now(now)
+            .theme(&th)
+            .render(rows[0], buf);
         Thinking::new("Reading files")
             .spinner(&tuiforge::widgets::spinners::LINE)
             .detail("3 modules")
@@ -470,7 +578,11 @@ impl Page for AiPage {
                     Some(Id::Composer) => {
                         let out = self.composer.handle_key(*k);
                         if let Some(text) = self.composer.take_submitted() {
-                            self.chat.push(ChatMessage::new(Role::User, text).author("irvin").time("14:04"));
+                            self.chat.push(
+                                ChatMessage::new(Role::User, text)
+                                    .author("irvin")
+                                    .time("14:04"),
+                            );
                             ctx.notify("Sent", Variant::Primary);
                         }
                         out
@@ -487,7 +599,8 @@ impl Page for AiPage {
                         };
                         let out = state.handle_key(*k);
                         if let Some(choice) = state.take_choice() {
-                            self.resolved[idx] = Some((ctx.now + Duration::from_millis(1500), choice));
+                            self.resolved[idx] =
+                                Some((ctx.now + Duration::from_millis(1500), choice));
                             ctx.notify(format!("{choice:?}"), Variant::Default);
                         }
                         out

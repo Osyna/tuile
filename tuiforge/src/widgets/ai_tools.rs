@@ -15,16 +15,14 @@ use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
 use ratatui::buffer::Buffer;
+use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 use ratatui::layout::Rect;
 use ratatui::widgets::{StatefulWidget, Widget};
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{elapsed, since};
-use crate::core::{HitBox, Hit, Interactive, Outcome, is_press, wheel_delta};
-use crate::draw::{
-    Border, Edge, fill, put, put_right, st, bold, truncate, truncate_start, hbar,
-};
+use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
+use crate::draw::{Border, Edge, bold, fill, hbar, put, put_right, st, truncate, truncate_start};
 use crate::theme::{self, Theme, Variant};
 use crate::widgets::ai::{DiffKind, DiffLine, ToolStatus};
 use crate::widgets::spinner::spinners;
@@ -130,7 +128,7 @@ impl ToolTimelineState {
         }
     }
 
-    pub fn animating(&self, now: Instant) -> bool {
+    pub fn animating(&self, _now: Instant) -> bool {
         self.steps.iter().any(|s| s.status == ToolStatus::Running)
     }
 }
@@ -282,11 +280,7 @@ impl StatefulWidget for ToolTimeline {
 
             let is_cursor = step_idx == state.cursor;
             let bg = if is_cursor {
-                if self.focused {
-                    th.cursor_bg
-                } else {
-                    th.panel
-                }
+                if self.focused { th.cursor_bg } else { th.panel }
             } else {
                 th.background
             };
@@ -295,14 +289,28 @@ impl StatefulWidget for ToolTimeline {
             let mut x = area.x;
             let w = area.width as usize;
 
-            // Nesting guides
-            // Nesting guides - one column per depth level
-            for d in 0..step.depth {
-                if x < area.right() {
-                    let guide = if d + 1 == step.depth { "├" } else { "│" };
-                    put(buf, x, y, guide, 1, st(th.border, bg));
-                    x += 2; // 1 for glyph + 1 for spacing
+            // Nesting guides: one 2-cell column per depth; `└` closes the last sibling,
+            // `│` continues an ancestor whose later siblings still follow
+            let steps = &state.steps;
+            let later = |depth: u8| {
+                steps[step_idx + 1..]
+                    .iter()
+                    .take_while(|s| s.depth >= depth)
+                    .any(|s| s.depth == depth)
+            };
+            for d in 1..=step.depth {
+                if x >= area.right() {
+                    break;
                 }
+                let guide = if d == step.depth {
+                    if later(d) { "├" } else { "└" }
+                } else if later(d) {
+                    "│"
+                } else {
+                    " "
+                };
+                put(buf, x, y, guide, 1, st(th.border, bg));
+                x += 2;
             }
 
             // Status glyph - always in its own column after guides
@@ -322,8 +330,8 @@ impl StatefulWidget for ToolTimeline {
             }
 
             // Name + summary
-            let name_w = step.name.width();
-            let summary_w = step.summary.width();
+            let _name_w = step.name.width();
+            let _summary_w = step.summary.width();
             let dur_text = match step.status {
                 ToolStatus::Running => {
                     let now = self.now.unwrap_or_else(Instant::now);
@@ -348,18 +356,29 @@ impl StatefulWidget for ToolTimeline {
             let summary_style = st(th.text_muted, bg);
 
             if avail > 0 {
-                let combined = if !step.summary.is_empty() {
-                    format!("{} {}", step.name, step.summary)
-                } else {
-                    step.name.clone()
-                };
-                let truncated = truncate(&combined, avail);
-                put(buf, x, y, &truncated, avail as u16, name_style);
+                let name = truncate(&step.name, avail);
+                let used = put(buf, x, y, &name, avail as u16, name_style) as usize;
+                let rest = avail.saturating_sub(used + 2);
+                if !step.summary.is_empty() && rest > 3 {
+                    put(
+                        buf,
+                        x + used as u16 + 2,
+                        y,
+                        &truncate(&step.summary, rest),
+                        rest as u16,
+                        summary_style,
+                    );
+                }
             }
 
             // Duration
             if !dur_text.is_empty() {
-                put_right(buf, Rect::new(area.x, y, area.width, 1), &dur_text, st(th.text_muted, bg));
+                put_right(
+                    buf,
+                    Rect::new(area.x, y, area.width, 1),
+                    &dur_text,
+                    st(th.text_muted, bg),
+                );
             }
 
             y += 1;
@@ -395,13 +414,17 @@ impl StatefulWidget for ToolTimeline {
         }
 
         // Scrollbar
-        let total_rows: usize = state.steps.iter().map(|s| {
-            let mut r = 1;
-            if s.expanded && !s.output.is_empty() {
-                r += s.output.len().min(self.max_output_rows as usize) + 1;
-            }
-            r
-        }).sum();
+        let total_rows: usize = state
+            .steps
+            .iter()
+            .map(|s| {
+                let mut r = 1;
+                if s.expanded && !s.output.is_empty() {
+                    r += s.output.len().min(self.max_output_rows as usize) + 1;
+                }
+                r
+            })
+            .sum();
         if total_rows > area.height as usize {
             let mut sb_state = ScrollbarState::default();
             Scrollbar::vertical(total_rows, area.height as usize)
@@ -508,6 +531,27 @@ impl<'a> ShellBlock<'a> {
         self.now = Some(n);
         self
     }
+
+    /// `(lines revealed so far, lines shown)` given the stream clock and the collapsed cap.
+    fn counts(&self) -> (usize, usize) {
+        let revealed = if self.lps.is_infinite() || self.lps <= 0.0 {
+            self.output.len()
+        } else {
+            ((self.elapsed.unwrap_or(0.0) * self.lps) as usize).min(self.output.len())
+        };
+        let shown = if self.collapsed {
+            revealed.min(self.max_rows as usize)
+        } else {
+            revealed
+        };
+        (revealed, shown)
+    }
+
+    /// Rows the block takes right now: header + shown lines (+ the `… +N lines` row).
+    pub fn height(&self) -> u16 {
+        let (revealed, shown) = self.counts();
+        1 + shown as u16 + u16::from(self.collapsed && revealed > shown)
+    }
 }
 
 impl Default for ShellBlock<'_> {
@@ -536,17 +580,16 @@ impl Widget for ShellBlock<'_> {
 
         // Calculate right side widths (from right to left)
         let mut right_w = 0u16;
-        
-        // Status (spinner or pill)
-        let status_w = if self.running { 
-            2 // spinner glyph
-        } else if self.exit_code.is_some() {
-            10 // "exit 0" or "exit 101" in a pill
+
+        // Status (spinner or pill), measured exactly as drawn
+        let pill_text = self.exit_code.map(|c| format!("exit {c}"));
+        let status_w = if self.running {
+            2
         } else {
-            0
+            pill_text.as_ref().map_or(0, |t| t.width() as u16 + 2)
         };
         right_w += status_w;
-        
+
         // Duration
         let dur_text = if let Some(d) = self.duration {
             format!(" {}", fmt_ms(d.as_secs_f32()))
@@ -557,64 +600,95 @@ impl Widget for ShellBlock<'_> {
         if dur_w > 0 {
             right_w += dur_w + 1; // +1 for gap
         }
-        
+
         // cwd
         let cwd_w = self.cwd.map(|c| c.width() as u16 + 1).unwrap_or(0); // +1 for gap
         if cwd_w > 0 {
             right_w += cwd_w;
         }
-        
+
         // Command (truncated to fit)
         let cmd_avail = area.width.saturating_sub(2 + right_w);
         if cmd_avail > 0 {
             let cmd_text = truncate(self.command, cmd_avail as usize);
-            put(buf, x, y, &cmd_text, cmd_avail, bold(st(th.text, header_bg)));
+            put(
+                buf,
+                x,
+                y,
+                &cmd_text,
+                cmd_avail,
+                bold(st(th.text, header_bg)),
+            );
         }
-        
+
         // Draw right side (from right to left)
         let mut right_x = area.right();
-        
+
         // Status pill / spinner (rightmost)
         if self.running {
             let now = self.now.unwrap_or_else(Instant::now);
             let frame = spinners::DOTS.frame(since(now));
             right_x = right_x.saturating_sub(2);
             put(buf, right_x, y, frame, 2, st(th.primary, header_bg));
-        } else if let Some(code) = self.exit_code {
-            let pill_text = format!("exit {}", code);
-            let pill_variant = if code == 0 { Variant::Success } else { Variant::Error };
-            let pill_bg = th.variant(pill_variant);
-            let pill_fg = pill_bg.text_on(1.0);
+        } else if let (Some(code), Some(pill_text)) = (self.exit_code, &pill_text) {
+            let pill_bg = th.variant(if code == 0 {
+                Variant::Success
+            } else {
+                Variant::Error
+            });
             let pill_w = pill_text.width() as u16 + 2;
             right_x = right_x.saturating_sub(pill_w);
             if right_x >= area.x {
                 fill(buf, Rect::new(right_x, y, pill_w, 1), pill_bg);
-                put(buf, right_x + 1, y, &pill_text, pill_w.saturating_sub(2), st(pill_fg, pill_bg));
+                put(
+                    buf,
+                    right_x + 1,
+                    y,
+                    pill_text,
+                    pill_w - 2,
+                    st(pill_bg.text_on(1.0), pill_bg),
+                );
             }
         }
-        
+
         // Duration
         if !dur_text.is_empty() {
             right_x = right_x.saturating_sub(1); // gap
             right_x = right_x.saturating_sub(dur_w);
-            put(buf, right_x, y, &dur_text, dur_w, st(th.text_muted, header_bg));
+            put(
+                buf,
+                right_x,
+                y,
+                &dur_text,
+                dur_w,
+                st(th.text_muted, header_bg),
+            );
         }
-        
+
         // cwd
-        if let Some(cwd) = self.cwd {
-            if cwd_w > 0 {
-                right_x = right_x.saturating_sub(1); // gap
-                let cwd_text = truncate(cwd, (cwd_w - 1) as usize);
-                right_x = right_x.saturating_sub(cwd_text.width() as u16);
-                put(buf, right_x, y, &cwd_text, cwd_text.width() as u16, st(th.text_muted, header_bg));
-            }
+        if let Some(cwd) = self.cwd
+            && cwd_w > 0
+        {
+            right_x = right_x.saturating_sub(1); // gap
+            let cwd_text = truncate(cwd, (cwd_w - 1) as usize);
+            right_x = right_x.saturating_sub(cwd_text.width() as u16);
+            put(
+                buf,
+                right_x,
+                y,
+                &cwd_text,
+                cwd_text.width() as u16,
+                st(th.text_muted, header_bg),
+            );
         }
 
         y += 1;
 
-        // Body rows
+        // Body rows: only as tall as the lines shown (plus the "+N lines" row)
         if y < area.bottom() && !self.output.is_empty() {
-            let body_h = area.bottom().saturating_sub(y);
+            let (revealed_count, display_count) = self.counts();
+            let more_row = u16::from(self.collapsed && revealed_count > display_count);
+            let body_h = (display_count as u16 + more_row).min(area.bottom().saturating_sub(y));
             let body_rect = Rect::new(area.x, y, area.width, body_h);
             let code_bg = th.markdown_code_bg;
             fill(buf, body_rect, code_bg);
@@ -623,29 +697,11 @@ impl Widget for ShellBlock<'_> {
             let rail_color = if self.running {
                 th.primary
             } else if let Some(code) = self.exit_code {
-                if code == 0 {
-                    th.success
-                } else {
-                    th.error
-                }
+                if code == 0 { th.success } else { th.error }
             } else {
                 th.border
             };
             Edge::Thin.draw(buf, area.x, y, body_h, false, rail_color, code_bg);
-
-            // Lines
-            let elapsed_val = self.elapsed.unwrap_or(0.0);
-            let revealed_count = if self.lps.is_infinite() || self.lps <= 0.0 {
-                self.output.len()
-            } else {
-                ((elapsed_val * self.lps) as usize).min(self.output.len())
-            };
-
-            let display_count = if self.collapsed {
-                revealed_count.min(self.max_rows as usize)
-            } else {
-                revealed_count
-            };
 
             for i in 0..display_count.min(body_h as usize) {
                 if i >= self.output.len() {
@@ -788,7 +844,14 @@ impl Widget for CodeBlock<'_> {
             let chip_fg = th.accent;
             let chip_w = self.lang.width() as u16 + 2;
             fill(buf, Rect::new(x, y, chip_w, 1), chip_bg);
-            put(buf, x + 1, y, self.lang, chip_w.saturating_sub(2), st(chip_fg, chip_bg));
+            put(
+                buf,
+                x + 1,
+                y,
+                self.lang,
+                chip_w.saturating_sub(2),
+                st(chip_fg, chip_bg),
+            );
             x += chip_w + 1;
         }
 
@@ -799,10 +862,22 @@ impl Widget for CodeBlock<'_> {
 
         if path_avail > 0 && !self.path.is_empty() {
             let path_text = truncate(self.path, path_avail as usize);
-            put(buf, x, y, &path_text, path_avail, st(th.text_muted, header_bg));
+            put(
+                buf,
+                x,
+                y,
+                &path_text,
+                path_avail,
+                st(th.text_muted, header_bg),
+            );
         }
 
-        put_right(buf, Rect::new(area.x, y, area.width, 1), &count_text, st(th.text_muted, header_bg));
+        put_right(
+            buf,
+            Rect::new(area.x, y, area.width, 1),
+            &count_text,
+            st(th.text_muted, header_bg),
+        );
 
         y += 1;
 
@@ -821,7 +896,9 @@ impl Widget for CodeBlock<'_> {
             };
 
             let code_x = area.x + gutter_w + if gutter_w > 0 { 1 } else { 0 };
-            let code_w = area.width.saturating_sub(gutter_w + if gutter_w > 0 { 1 } else { 0 });
+            let code_w = area
+                .width
+                .saturating_sub(gutter_w + if gutter_w > 0 { 1 } else { 0 });
 
             for (i, line) in lines.iter().enumerate() {
                 if y >= area.bottom() {
@@ -830,9 +907,27 @@ impl Widget for CodeBlock<'_> {
 
                 // Line number
                 if self.line_numbers && gutter_w > 0 {
-                    let num = format!("{:>width$}", self.start_line + i, width = gutter_w as usize - 1);
-                    put(buf, area.x, y, &num, gutter_w - 1, st(th.text_disabled, code_bg));
-                    put(buf, area.x + gutter_w - 1, y, "│", 1, st(th.border, code_bg));
+                    let num = format!(
+                        "{:>width$}",
+                        self.start_line + i,
+                        width = gutter_w as usize - 1
+                    );
+                    put(
+                        buf,
+                        area.x,
+                        y,
+                        &num,
+                        gutter_w - 1,
+                        st(th.text_disabled, code_bg),
+                    );
+                    put(
+                        buf,
+                        area.x + gutter_w - 1,
+                        y,
+                        "│",
+                        1,
+                        st(th.border, code_bg),
+                    );
                 }
 
                 // Line text
@@ -844,12 +939,13 @@ impl Widget for CodeBlock<'_> {
 
             // Caret
             if self.caret && !lines.is_empty() {
-                let last_y = (area.y + 1 + lines.len() as u16 - 1).min(area.bottom().saturating_sub(1));
+                let last_y =
+                    (area.y + 1 + lines.len() as u16 - 1).min(area.bottom().saturating_sub(1));
                 let last_line = lines.last().unwrap_or(&"");
                 let caret_x = code_x + last_line.width() as u16;
                 if caret_x < area.right() && last_y < area.bottom() {
                     let now = self.now.unwrap_or_else(Instant::now);
-                    let blink = (since(now) * 2.0) as u32 % 2 == 0;
+                    let blink = ((since(now) * 2.0) as u32).is_multiple_of(2);
                     if blink {
                         put(buf, caret_x, last_y, "▌", 1, st(th.cursor_fg, code_bg));
                     }
@@ -1037,8 +1133,16 @@ impl StatefulWidget for EditPreview<'_> {
         let mut y = area.y;
 
         // Header: path + stats
-        let added = self.lines.iter().filter(|l| l.kind == DiffKind::Add).count();
-        let removed = self.lines.iter().filter(|l| l.kind == DiffKind::Del).count();
+        let added = self
+            .lines
+            .iter()
+            .filter(|l| l.kind == DiffKind::Add)
+            .count();
+        let removed = self
+            .lines
+            .iter()
+            .filter(|l| l.kind == DiffKind::Del)
+            .count();
         let stats = format!("+{} −{}", added, removed);
         let stats_w = stats.width() as u16 + 1;
 
@@ -1047,9 +1151,21 @@ impl StatefulWidget for EditPreview<'_> {
 
         let path_avail = area.width.saturating_sub(stats_w);
         let path_text = truncate(self.path, path_avail as usize);
-        put(buf, area.x, y, &path_text, path_avail, bold(st(th.text, header_bg)));
+        put(
+            buf,
+            area.x,
+            y,
+            &path_text,
+            path_avail,
+            bold(st(th.text, header_bg)),
+        );
 
-        put_right(buf, Rect::new(area.x, y, area.width, 1), &stats, st(th.text_muted, header_bg));
+        put_right(
+            buf,
+            Rect::new(area.x, y, area.width, 1),
+            &stats,
+            st(th.text_muted, header_bg),
+        );
 
         y += 1;
 
@@ -1089,16 +1205,19 @@ impl StatefulWidget for EditPreview<'_> {
                 // Brighten recently revealed lines
                 let age = elapsed_val - (i as f32 / self.lps);
                 let is_fresh = age < 0.3;
-                let final_fg = if is_fresh {
-                    fg.blend(th.text, 0.5)
-                } else {
-                    fg
-                };
+                let final_fg = if is_fresh { fg.blend(th.text, 0.5) } else { fg };
 
                 fill(buf, Rect::new(area.x, y, area.width, 1), bg);
                 put(buf, area.x, y, glyph, 1, st(final_fg, bg));
                 let text = truncate(&line.text, (area.width.saturating_sub(2)) as usize);
-                put(buf, area.x + 2, y, &text, area.width.saturating_sub(2), st(final_fg, bg));
+                put(
+                    buf,
+                    area.x + 2,
+                    y,
+                    &text,
+                    area.width.saturating_sub(2),
+                    st(final_fg, bg),
+                );
                 y += 1;
             }
         }
@@ -1106,7 +1225,11 @@ impl StatefulWidget for EditPreview<'_> {
         // Footer: action buttons
         if area.bottom() > y {
             let footer_y = area.bottom() - 1;
-            fill(buf, Rect::new(area.x, footer_y, area.width, 1), th.background);
+            fill(
+                buf,
+                Rect::new(area.x, footer_y, area.width, 1),
+                th.background,
+            );
 
             let buttons = [
                 ("[a] Accept", Variant::Success, EditDecision::Accept),
@@ -1128,7 +1251,14 @@ impl StatefulWidget for EditPreview<'_> {
                     let btn_rect = Rect::new(x, footer_y, w, 1);
                     state.hits[i].set_area(btn_rect);
                     fill(buf, btn_rect, btn_bg);
-                    put(buf, x + 1, footer_y, label, w.saturating_sub(2), st(btn_fg, btn_bg));
+                    put(
+                        buf,
+                        x + 1,
+                        footer_y,
+                        label,
+                        w.saturating_sub(2),
+                        st(btn_fg, btn_bg),
+                    );
                     x += w + 1;
                 }
             }
@@ -1318,7 +1448,11 @@ impl StatefulWidget for ChangeSet {
             }
 
             let is_cursor = i == state.cursor;
-            let bg = if is_cursor { th.cursor_bg } else { th.background };
+            let bg = if is_cursor {
+                th.cursor_bg
+            } else {
+                th.background
+            };
 
             let row_rect = Rect::new(area.x, y, area.width, 1);
             state.hits[i].set_area(row_rect);
@@ -1355,8 +1489,14 @@ impl StatefulWidget for ChangeSet {
             let bar_x = area.right().saturating_sub(bar_w);
             let green_frac = (file.added as f32 / max_change as f32).min(1.0);
             let red_frac = (file.removed as f32 / max_change as f32).min(1.0);
-            let green_cells = (green_frac * bar_w as f32).ceil().max(if file.added > 0 { 1.0 } else { 0.0 }) as u16;
-            let red_cells = (red_frac * bar_w as f32).ceil().max(if file.removed > 0 { 1.0 } else { 0.0 }) as u16;
+            let green_cells =
+                (green_frac * bar_w as f32)
+                    .ceil()
+                    .max(if file.added > 0 { 1.0 } else { 0.0 }) as u16;
+            let red_cells =
+                (red_frac * bar_w as f32)
+                    .ceil()
+                    .max(if file.removed > 0 { 1.0 } else { 0.0 }) as u16;
 
             for i in 0..bar_w {
                 let cell_x = bar_x + i;
@@ -1379,11 +1519,27 @@ impl StatefulWidget for ChangeSet {
         // Footer
         if self.footer && footer_h > 0 {
             let footer_y = area.bottom() - 1;
-            fill(buf, Rect::new(area.x, footer_y, area.width, 1), th.background);
+            fill(
+                buf,
+                Rect::new(area.x, footer_y, area.width, 1),
+                th.background,
+            );
             let total_added: u32 = state.files.iter().map(|f| f.added).sum();
             let total_removed: u32 = state.files.iter().map(|f| f.removed).sum();
-            let footer_text = format!("{} files  +{} −{}", state.files.len(), total_added, total_removed);
-            put(buf, area.x, footer_y, &footer_text, area.width, st(th.text_muted, th.background));
+            let footer_text = format!(
+                "{} files  +{} −{}",
+                state.files.len(),
+                total_added,
+                total_removed
+            );
+            put(
+                buf,
+                area.x,
+                footer_y,
+                &footer_text,
+                area.width,
+                st(th.text_muted, th.background),
+            );
         }
     }
 }
@@ -1776,15 +1932,29 @@ impl JsonTree {
         self
     }
 
-    fn render_rows(&self, val: &Json, path: &[usize], depth: usize, state: &JsonTreeState) -> Vec<(Vec<usize>, String, bool)> {
+    fn render_rows(
+        &self,
+        val: &Json,
+        path: &[usize],
+        depth: usize,
+        state: &JsonTreeState,
+    ) -> Vec<(Vec<usize>, String, bool)> {
         let mut rows = Vec::new();
         match val {
             Json::Null => rows.push((path.to_vec(), format!("{}null", "  ".repeat(depth)), false)),
-            Json::Bool(b) => rows.push((path.to_vec(), format!("{}{}", "  ".repeat(depth), b), false)),
-            Json::Num(n) => rows.push((path.to_vec(), format!("{}{}", "  ".repeat(depth), n), false)),
+            Json::Bool(b) => {
+                rows.push((path.to_vec(), format!("{}{}", "  ".repeat(depth), b), false))
+            }
+            Json::Num(n) => {
+                rows.push((path.to_vec(), format!("{}{}", "  ".repeat(depth), n), false))
+            }
             Json::Str(s) => {
                 let truncated = truncate(s, 60);
-                rows.push((path.to_vec(), format!("{}\"{}\"", "  ".repeat(depth), truncated), false));
+                rows.push((
+                    path.to_vec(),
+                    format!("{}\"{}\"", "  ".repeat(depth), truncated),
+                    false,
+                ));
             }
             Json::Arr(arr) => {
                 let is_expanded = state.expanded.contains(path);
@@ -1821,7 +1991,12 @@ impl JsonTree {
                         let mut val_rows = self.render_rows(v, &new_path, depth + 1, state);
                         if let Some((_p, first, _toggle)) = val_rows.first_mut() {
                             // Prepend key, preserving the value's indentation
-                            *first = format!("{}{}{}", "  ".repeat(depth + 1), key_row, first.trim_start());
+                            *first = format!(
+                                "{}{}{}",
+                                "  ".repeat(depth + 1),
+                                key_row,
+                                first.trim_start()
+                            );
                         }
                         rows.extend(val_rows);
                     }
@@ -1860,7 +2035,7 @@ impl StatefulWidget for JsonTree {
         state.hits.resize(rows.len(), HitBox::default());
 
         let mut y = area.y;
-        for (i, (path, text, _is_toggle)) in rows.iter().enumerate() {
+        for (i, (_path, text, _is_toggle)) in rows.iter().enumerate() {
             if i < state.scroll as usize {
                 continue;
             }
@@ -1954,7 +2129,11 @@ impl Widget for RetryNotice<'_> {
         let th = self.theme.unwrap_or_else(theme::current);
         let now = self.now.unwrap_or_else(Instant::now);
 
-        let remaining = self.deadline.saturating_duration_since(now).as_secs_f32().max(0.0);
+        let remaining = self
+            .deadline
+            .saturating_duration_since(now)
+            .as_secs_f32()
+            .max(0.0);
         let is_retrying = remaining <= 0.0;
 
         if self.compact {
@@ -2011,7 +2190,14 @@ impl Widget for RetryNotice<'_> {
             // Row 1: reason
             fill(buf, Rect::new(inner.x, y, inner.width, 1), th.background);
             let text = truncate(self.reason, inner.width as usize);
-            put(buf, inner.x, y, &text, inner.width, bold(st(th.text, th.background)));
+            put(
+                buf,
+                inner.x,
+                y,
+                &text,
+                inner.width,
+                bold(st(th.text, th.background)),
+            );
             y += 1;
 
             if y < inner.bottom() {
@@ -2029,7 +2215,14 @@ impl Widget for RetryNotice<'_> {
                         remaining.ceil() as u32
                     )
                 };
-                put(buf, inner.x, y, &status, inner.width, st(th.text_muted, th.background));
+                put(
+                    buf,
+                    inner.x,
+                    y,
+                    &status,
+                    inner.width,
+                    st(th.text_muted, th.background),
+                );
                 y += 1;
             }
 
@@ -2037,7 +2230,15 @@ impl Widget for RetryNotice<'_> {
                 // Row 3: bar
                 fill(buf, Rect::new(inner.x, y, inner.width, 1), th.background);
                 let frac = (remaining / 6.0).min(1.0);
-                hbar(buf, inner.x, y, inner.width, frac, th.warning, th.background);
+                hbar(
+                    buf,
+                    inner.x,
+                    y,
+                    inner.width,
+                    frac,
+                    th.warning,
+                    th.background,
+                );
             }
         }
     }
@@ -2134,7 +2335,12 @@ mod tests {
             let result = Json::parse(input);
             assert!(result.is_err(), "should fail: {}", input);
             let err = result.unwrap_err();
-            assert!(err.contains(msg_part), "error {:?} should contain {:?}", err, msg_part);
+            assert!(
+                err.contains(msg_part),
+                "error {:?} should contain {:?}",
+                err,
+                msg_part
+            );
         }
     }
 
@@ -2161,7 +2367,9 @@ mod tests {
     fn changeset_activate() {
         let mut state = ChangeSetState::default();
         state.files.push(FileChange::new("a.rs", ChangeKind::Added));
-        state.files.push(FileChange::new("b.rs", ChangeKind::Modified));
+        state
+            .files
+            .push(FileChange::new("b.rs", ChangeKind::Modified));
         state.cursor = 1;
         assert_eq!(state.take_activated(), None);
         state.activated = Some(1);
@@ -2179,8 +2387,12 @@ mod tests {
             let mut buf = Buffer::empty(area);
 
             let mut timeline_state = ToolTimelineState::default();
-            timeline_state.steps.push(ToolStep::new("test").status(ToolStatus::Done));
-            ToolTimeline::new().theme(&th).render(area, &mut buf, &mut timeline_state);
+            timeline_state
+                .steps
+                .push(ToolStep::new("test").status(ToolStatus::Done));
+            ToolTimeline::new()
+                .theme(&th)
+                .render(area, &mut buf, &mut timeline_state);
 
             ShellBlock::new()
                 .theme(&th)
@@ -2195,9 +2407,10 @@ mod tests {
                 .render(area, &mut buf);
 
             let mut preview_state = EditPreviewState::default();
-            let lines = vec![
-                DiffLine { kind: DiffKind::Add, text: "new line".into() },
-            ];
+            let lines = vec![DiffLine {
+                kind: DiffKind::Add,
+                text: "new line".into(),
+            }];
             EditPreview::new()
                 .theme(&th)
                 .path("test.rs")
@@ -2205,7 +2418,9 @@ mod tests {
                 .render(area, &mut buf, &mut preview_state);
 
             let mut changeset_state = ChangeSetState::default();
-            changeset_state.files.push(FileChange::new("a.rs", ChangeKind::Added));
+            changeset_state
+                .files
+                .push(FileChange::new("a.rs", ChangeKind::Added));
             ChangeSet::new()
                 .theme(&th)
                 .render(area, &mut buf, &mut changeset_state);

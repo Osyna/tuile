@@ -67,13 +67,24 @@ pub struct SlashMenuState {
     pub cursor: usize,
     pub hits: Vec<HitBox>,
     pub selected: Option<String>,
+    /// `(command index, score, matched positions)` in display order, from the last render.
     ranked: Vec<(usize, i32, Vec<usize>)>,
+    /// Command names from the last render, so selection can resolve `ranked` indices.
+    names: Vec<String>,
 }
 
 impl SlashMenuState {
     /// Take selected command name.
     pub fn take_selected(&mut self) -> Option<String> {
         self.selected.take()
+    }
+
+    /// Select the ranked row at `row` (by display position) and close.
+    fn select_row(&mut self, row: usize) {
+        if let Some(&(idx, _, _)) = self.ranked.get(row) {
+            self.selected = self.names.get(idx).cloned();
+        }
+        self.open = false;
     }
 }
 
@@ -94,10 +105,7 @@ impl Interactive for SlashMenuState {
                 Outcome::Consumed
             }
             KeyCode::Tab | KeyCode::Enter => {
-                if let Some((_idx, _, _)) = self.ranked.get(self.cursor) {
-                    self.selected = Some(self.ranked[self.cursor].0.to_string());
-                }
-                self.open = false;
+                self.select_row(self.cursor);
                 Outcome::Changed
             }
             KeyCode::Esc => {
@@ -105,7 +113,11 @@ impl Interactive for SlashMenuState {
                 Outcome::Consumed
             }
             KeyCode::Backspace => {
-                self.query.pop();
+                if self.query.pop().is_none() {
+                    // erasing past the trigger character closes the popup
+                    self.open = false;
+                    return Outcome::Ignored;
+                }
                 self.cursor = 0;
                 Outcome::Consumed
             }
@@ -123,24 +135,21 @@ impl Interactive for SlashMenuState {
             return Outcome::Ignored;
         }
         let mut out = Outcome::Ignored;
+        let mut pressed = None;
         for (i, hit) in self.hits.iter_mut().enumerate() {
             match hit.mouse(&m) {
-                Hit::Press => {
+                Hit::Press => pressed = Some(i),
+                Hit::HoverChanged if hit.hover => {
                     self.cursor = i;
-                    if let Some((_idx, _, _)) = self.ranked.get(i) {
-                        self.selected = Some(self.ranked[i].0.to_string());
-                    }
-                    self.open = false;
-                    out = Outcome::Changed;
-                }
-                Hit::HoverChanged => {
-                    if hit.hover {
-                        self.cursor = i;
-                        out = Outcome::Consumed;
-                    }
+                    out = Outcome::Consumed;
                 }
                 _ => {}
             }
+        }
+        if let Some(i) = pressed {
+            self.cursor = i;
+            self.select_row(i);
+            return Outcome::Changed;
         }
         if let Some(delta) = wheel_delta(&m) {
             if delta > 0 {
@@ -220,6 +229,7 @@ impl<'a> StatefulWidget for SlashMenu<'a> {
 
         // rank
         let names: Vec<&str> = self.commands.iter().map(|c| c.name.as_str()).collect();
+        state.names = names.iter().map(|n| n.to_string()).collect();
         state.ranked = if state.query.is_empty() {
             names
                 .iter()
@@ -230,8 +240,13 @@ impl<'a> StatefulWidget for SlashMenu<'a> {
             fuzzy::rank(&state.query, names.iter().copied())
         };
 
+        if state.ranked.is_empty() {
+            // nothing matches: no popup, no stale hits
+            state.hits.clear();
+            return;
+        }
         if state.cursor >= state.ranked.len() {
-            state.cursor = state.ranked.len().saturating_sub(1);
+            state.cursor = state.ranked.len() - 1;
         }
 
         // group by category
@@ -239,11 +254,11 @@ impl<'a> StatefulWidget for SlashMenu<'a> {
         for (idx, score, positions) in &state.ranked {
             let cmd = &self.commands[*idx];
             if let Some(cat) = &cmd.category {
-                if let Some((last_cat, items)) = sections.last_mut() {
-                    if last_cat.as_ref() == Some(cat) {
-                        items.push((*idx, *score, positions.clone()));
-                        continue;
-                    }
+                if let Some((last_cat, items)) = sections.last_mut()
+                    && last_cat.as_ref() == Some(cat)
+                {
+                    items.push((*idx, *score, positions.clone()));
+                    continue;
                 }
                 sections.push((Some(cat.clone()), vec![(*idx, *score, positions.clone())]));
             } else {
@@ -265,11 +280,15 @@ impl<'a> StatefulWidget for SlashMenu<'a> {
 
         let popup_w = self.width.min(self.anchor.width).min(area.width);
         let popup_x = self.anchor.x.min(area.right().saturating_sub(popup_w));
-        let popup_y = if self.anchor.y >= popup_h + 1 {
-            self.anchor.y.saturating_sub(popup_h)
+        // above the anchor when there is room, else below; always inside `area`
+        let popup_y = if self.anchor.y >= area.y + popup_h {
+            self.anchor.y - popup_h
         } else {
-            self.anchor.bottom().min(area.bottom().saturating_sub(popup_h))
-        };
+            self.anchor
+                .bottom()
+                .min(area.bottom().saturating_sub(popup_h))
+        }
+        .max(area.y);
 
         let popup = Rect {
             x: popup_x,
@@ -284,6 +303,7 @@ impl<'a> StatefulWidget for SlashMenu<'a> {
 
         Border::Round.draw(buf, popup, th.border, th.panel);
         let inner = Border::Round.inner(popup);
+        fill(buf, inner, th.panel);
 
         state.hits.clear();
         state.hits.resize(state.ranked.len(), HitBox::default());
@@ -345,18 +365,46 @@ impl<'a> StatefulWidget for SlashMenu<'a> {
                     for &p in positions {
                         if p >= last && p < name_with_args.len() {
                             let before = &name_with_args[last..p];
-                            x += put(buf, x, y, before, inner.width.saturating_sub(2), st(th.text, bg));
+                            x += put(
+                                buf,
+                                x,
+                                y,
+                                before,
+                                inner.width.saturating_sub(2),
+                                st(th.text, bg),
+                            );
                             if let Some(c) = name_with_args.chars().nth(p) {
                                 let char_str = c.to_string();
-                                x += put(buf, x, y, &char_str, inner.width.saturating_sub(2), bold(st(th.accent, bg)));
+                                x += put(
+                                    buf,
+                                    x,
+                                    y,
+                                    &char_str,
+                                    inner.width.saturating_sub(2),
+                                    bold(st(th.accent, bg)),
+                                );
                                 last = p + c.len_utf8();
                             }
                         }
                     }
                     let rest = &name_with_args[last..];
-                    x += put(buf, x, y, rest, inner.width.saturating_sub(2), st(th.text, bg));
+                    x += put(
+                        buf,
+                        x,
+                        y,
+                        rest,
+                        inner.width.saturating_sub(2),
+                        st(th.text, bg),
+                    );
                 } else {
-                    x += put(buf, x, y, &name_with_args, inner.width.saturating_sub(2), st(th.text, bg));
+                    x += put(
+                        buf,
+                        x,
+                        y,
+                        &name_with_args,
+                        inner.width.saturating_sub(2),
+                        st(th.text, bg),
+                    );
                 }
 
                 x += 2;
@@ -462,13 +510,24 @@ pub struct MentionPickerState {
     pub cursor: usize,
     pub hits: Vec<HitBox>,
     pub selected: Option<String>,
+    /// `(item index, score, matched positions)` in display order, from the last render.
     ranked: Vec<(usize, i32, Vec<usize>)>,
+    /// Item labels from the last render, so selection can resolve `ranked` indices.
+    names: Vec<String>,
 }
 
 impl MentionPickerState {
     /// Take selected label.
     pub fn take_selected(&mut self) -> Option<String> {
         self.selected.take()
+    }
+
+    /// Select the ranked row at `row` (by display position) and close.
+    fn select_row(&mut self, row: usize) {
+        if let Some(&(idx, _, _)) = self.ranked.get(row) {
+            self.selected = self.names.get(idx).cloned();
+        }
+        self.open = false;
     }
 }
 
@@ -489,10 +548,7 @@ impl Interactive for MentionPickerState {
                 Outcome::Consumed
             }
             KeyCode::Tab | KeyCode::Enter => {
-                if let Some((_idx, _, _)) = self.ranked.get(self.cursor) {
-                    self.selected = Some(self.ranked[self.cursor].0.to_string());
-                }
-                self.open = false;
+                self.select_row(self.cursor);
                 Outcome::Changed
             }
             KeyCode::Esc => {
@@ -500,7 +556,11 @@ impl Interactive for MentionPickerState {
                 Outcome::Consumed
             }
             KeyCode::Backspace => {
-                self.query.pop();
+                if self.query.pop().is_none() {
+                    // erasing past the trigger character closes the popup
+                    self.open = false;
+                    return Outcome::Ignored;
+                }
                 self.cursor = 0;
                 Outcome::Consumed
             }
@@ -518,24 +578,21 @@ impl Interactive for MentionPickerState {
             return Outcome::Ignored;
         }
         let mut out = Outcome::Ignored;
+        let mut pressed = None;
         for (i, hit) in self.hits.iter_mut().enumerate() {
             match hit.mouse(&m) {
-                Hit::Press => {
+                Hit::Press => pressed = Some(i),
+                Hit::HoverChanged if hit.hover => {
                     self.cursor = i;
-                    if let Some((_idx, _, _)) = self.ranked.get(i) {
-                        self.selected = Some(self.ranked[i].0.to_string());
-                    }
-                    self.open = false;
-                    out = Outcome::Changed;
-                }
-                Hit::HoverChanged => {
-                    if hit.hover {
-                        self.cursor = i;
-                        out = Outcome::Consumed;
-                    }
+                    out = Outcome::Consumed;
                 }
                 _ => {}
             }
+        }
+        if let Some(i) = pressed {
+            self.cursor = i;
+            self.select_row(i);
+            return Outcome::Changed;
         }
         if let Some(delta) = wheel_delta(&m) {
             if delta > 0 {
@@ -613,9 +670,10 @@ impl<'a> StatefulWidget for MentionPicker<'a> {
         }
         let th = self.theme.unwrap_or_else(theme::current);
 
-        // rank
+        // rank, then reorder into display order (RECENT first) so cursor == display row
         let labels: Vec<&str> = self.items.iter().map(|i| i.label.as_str()).collect();
-        state.ranked = if state.query.is_empty() {
+        state.names = labels.iter().map(|l| l.to_string()).collect();
+        let ranked = if state.query.is_empty() {
             labels
                 .iter()
                 .enumerate()
@@ -624,28 +682,22 @@ impl<'a> StatefulWidget for MentionPicker<'a> {
         } else {
             fuzzy::rank(&state.query, labels.iter().copied())
         };
-
-        if state.cursor >= state.ranked.len() {
-            state.cursor = state.ranked.len().saturating_sub(1);
+        let (recent, all): (Vec<_>, Vec<_>) = ranked
+            .into_iter()
+            .partition(|(idx, _, _)| self.items[*idx].recent);
+        state.ranked = recent.iter().chain(all.iter()).cloned().collect();
+        if state.ranked.is_empty() {
+            // nothing matches: no popup, no stale hits
+            state.hits.clear();
+            return;
         }
-
-        // split into recent and all
-        let mut recent: Vec<(usize, i32, Vec<usize>)> = Vec::new();
-        let mut all: Vec<(usize, i32, Vec<usize>)> = Vec::new();
-        for (idx, score, positions) in &state.ranked {
-            if self.items[*idx].recent {
-                recent.push((*idx, *score, positions.clone()));
-            } else {
-                all.push((*idx, *score, positions.clone()));
-            }
+        if state.cursor >= state.ranked.len() {
+            state.cursor = state.ranked.len() - 1;
         }
 
         let has_recent = !recent.is_empty();
         let sections: Vec<(Option<&str>, Vec<(usize, i32, Vec<usize>)>)> = if has_recent {
-            vec![
-                (Some("RECENT"), recent),
-                (Some("ALL"), all),
-            ]
+            vec![(Some("RECENT"), recent), (Some("ALL"), all)]
         } else {
             vec![(None, all)]
         };
@@ -659,11 +711,15 @@ impl<'a> StatefulWidget for MentionPicker<'a> {
 
         let popup_w = self.width.min(self.anchor.width).min(area.width);
         let popup_x = self.anchor.x.min(area.right().saturating_sub(popup_w));
-        let popup_y = if self.anchor.y >= popup_h + 1 {
-            self.anchor.y.saturating_sub(popup_h)
+        // above the anchor when there is room, else below; always inside `area`
+        let popup_y = if self.anchor.y >= area.y + popup_h {
+            self.anchor.y - popup_h
         } else {
-            self.anchor.bottom().min(area.bottom().saturating_sub(popup_h))
-        };
+            self.anchor
+                .bottom()
+                .min(area.bottom().saturating_sub(popup_h))
+        }
+        .max(area.y);
 
         let popup = Rect {
             x: popup_x,
@@ -678,6 +734,7 @@ impl<'a> StatefulWidget for MentionPicker<'a> {
 
         Border::Round.draw(buf, popup, th.border, th.panel);
         let inner = Border::Round.inner(popup);
+        fill(buf, inner, th.panel);
 
         state.hits.clear();
         state.hits.resize(state.ranked.len(), HitBox::default());
@@ -739,18 +796,46 @@ impl<'a> StatefulWidget for MentionPicker<'a> {
                     for &p in positions {
                         if p >= last && p < label.len() {
                             let before = &label[last..p];
-                            x += put(buf, x, y, before, inner.width.saturating_sub(2), st(th.text, bg));
+                            x += put(
+                                buf,
+                                x,
+                                y,
+                                before,
+                                inner.width.saturating_sub(2),
+                                st(th.text, bg),
+                            );
                             if let Some(c) = label.chars().nth(p) {
                                 let char_str = c.to_string();
-                                x += put(buf, x, y, &char_str, inner.width.saturating_sub(2), bold(st(th.accent, bg)));
+                                x += put(
+                                    buf,
+                                    x,
+                                    y,
+                                    &char_str,
+                                    inner.width.saturating_sub(2),
+                                    bold(st(th.accent, bg)),
+                                );
                                 last = p + c.len_utf8();
                             }
                         }
                     }
                     let rest = &label[last..];
-                    x += put(buf, x, y, rest, inner.width.saturating_sub(2), st(th.text, bg));
+                    x += put(
+                        buf,
+                        x,
+                        y,
+                        rest,
+                        inner.width.saturating_sub(2),
+                        st(th.text, bg),
+                    );
                 } else {
-                    x += put(buf, x, y, label, inner.width.saturating_sub(2), st(th.text, bg));
+                    x += put(
+                        buf,
+                        x,
+                        y,
+                        label,
+                        inner.width.saturating_sub(2),
+                        st(th.text, bg),
+                    );
                 }
 
                 x += 2;
@@ -867,24 +952,17 @@ impl Interactive for AttachmentChipsState {
                     self.removed = Some(i);
                     return Outcome::Changed;
                 }
-                Hit::HoverChanged => {
-                    if hit.hover {
-                        self.hover = Some(i);
-                        out = Outcome::Consumed;
-                    }
+                Hit::HoverChanged if hit.hover => {
+                    self.hover = Some(i);
+                    out = Outcome::Consumed;
                 }
                 _ => {}
             }
         }
         for (i, hit) in self.hits.iter_mut().enumerate() {
-            match hit.mouse(&m) {
-                Hit::HoverChanged => {
-                    if hit.hover {
-                        self.hover = Some(i);
-                        out = Outcome::Consumed;
-                    }
-                }
-                _ => {}
+            if hit.mouse(&m) == Hit::HoverChanged && hit.hover {
+                self.hover = Some(i);
+                out = Outcome::Consumed;
             }
         }
         if out == Outcome::Ignored {
@@ -947,7 +1025,9 @@ impl<'a> StatefulWidget for AttachmentChips<'a> {
         state.hits.clear();
         state.remove_hits.clear();
         state.hits.resize(self.attachments.len(), HitBox::default());
-        state.remove_hits.resize(self.attachments.len(), HitBox::default());
+        state
+            .remove_hits
+            .resize(self.attachments.len(), HitBox::default());
 
         let mut x = area.x;
         let mut visible = 0;
@@ -1011,7 +1091,14 @@ impl<'a> StatefulWidget for AttachmentChips<'a> {
                     height: 1,
                 };
                 fill(buf, chip_rect, th.surface);
-                put(buf, x + 1, area.y, &overflow, ow - 2, st(th.text_muted, th.surface));
+                put(
+                    buf,
+                    x + 1,
+                    area.y,
+                    &overflow,
+                    ow - 2,
+                    st(th.text_muted, th.surface),
+                );
             }
         }
     }
@@ -1097,7 +1184,11 @@ impl ModeBadge {
     /// Width of the badge.
     pub fn width(&self) -> u16 {
         let label_w = self.mode.label().width() as u16 + 2;
-        let hint_w = self.hint.as_ref().map(|h| h.width() as u16 + 1).unwrap_or(0);
+        let hint_w = self
+            .hint
+            .as_ref()
+            .map(|h| h.width() as u16 + 1)
+            .unwrap_or(0);
         label_w + hint_w
     }
 }
@@ -1140,14 +1231,28 @@ impl Widget for ModeBadge {
             height: 1,
         };
         fill(buf, pill_rect, pill_color);
-        put(buf, x, area.y, &label, label_w, bold(st(text_color, pill_color)));
+        put(
+            buf,
+            x,
+            area.y,
+            &label,
+            label_w,
+            bold(st(text_color, pill_color)),
+        );
         x += label_w;
 
         if let Some(hint) = &self.hint {
             x += 1;
             let hint_w = hint.width() as u16;
             if x + hint_w <= area.right() {
-                put(buf, x, area.y, hint, hint_w, st(th.text_muted, th.background));
+                put(
+                    buf,
+                    x,
+                    area.y,
+                    hint,
+                    hint_w,
+                    st(th.text_muted, th.background),
+                );
             }
         }
     }
@@ -1325,7 +1430,7 @@ impl Widget for HarnessStatus {
         let sep_w = sep.width() as u16;
 
         // priority order (keep first, drop last): spinner, mode, model, context; drop: queued, elapsed, cost, tokens, branch
-        let keep_priority = vec![0, 1, 2, 3]; // spinner, mode, model, context
+        let keep_priority = [0, 1, 2, 3]; // spinner, mode, model, context
         let drop_priority = vec![8, 7, 6, 5, 4]; // queued, elapsed, cost, tokens, branch
 
         loop {
@@ -1353,11 +1458,7 @@ impl Widget for HarnessStatus {
                 x += put(buf, x, area.y, sep, sep_w, st(th.text_muted, th.panel));
             }
             let color = if i == 0 {
-                if self.busy {
-                    th.primary
-                } else {
-                    th.text_muted
-                }
+                if self.busy { th.primary } else { th.text_muted }
             } else if i == 1 {
                 self.mode.color(&th)
             } else if part.contains('*') {
@@ -1385,7 +1486,15 @@ impl Widget for HarnessStatus {
                         th.surface,
                     );
                     // then filled portion
-                    hbar(buf, x, area.y, bar_w, self.context_pct, th.primary, th.surface);
+                    hbar(
+                        buf,
+                        x,
+                        area.y,
+                        bar_w,
+                        self.context_pct,
+                        th.primary,
+                        th.surface,
+                    );
                     x += bar_w;
                 }
             }
@@ -1504,11 +1613,9 @@ impl Interactive for QuestionCardState {
                         return Outcome::Consumed;
                     }
                 }
-                Hit::HoverChanged => {
-                    if hit.hover {
-                        self.cursor = i;
-                        return Outcome::Consumed;
-                    }
+                Hit::HoverChanged if hit.hover => {
+                    self.cursor = i;
+                    return Outcome::Consumed;
                 }
                 _ => {}
             }
@@ -1591,7 +1698,11 @@ impl<'a> StatefulWidget for QuestionCard<'a> {
             state.selected = vec![false; self.options.len()];
         }
 
-        let border_color = if self.focused { th.primary } else { th.border_blurred };
+        let border_color = if self.focused {
+            th.primary
+        } else {
+            th.border_blurred
+        };
         Border::Round.draw(buf, area, border_color, th.background);
         let inner = Border::Round.inner(area);
 
@@ -1632,11 +1743,7 @@ impl<'a> StatefulWidget for QuestionCard<'a> {
 
             let digit = format!("{} ", i + 1);
             let checkbox = if self.multi {
-                if state.selected[i] {
-                    "[x] "
-                } else {
-                    "[ ] "
-                }
+                if state.selected[i] { "[x] " } else { "[ ] " }
             } else {
                 ""
             };
@@ -1654,11 +1761,32 @@ impl<'a> StatefulWidget for QuestionCard<'a> {
             let mut x = inner.x + 1;
             x += put(buf, x, y, marker, 1, st(marker_color, th.background));
             x += 1;
-            x += put(buf, x, y, &digit, digit.width() as u16, st(th.text, th.background));
+            x += put(
+                buf,
+                x,
+                y,
+                &digit,
+                digit.width() as u16,
+                st(th.text, th.background),
+            );
             if self.multi {
-                x += put(buf, x, y, checkbox, checkbox.width() as u16, st(th.text, th.background));
+                x += put(
+                    buf,
+                    x,
+                    y,
+                    checkbox,
+                    checkbox.width() as u16,
+                    st(th.text, th.background),
+                );
             }
-            x += put(buf, x, y, &opt.label, opt.label.width() as u16, st(th.text, th.background));
+            x += put(
+                buf,
+                x,
+                y,
+                &opt.label,
+                opt.label.width() as u16,
+                st(th.text, th.background),
+            );
 
             // recommended chip
             if self.recommended == Some(i) {
@@ -1676,7 +1804,14 @@ impl<'a> StatefulWidget for QuestionCard<'a> {
                         },
                         th.primary,
                     );
-                    put(buf, x, y, chip, chip_w, st(th.primary.text_on(0.9), th.primary));
+                    put(
+                        buf,
+                        x,
+                        y,
+                        chip,
+                        chip_w,
+                        st(th.primary.text_on(0.9), th.primary),
+                    );
                 }
             }
 
@@ -1861,11 +1996,9 @@ impl Interactive for PlanViewState {
                     }
                     return Outcome::Consumed;
                 }
-                Hit::HoverChanged => {
-                    if hit.hover {
-                        self.cursor = i;
-                        return Outcome::Consumed;
-                    }
+                Hit::HoverChanged if hit.hover => {
+                    self.cursor = i;
+                    return Outcome::Consumed;
                 }
                 _ => {}
             }
@@ -2001,7 +2134,11 @@ impl<'a> StatefulWidget for PlanView<'a> {
             let is_collapsed = state.collapsed[i];
             let arrow = if is_collapsed { "▸" } else { "▾" };
 
-            let done = phase.tasks.iter().filter(|t| t.state == TaskState::Done).count();
+            let done = phase
+                .tasks
+                .iter()
+                .filter(|t| t.state == TaskState::Done)
+                .count();
             let total = phase.tasks.len();
             let phase_label = format!("{} {}  {}/{}", arrow, phase.name, done, total);
 
@@ -2058,7 +2195,14 @@ impl<'a> StatefulWidget for PlanView<'a> {
                     x += put(buf, x, y, glyph, 1, st(color, th.background));
                     x += 1;
                     let text_style = st(th.text, th.background).add_modifier(modifier);
-                    put(buf, x, y, &task.text, area.width.saturating_sub(x - area.x), text_style);
+                    put(
+                        buf,
+                        x,
+                        y,
+                        &task.text,
+                        area.width.saturating_sub(x - area.x),
+                        text_style,
+                    );
 
                     y += 1;
                 }
@@ -2135,11 +2279,9 @@ impl Interactive for MessageQueueState {
                     self.cursor = i;
                     return Outcome::Consumed;
                 }
-                Hit::HoverChanged => {
-                    if hit.hover {
-                        self.cursor = i;
-                        return Outcome::Consumed;
-                    }
+                Hit::HoverChanged if hit.hover => {
+                    self.cursor = i;
+                    return Outcome::Consumed;
                 }
                 _ => {}
             }
@@ -2216,7 +2358,14 @@ impl<'a> StatefulWidget for MessageQueue<'a> {
             return;
         } else {
             let header = format!("{} queued · sent after this turn", self.messages.len());
-            put(buf, area.x, y, &header, area.width, st(th.text_muted, th.background));
+            put(
+                buf,
+                area.x,
+                y,
+                &header,
+                area.width,
+                st(th.text_muted, th.background),
+            );
             y += 1;
         }
 
@@ -2236,7 +2385,11 @@ impl<'a> StatefulWidget for MessageQueue<'a> {
             });
 
             let is_cursor = i == state.cursor;
-            let bg = if is_cursor { th.cursor_bg } else { th.background };
+            let bg = if is_cursor {
+                th.cursor_bg
+            } else {
+                th.background
+            };
 
             if is_cursor {
                 fill(
@@ -2255,7 +2408,9 @@ impl<'a> StatefulWidget for MessageQueue<'a> {
             let mut x = area.x;
             x += put(buf, x, y, &num, num.width() as u16, st(th.text, bg));
 
-            let text_w = area.width.saturating_sub(x - area.x + msg.when.width() as u16 + 3);
+            let text_w = area
+                .width
+                .saturating_sub(x - area.x + msg.when.width() as u16 + 3);
             let text = truncate(&msg.text, text_w as usize);
             x += put(buf, x, y, &text, text_w, st(th.text, bg));
 
@@ -2330,11 +2485,9 @@ impl Interactive for SuggestionsState {
                     self.activated = Some(i);
                     return Outcome::Changed;
                 }
-                Hit::HoverChanged => {
-                    if hit.hover {
-                        self.cursor = i;
-                        return Outcome::Consumed;
-                    }
+                Hit::HoverChanged if hit.hover => {
+                    self.cursor = i;
+                    return Outcome::Consumed;
                 }
                 _ => {}
             }
@@ -2439,7 +2592,14 @@ impl<'a> StatefulWidget for Suggestions<'a> {
                     height: 1,
                 };
                 fill(buf, chip_rect, th.surface);
-                put(buf, x + 1, y, &overflow, ow - 2, st(th.text_muted, th.surface));
+                put(
+                    buf,
+                    x + 1,
+                    y,
+                    &overflow,
+                    ow - 2,
+                    st(th.text_muted, th.surface),
+                );
             }
         }
     }
@@ -2451,13 +2611,13 @@ mod tests {
 
     #[test]
     fn slash_menu_filtering() {
-        let commands = vec![
+        let commands = [
             SlashCommand::new("compact", "Compact output"),
             SlashCommand::new("commit", "Commit changes"),
             SlashCommand::new("cost", "Show cost"),
             SlashCommand::new("help", "Show help"),
         ];
-        let mut state = SlashMenuState {
+        let state = SlashMenuState {
             open: true,
             query: "co".to_string(),
             ..Default::default()
@@ -2466,29 +2626,43 @@ mod tests {
         let ranked = fuzzy::rank(&state.query, names.iter().copied());
         assert!(!ranked.is_empty());
         // should have compact, commit, cost
-        assert!(ranked.iter().any(|(i, _, _)| commands[*i].name == "compact"));
+        assert!(
+            ranked
+                .iter()
+                .any(|(i, _, _)| commands[*i].name == "compact")
+        );
         assert!(ranked.iter().any(|(i, _, _)| commands[*i].name == "commit"));
         assert!(ranked.iter().any(|(i, _, _)| commands[*i].name == "cost"));
     }
 
     #[test]
-    fn slash_menu_tab_select() {
+    fn slash_menu_tab_selects_the_cursor_command_by_name() {
+        let commands = [
+            SlashCommand::new("help", "h").category("Info"),
+            SlashCommand::new("compact", "c").category("View"),
+            SlashCommand::new("commit", "c").category("Action"),
+        ];
         let mut state = SlashMenuState {
             open: true,
-            cursor: 1,
-            ranked: vec![(0, 10, vec![]), (1, 8, vec![]), (2, 5, vec![])],
+            query: "com".into(),
             ..Default::default()
         };
+        let mut buf = Buffer::empty(Rect::new(0, 0, 60, 20));
+        SlashMenu::new()
+            .commands(&commands)
+            .anchor(Rect::new(0, 15, 60, 3))
+            .render(buf.area, &mut buf, &mut state);
+        state.handle_key(KeyEvent::from(KeyCode::Down));
         let outcome = state.handle_key(KeyEvent::from(KeyCode::Tab));
         assert_eq!(outcome, Outcome::Changed);
-        assert_eq!(state.selected, Some("1".to_string()));
+        assert_eq!(state.take_selected().as_deref(), Some("commit"));
         assert!(!state.open);
     }
 
     #[test]
     fn question_card_digit_submit_single() {
         let mut state = QuestionCardState {
-            selected: vec![false],  // single mode has 1 option
+            selected: vec![false], // single mode has 1 option
             ..Default::default()
         };
         let outcome = state.handle_key(KeyEvent::from(KeyCode::Char('1')));
@@ -2504,32 +2678,45 @@ mod tests {
         };
         let outcome = state.handle_key(KeyEvent::from(KeyCode::Char('2')));
         assert_eq!(outcome, Outcome::Consumed);
-        assert_eq!(state.selected[1], true);
+        assert!(state.selected[1]);
         let outcome = state.handle_key(KeyEvent::from(KeyCode::Char('2')));
         assert_eq!(outcome, Outcome::Consumed);
-        assert_eq!(state.selected[1], false);
+        assert!(!state.selected[1]);
     }
 
     #[test]
-    fn harness_status_priority_drop() {
-        let status = HarnessStatus::new()
-            .mode(HarnessMode::Act)
-            .model("claude")
-            .context_pct(0.5)
-            .tokens(1000)
-            .cost(0.5)
-            .branch("main")
-            .elapsed(std::time::Duration::from_secs(10))
-            .queued(2);
-        // at narrow width, should keep spinner, mode, model, context
-        // this is tested via rendering
-        assert_eq!(status.mode, HarnessMode::Act);
+    fn harness_status_drops_low_priority_segments_when_narrow() {
+        let row = |width: u16| {
+            let mut buf = Buffer::empty(Rect::new(0, 0, width, 1));
+            HarnessStatus::new()
+                .mode(HarnessMode::Act)
+                .model("claude")
+                .context_pct(0.5)
+                .tokens(1000)
+                .cost(0.5)
+                .branch("main")
+                .elapsed(std::time::Duration::from_secs(10))
+                .queued(2)
+                .render(buf.area, &mut buf);
+            (0..width)
+                .map(|x| buf[(x, 0)].symbol().to_string())
+                .collect::<String>()
+        };
+        let wide = row(120);
+        assert!(wide.contains("queued") && wide.contains("main") && wide.contains("$0.50"));
+        let narrow = row(36);
+        assert!(narrow.contains("Act") && narrow.contains("claude") && narrow.contains("50%"));
+        assert!(
+            !narrow.contains("queued") && !narrow.contains("main") && !narrow.contains("$0.50")
+        );
     }
 
     #[test]
     fn attachment_chips_remove() {
-        let mut state = AttachmentChipsState::default();
-        state.hits = vec![HitBox::default(), HitBox::default()];
+        let mut state = AttachmentChipsState {
+            hits: vec![HitBox::default(), HitBox::default()],
+            ..Default::default()
+        };
         let outcome = state.handle_key(KeyEvent::from(KeyCode::Backspace));
         assert_eq!(outcome, Outcome::Changed);
         assert_eq!(state.removed, Some(1));
@@ -2544,11 +2731,11 @@ mod tests {
         };
         let outcome = state.handle_key(KeyEvent::from(KeyCode::Char('c')));
         assert_eq!(outcome, Outcome::Consumed);
-        assert_eq!(state.collapsed[0], true);
+        assert!(state.collapsed[0]);
 
         let outcome = state.handle_key(KeyEvent::from(KeyCode::Char('e')));
         assert_eq!(outcome, Outcome::Consumed);
-        assert_eq!(state.collapsed[0], false);
+        assert!(!state.collapsed[0]);
     }
 
     #[test]
@@ -2558,10 +2745,16 @@ mod tests {
             let area = Rect::new(0, 0, w, h);
             let mut buf = Buffer::empty(area);
 
-            let mut state = SlashMenuState { open: true, ..Default::default() };
+            let mut state = SlashMenuState {
+                open: true,
+                ..Default::default()
+            };
             SlashMenu::new().render(area, &mut buf, &mut state);
 
-            let mut state = MentionPickerState { open: true, ..Default::default() };
+            let mut state = MentionPickerState {
+                open: true,
+                ..Default::default()
+            };
             MentionPicker::new().render(area, &mut buf, &mut state);
 
             let mut state = AttachmentChipsState::default();

@@ -24,7 +24,9 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{blink, pulse, since};
 use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
-use crate::draw::{Border, Edge, FieldShape, fill, put, put_centered, put_right, st, truncate, wrap};
+use crate::draw::{
+    Border, Edge, FieldShape, fill, put, put_centered, put_right, st, truncate, wrap,
+};
 use crate::theme::{self, Rgb, Theme};
 use crate::widgets::charts::{Meter, MeterStyle};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
@@ -213,12 +215,11 @@ impl ChatState {
 
     /// Toggle a thinking block collapsed state.
     pub fn toggle_thinking(&mut self, msg_idx: usize, block_idx: usize) {
-        if let Some(msg) = self.messages.get_mut(msg_idx) {
-            if block_idx < msg.blocks.len() {
-                if let ChatBlock::Thinking { collapsed, .. } = &mut msg.blocks[block_idx] {
-                    *collapsed = !*collapsed;
-                }
-            }
+        if let Some(msg) = self.messages.get_mut(msg_idx)
+            && block_idx < msg.blocks.len()
+            && let ChatBlock::Thinking { collapsed, .. } = &mut msg.blocks[block_idx]
+        {
+            *collapsed = !*collapsed;
         }
     }
     /// Push `msg` and reveal `full_text` into it over time with [`ChatState::stream_tick`]. The
@@ -233,7 +234,8 @@ impl ChatState {
     /// Reveal the streamed text at `cps` chars per second; `true` while still revealing. The
     /// message's `streaming` flag (and a streaming thinking block's) is cleared at the end.
     pub fn stream_tick(&mut self, now: Instant, cps: f32) -> bool {
-        let (Some(start), Some(full)) = (self.streaming_start, self.streaming_text.as_deref()) else {
+        let (Some(start), Some(full)) = (self.streaming_start, self.streaming_text.as_deref())
+        else {
             return false;
         };
         let elapsed = now.saturating_duration_since(start).as_secs_f32();
@@ -242,7 +244,9 @@ impl ChatState {
         if let Some(msg) = self.messages.last_mut() {
             let target = msg.blocks.iter_mut().rev().find_map(|b| match b {
                 ChatBlock::Text(t) => Some((t, None)),
-                ChatBlock::Thinking { text, streaming, .. } => Some((text, Some(streaming))),
+                ChatBlock::Thinking {
+                    text, streaming, ..
+                } => Some((text, Some(streaming))),
                 _ => None,
             });
             match target {
@@ -455,10 +459,16 @@ enum Inline {
 fn inline_runs(line: &str) -> Vec<(String, Inline)> {
     let trimmed = line.trim_start();
     let indent = &line[..line.len() - trimmed.len()];
-    if let Some(rest) = trimmed.strip_prefix("## ").or_else(|| trimmed.strip_prefix("# ")) {
+    if let Some(rest) = trimmed
+        .strip_prefix("## ")
+        .or_else(|| trimmed.strip_prefix("# "))
+    {
         return vec![(format!("{indent}{rest}"), Inline::Heading)];
     }
-    let (prefix, body) = match trimmed.strip_prefix("- ").or_else(|| trimmed.strip_prefix("* ")) {
+    let (prefix, body) = match trimmed
+        .strip_prefix("- ")
+        .or_else(|| trimmed.strip_prefix("* "))
+    {
         Some(rest) => (format!("{indent}• "), rest),
         None => (indent.to_string(), trimmed),
     };
@@ -478,12 +488,20 @@ fn inline_runs(line: &str) -> Vec<(String, Inline)> {
         match c {
             '`' => {
                 flush(&mut cur, style, &mut runs);
-                style = if style == Inline::Code { Inline::Plain } else { Inline::Code };
+                style = if style == Inline::Code {
+                    Inline::Plain
+                } else {
+                    Inline::Code
+                };
             }
             '*' if style != Inline::Code && it.peek() == Some(&'*') => {
                 it.next();
                 flush(&mut cur, style, &mut runs);
-                style = if style == Inline::Bold { Inline::Plain } else { Inline::Bold };
+                style = if style == Inline::Bold {
+                    Inline::Plain
+                } else {
+                    Inline::Bold
+                };
             }
             _ => cur.push(c),
         }
@@ -501,47 +519,50 @@ fn wrap_runs(runs: &[(String, Inline)], width: usize) -> Vec<Vec<(String, Inline
     let width = width.max(1);
     let mut rows: Vec<Vec<(String, Inline)>> = vec![Vec::new()];
     let mut used = 0usize;
-    let push = |rows: &mut Vec<Vec<(String, Inline)>>, used: &mut usize, word: &str, style: Inline| {
-        let w = word.width();
-        if *used > 0 && *used + w > width {
-            rows.push(Vec::new());
-            *used = 0;
-        }
-        // a word longer than the row is hard-split
-        let mut rest = word;
-        while rest.width() > width {
-            let mut cut = 0;
-            let mut cw = 0;
-            for (i, ch) in rest.char_indices() {
-                let c = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
-                if cw + c > width - *used {
-                    break;
-                }
-                cw += c;
-                cut = i + ch.len_utf8();
-            }
-            if cut == 0 {
+    let push =
+        |rows: &mut Vec<Vec<(String, Inline)>>, used: &mut usize, word: &str, style: Inline| {
+            let w = word.width();
+            if *used > 0 && *used + w > width {
                 rows.push(Vec::new());
                 *used = 0;
-                continue;
             }
-            rows.last_mut().unwrap().push((rest[..cut].to_string(), style));
-            rows.push(Vec::new());
-            *used = 0;
-            rest = &rest[cut..];
-        }
-        let row = rows.last_mut().unwrap();
-        let leading = *used == 0;
-        let piece = if leading { rest.trim_start() } else { rest };
-        if piece.is_empty() {
-            return;
-        }
-        match row.last_mut() {
-            Some((t, s)) if *s == style => t.push_str(piece),
-            _ => row.push((piece.to_string(), style)),
-        }
-        *used += piece.width();
-    };
+            // a word longer than the row is hard-split
+            let mut rest = word;
+            while rest.width() > width {
+                let mut cut = 0;
+                let mut cw = 0;
+                for (i, ch) in rest.char_indices() {
+                    let c = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
+                    if cw + c > width - *used {
+                        break;
+                    }
+                    cw += c;
+                    cut = i + ch.len_utf8();
+                }
+                if cut == 0 {
+                    rows.push(Vec::new());
+                    *used = 0;
+                    continue;
+                }
+                rows.last_mut()
+                    .unwrap()
+                    .push((rest[..cut].to_string(), style));
+                rows.push(Vec::new());
+                *used = 0;
+                rest = &rest[cut..];
+            }
+            let row = rows.last_mut().unwrap();
+            let leading = *used == 0;
+            let piece = if leading { rest.trim_start() } else { rest };
+            if piece.is_empty() {
+                return;
+            }
+            match row.last_mut() {
+                Some((t, s)) if *s == style => t.push_str(piece),
+                _ => row.push((piece.to_string(), style)),
+            }
+            *used += piece.width();
+        };
     for (text, style) in runs {
         // keep the space attached to the word before it so runs re-join seamlessly
         let mut start = 0;
@@ -649,7 +670,9 @@ impl ChatView {
                 if mi > 0 && !self.compact {
                     rows.push(Row::new(0, 0, RowKind::Blank, msg.role, mi, 0));
                 }
-                rows.push(Row::new(0, width, RowKind::Divider, msg.role, mi, 0).text(label.clone()));
+                rows.push(
+                    Row::new(0, width, RowKind::Divider, msg.role, mi, 0).text(label.clone()),
+                );
                 continue;
             }
             if mi > 0 && !self.compact {
@@ -661,10 +684,15 @@ impl ChatView {
                 let longest = msg
                     .text
                     .lines()
-                    .chain(msg.blocks.iter().filter_map(|b| match b {
-                        ChatBlock::Text(t) => Some(t.as_str()),
-                        _ => None,
-                    }).flat_map(|t| t.lines()))
+                    .chain(
+                        msg.blocks
+                            .iter()
+                            .filter_map(|b| match b {
+                                ChatBlock::Text(t) => Some(t.as_str()),
+                                _ => None,
+                            })
+                            .flat_map(|t| t.lines()),
+                    )
                     .map(|l| l.width())
                     .max()
                     .unwrap_or(0) as u16
@@ -675,9 +703,16 @@ impl ChatView {
             } else {
                 (0, width)
             };
-            let author = msg.author.clone().unwrap_or_else(|| msg.role.label().to_string());
+            let author = msg
+                .author
+                .clone()
+                .unwrap_or_else(|| msg.role.label().to_string());
             let mut head = Row::new(x, w, RowKind::Author, msg.role, mi, 0).text(author);
-            head.right = if self.show_time { msg.time.clone() } else { None };
+            head.right = if self.show_time {
+                msg.time.clone()
+            } else {
+                None
+            };
             rows.push(head);
 
             let text_w = w.saturating_sub(2) as usize;
@@ -726,11 +761,19 @@ impl ChatView {
                         rows.push(head);
                         for line in text.lines() {
                             for piece in hard_wrap(line, text_w.saturating_sub(1)) {
-                                rows.push(Row::new(x, w, RowKind::Code, msg.role, mi, bi).text(format!(" {piece}")));
+                                rows.push(
+                                    Row::new(x, w, RowKind::Code, msg.role, mi, bi)
+                                        .text(format!(" {piece}")),
+                                );
                             }
                         }
                     }
-                    ChatBlock::Thinking { text, secs, collapsed, streaming } => {
+                    ChatBlock::Thinking {
+                        text,
+                        secs,
+                        collapsed,
+                        streaming,
+                    } => {
                         let header = if *streaming {
                             "▾ Thinking…".to_string()
                         } else if *collapsed {
@@ -738,7 +781,8 @@ impl ChatView {
                         } else {
                             format!("▾ Thought for {secs:.1}s")
                         };
-                        let mut row = Row::new(x, w, RowKind::ThinkingHeader, msg.role, mi, bi).text(header);
+                        let mut row =
+                            Row::new(x, w, RowKind::ThinkingHeader, msg.role, mi, bi).text(header);
                         row.caret = *streaming;
                         rows.push(row);
                         if !*collapsed || *streaming {
@@ -752,7 +796,12 @@ impl ChatView {
                             }
                         }
                     }
-                    ChatBlock::ToolCall { name, summary, status, duration_ms } => {
+                    ChatBlock::ToolCall {
+                        name,
+                        summary,
+                        status,
+                        duration_ms,
+                    } => {
                         let mut row = Row::new(x, w, RowKind::ToolCall, msg.role, mi, bi);
                         row.status = Some(*status);
                         row.text = name.clone();
@@ -761,7 +810,9 @@ impl ChatView {
                         rows.push(row);
                     }
                     ChatBlock::Divider(label) => {
-                        rows.push(Row::new(x, w, RowKind::Divider, msg.role, mi, bi).text(label.clone()));
+                        rows.push(
+                            Row::new(x, w, RowKind::Divider, msg.role, mi, bi).text(label.clone()),
+                        );
                     }
                 }
             }
@@ -832,27 +883,56 @@ impl StatefulWidget for ChatView {
                 (_, RowKind::Blank, _) => continue,
                 (_, RowKind::Code, _) => (th.markdown_code_bg, th.text),
                 (Role::User, _, true) => (th.surface, th.text),
-                (_, RowKind::ThinkingHeader | RowKind::ThinkingBody, _) => (th.background, th.text_muted),
-                (Role::System, _, _) | (Role::Tool, RowKind::Text, _) => (th.background, th.text_muted),
+                (_, RowKind::ThinkingHeader | RowKind::ThinkingBody, _) => {
+                    (th.background, th.text_muted)
+                }
+                (Role::System, _, _) | (Role::Tool, RowKind::Text, _) => {
+                    (th.background, th.text_muted)
+                }
                 _ => (th.background, th.text),
             };
             if hovered && row.kind != RowKind::Code {
                 bg = th.hover_bg;
             }
-            let line = Rect { x: area.x + row.x, y, width: row.w, height: 1 };
+            let line = Rect {
+                x: area.x + row.x,
+                y,
+                width: row.w,
+                height: 1,
+            };
             fill(buf, line, bg);
             if row.role == Role::Assistant && self.bubbles && row.kind != RowKind::Divider {
                 self.bar.draw(buf, line.x, y, 1, false, color, bg);
             }
-            let inner = Rect { x: line.x + 1, width: line.width.saturating_sub(2), ..line };
+            let inner = Rect {
+                x: line.x + 1,
+                width: line.width.saturating_sub(2),
+                ..line
+            };
 
             match row.kind {
                 RowKind::Author => {
-                    let text = if row.role == Role::Tool { format!("⊛ {}", row.text) } else { row.text.clone() };
-                    if row.role == Role::System {
-                        put_centered(buf, inner, &text, st(th.text_muted, bg).add_modifier(Modifier::BOLD));
+                    let text = if row.role == Role::Tool {
+                        format!("⊛ {}", row.text)
                     } else {
-                        put(buf, inner.x, y, &text, inner.width, st(color, bg).add_modifier(Modifier::BOLD));
+                        row.text.clone()
+                    };
+                    if row.role == Role::System {
+                        put_centered(
+                            buf,
+                            inner,
+                            &text,
+                            st(th.text_muted, bg).add_modifier(Modifier::BOLD),
+                        );
+                    } else {
+                        put(
+                            buf,
+                            inner.x,
+                            y,
+                            &text,
+                            inner.width,
+                            st(color, bg).add_modifier(Modifier::BOLD),
+                        );
                     }
                     if let Some(r) = &row.right {
                         put_right(buf, inner, r, st(th.text_muted, bg));
@@ -892,7 +972,14 @@ impl StatefulWidget for ChatView {
                         // painted language chip on the block's header row
                         let chip = format!(" {lang} ");
                         let cw = (chip.width() as u16).min(inner.width);
-                        put(buf, inner.right() - cw, y, &chip, cw, st(th.accent, th.surface));
+                        put(
+                            buf,
+                            inner.right() - cw,
+                            y,
+                            &chip,
+                            cw,
+                            st(th.accent, th.surface),
+                        );
                     }
                     if row.caret && caret_on {
                         put(buf, inner.x + used, y, "▌", 1, st(color, bg));
@@ -911,8 +998,17 @@ impl StatefulWidget for ChatView {
                                 break;
                             }
                             let d = (ci as f32 - sweep).abs();
-                            let fg = th.text_muted.blend(th.text, (1.0 - d / 3.0).clamp(0.0, 1.0));
-                            x += put(buf, x, y, ch.encode_utf8(&mut [0; 4]), 1, st(fg, bg).add_modifier(Modifier::ITALIC));
+                            let fg = th
+                                .text_muted
+                                .blend(th.text, (1.0 - d / 3.0).clamp(0.0, 1.0));
+                            x += put(
+                                buf,
+                                x,
+                                y,
+                                ch.encode_utf8(&mut [0; 4]),
+                                1,
+                                st(fg, bg).add_modifier(Modifier::ITALIC),
+                            );
                         }
                     } else {
                         put(buf, inner.x, y, &row.text, inner.width, base);
@@ -920,7 +1016,14 @@ impl StatefulWidget for ChatView {
                     state.row_hits.push((line, row.msg_idx, row.block_idx));
                 }
                 RowKind::ThinkingBody => {
-                    put(buf, inner.x, y, &row.text, inner.width, st(th.text_muted, bg).add_modifier(Modifier::ITALIC));
+                    put(
+                        buf,
+                        inner.x,
+                        y,
+                        &row.text,
+                        inner.width,
+                        st(th.text_muted, bg).add_modifier(Modifier::ITALIC),
+                    );
                 }
                 RowKind::ToolCall => {
                     let status = row.status.unwrap_or(ToolStatus::Pending);
@@ -937,11 +1040,25 @@ impl StatefulWidget for ChatView {
                     x += put(buf, x, y, glyph, 1, st(gc, bg));
                     x += put(buf, x, y, " ", 1, st(fg, bg));
                     let name_style = st(th.text, bg).add_modifier(Modifier::BOLD);
-                    x += put(buf, x, y, &row.text, inner.right().saturating_sub(x + right_w), name_style);
+                    x += put(
+                        buf,
+                        x,
+                        y,
+                        &row.text,
+                        inner.right().saturating_sub(x + right_w),
+                        name_style,
+                    );
                     if let Some((summary, _)) = row.runs.first() {
                         let avail = inner.right().saturating_sub(x + right_w + 2) as usize;
                         if avail > 3 {
-                            put(buf, x + 2, y, &truncate(summary, avail), avail as u16, st(th.text_muted, bg));
+                            put(
+                                buf,
+                                x + 2,
+                                y,
+                                &truncate(summary, avail),
+                                avail as u16,
+                                st(th.text_muted, bg),
+                            );
                         }
                     }
                     if let Some(r) = &row.right {
@@ -949,10 +1066,15 @@ impl StatefulWidget for ChatView {
                     }
                 }
                 RowKind::Divider => {
-                    let label = if row.text.is_empty() { String::new() } else { format!(" {} ", row.text) };
+                    let label = if row.text.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" {} ", row.text)
+                    };
                     let dash_w = inner.width.saturating_sub(label.width() as u16) as usize;
                     let left = dash_w / 2;
-                    let text = format!("{}{}{}", "─".repeat(left), label, "─".repeat(dash_w - left));
+                    let text =
+                        format!("{}{}{}", "─".repeat(left), label, "─".repeat(dash_w - left));
                     put(buf, inner.x, y, &text, inner.width, st(th.border, bg));
                 }
                 RowKind::Blank => {}
@@ -963,13 +1085,29 @@ impl StatefulWidget for ChatView {
             // painted "N new" pill; a click re-follows
             let text = format!(" ▾ {} new ", state.unread);
             let w = (text.width() as u16).min(area.width);
-            let pill = Rect { x: area.right().saturating_sub(w + 2), y: area.bottom() - 1, width: w, height: 1 };
-            put(buf, pill.x, pill.y, &text, w, st(th.primary.text_on(0.9), th.primary).add_modifier(Modifier::BOLD));
+            let pill = Rect {
+                x: area.right().saturating_sub(w + 2),
+                y: area.bottom() - 1,
+                width: w,
+                height: 1,
+            };
+            put(
+                buf,
+                pill.x,
+                pill.y,
+                &text,
+                w,
+                st(th.primary.text_on(0.9), th.primary).add_modifier(Modifier::BOLD),
+            );
             state.pill_hit.set_area(pill);
         }
 
         if total > viewport {
-            let sb_area = Rect { x: area.right() - 1, width: 1, ..area };
+            let sb_area = Rect {
+                x: area.right() - 1,
+                width: 1,
+                ..area
+            };
             Scrollbar::vertical(total, viewport)
                 .offset(state.scroll)
                 .theme(&th)
@@ -978,11 +1116,11 @@ impl StatefulWidget for ChatView {
     }
 }
 
-
 /// Cursor style for streaming text.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum StreamCursor {
     /// Block cursor `▌`.
+    #[default]
     Block,
     /// Bar cursor `▏`.
     Bar,
@@ -990,12 +1128,6 @@ pub enum StreamCursor {
     Underline,
     /// No cursor.
     None,
-}
-
-impl Default for StreamCursor {
-    fn default() -> Self {
-        Self::Block
-    }
 }
 
 // ───────────────────────────── StreamText ─────────────────────────────
@@ -1116,16 +1248,26 @@ impl Widget for StreamText {
         const FADE: usize = 12;
         let lines = wrap(rev, area.width as usize);
         let mut seen = 0usize;
-        let mut y = area.y;
         let mut end = (area.x, area.y);
-        for line in lines.iter().take(area.height as usize) {
+        for (y, line) in (area.y..area.bottom()).zip(lines.iter()) {
             let mut x = area.x;
             if self.fade && !self.done() {
                 for ch in line.chars() {
                     let age = total.saturating_sub(seen + 1);
-                    let t = if age >= FADE { 1.0 } else { age as f32 / FADE as f32 };
+                    let t = if age >= FADE {
+                        1.0
+                    } else {
+                        age as f32 / FADE as f32
+                    };
                     let fg = th.text_muted.blend(th.text, t);
-                    x += put(buf, x, y, ch.encode_utf8(&mut [0; 4]), area.right().saturating_sub(x), st(fg, bg));
+                    x += put(
+                        buf,
+                        x,
+                        y,
+                        ch.encode_utf8(&mut [0; 4]),
+                        area.right().saturating_sub(x),
+                        st(fg, bg),
+                    );
                     seen += 1;
                 }
                 // the wrap dropped one space per line break
@@ -1134,7 +1276,6 @@ impl Widget for StreamText {
                 x += put(buf, x, y, line, area.width, st(th.text, bg));
             }
             end = (x, y);
-            y += 1;
         }
         if self.caret && !self.done() && blink(self.elapsed, 1.0) {
             let (x, y) = end;
@@ -1207,7 +1348,7 @@ impl Widget for TypingIndicator {
         }
         let th = self.theme.unwrap_or_else(theme::current);
         let elapsed = self.now.map(since).unwrap_or(0.0);
-        
+
         let mut x = area.x;
         for i in 0..3 {
             let phase = elapsed - i as f32 * 0.15;
@@ -1224,9 +1365,16 @@ impl Widget for TypingIndicator {
                 return;
             }
         }
-        
+
         let label_style = st(th.text_muted, th.background);
-        put(buf, x, area.y, &self.label, area.right().saturating_sub(x), label_style);
+        put(
+            buf,
+            x,
+            area.y,
+            &self.label,
+            area.right().saturating_sub(x),
+            label_style,
+        );
     }
 }
 
@@ -1365,9 +1513,10 @@ impl Widget for Thinking {
             tail.push(' ');
             tail.push_str(d);
         }
-        let secs = self
-            .elapsed_secs
-            .or_else(|| self.started.map(|s| now.saturating_duration_since(s).as_secs_f32()));
+        let secs = self.elapsed_secs.or_else(|| {
+            self.started
+                .map(|s| now.saturating_duration_since(s).as_secs_f32())
+        });
         if let Some(secs) = secs.filter(|_| self.show_elapsed || self.started.is_some()) {
             tail.push_str(&format!(" ({secs:.1}s)"));
         }
@@ -2406,11 +2555,11 @@ impl Interactive for ApprovalState {
     }
 }
 
-
 /// Approval visual style.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum ApprovalStyle {
     /// Card layout (current default).
+    #[default]
     Card,
     /// Single-row inline buttons.
     Inline,
@@ -2418,11 +2567,6 @@ pub enum ApprovalStyle {
     Banner,
 }
 
-impl Default for ApprovalStyle {
-    fn default() -> Self {
-        Self::Card
-    }
-}
 // ───────────────────────────── Approval ─────────────────────────────
 
 /// Approval dialog widget.
@@ -2511,7 +2655,10 @@ impl Approval {
                 let inner_w = width.saturating_sub(2) as usize;
                 let title_w = self.title.width() + if self.danger { 2 } else { 0 };
                 let title = if title_w > inner_w { 2 } else { 1 };
-                let detail = self.detail.as_ref().map_or(0, |d| wrap(d, inner_w).len() as u16);
+                let detail = self
+                    .detail
+                    .as_ref()
+                    .map_or(0, |d| wrap(d, inner_w).len() as u16);
                 2 + title + detail + u16::from(self.command.is_some()) + 1 + 1
             }
         }
@@ -2528,7 +2675,15 @@ impl Approval {
     }
 
     /// Paint the choice buttons into `row` (right-aligned when `right`), recording hits.
-    fn buttons(&self, row: Rect, buf: &mut Buffer, th: &Theme, state: &mut ApprovalState, right: bool, compact: bool) {
+    fn buttons(
+        &self,
+        row: Rect,
+        buf: &mut Buffer,
+        th: &Theme,
+        state: &mut ApprovalState,
+        right: bool,
+        compact: bool,
+    ) {
         let specs: [(&str, &str, Rgb); 3] = [
             (if compact { "once" } else { "Allow once" }, "y", th.success),
             (if compact { "always" } else { "Always" }, "a", th.primary),
@@ -2539,11 +2694,18 @@ impl Approval {
             .iter()
             .map(|&i| {
                 let (label, key, _) = specs[i];
-                if compact { format!(" [{key}] {label} ") } else { format!(" {label}  {key} ") }
+                if compact {
+                    format!(" [{key}] {label} ")
+                } else {
+                    format!(" {label}  {key} ")
+                }
             })
             .collect();
-        let total: u16 = texts.iter().map(|t| t.width() as u16).sum::<u16>() + (texts.len() as u16 - 1) * 2;
-        let mut x = if right { row.right().saturating_sub(total) } else if total < row.width {
+        let total: u16 =
+            texts.iter().map(|t| t.width() as u16).sum::<u16>() + (texts.len() as u16 - 1) * 2;
+        let mut x = if right {
+            row.right().saturating_sub(total)
+        } else if total < row.width {
             row.x + (row.width - total) / 2
         } else {
             row.x
@@ -2557,8 +2719,17 @@ impl Approval {
                 break;
             }
             let focused = self.focused && state.focus == i;
-            let bg = if focused { Theme::shade(specs[i].2, 1) } else { specs[i].2 };
-            let btn = Rect { x, y: row.y, width: w, height: 1 };
+            let bg = if focused {
+                Theme::shade(specs[i].2, 1)
+            } else {
+                specs[i].2
+            };
+            let btn = Rect {
+                x,
+                y: row.y,
+                width: w,
+                height: 1,
+            };
             state.hits[i].set_area(btn);
             let mut style = st(bg.text_on(0.9), bg);
             if focused {
@@ -2596,7 +2767,14 @@ impl StatefulWidget for Approval {
                 // reserve the buttons' width on the right
                 let btn_w: u16 = if self.danger { 26 } else { 38 };
                 let title_w = area.width.saturating_sub(x - area.x + btn_w + 2);
-                put(buf, x, area.y, &truncate(&self.title, title_w as usize), title_w, st(th.text, th.background).add_modifier(Modifier::BOLD));
+                put(
+                    buf,
+                    x,
+                    area.y,
+                    &truncate(&self.title, title_w as usize),
+                    title_w,
+                    st(th.text, th.background).add_modifier(Modifier::BOLD),
+                );
                 self.buttons(row, buf, &th, state, true, true);
             }
             ApprovalStyle::Banner => {
@@ -2608,13 +2786,36 @@ impl StatefulWidget for Approval {
                 fill(buf, band, tint);
                 Edge::Full.draw(buf, area.x, area.y, 2, false, accent, tint);
                 let text_w = area.width.saturating_sub(3);
-                put(buf, area.x + 2, area.y, &truncate(&self.title, text_w as usize), text_w, st(th.text, tint).add_modifier(Modifier::BOLD));
+                put(
+                    buf,
+                    area.x + 2,
+                    area.y,
+                    &truncate(&self.title, text_w as usize),
+                    text_w,
+                    st(th.text, tint).add_modifier(Modifier::BOLD),
+                );
                 // second row: command/detail left, compact buttons right
                 let btn_w: u16 = if self.danger { 26 } else { 38 };
                 let sub_w = area.width.saturating_sub(btn_w + 4);
-                let sub = self.command.as_deref().or(self.detail.as_deref()).unwrap_or("");
-                put(buf, area.x + 2, area.y + 1, &truncate(sub, sub_w as usize), sub_w, st(th.text_muted, tint));
-                let row = Rect { x: area.x, y: area.y + 1, width: area.width.saturating_sub(1), height: 1 };
+                let sub = self
+                    .command
+                    .as_deref()
+                    .or(self.detail.as_deref())
+                    .unwrap_or("");
+                put(
+                    buf,
+                    area.x + 2,
+                    area.y + 1,
+                    &truncate(sub, sub_w as usize),
+                    sub_w,
+                    st(th.text_muted, tint),
+                );
+                let row = Rect {
+                    x: area.x,
+                    y: area.y + 1,
+                    width: area.width.saturating_sub(1),
+                    height: 1,
+                };
                 self.buttons(row, buf, &th, state, true, true);
             }
             ApprovalStyle::Card => {
@@ -2628,7 +2829,14 @@ impl StatefulWidget for Approval {
                 let glyph = if self.danger { "▲ " } else { "" };
                 let title = format!("{glyph}{}", self.title);
                 for line in wrap(&title, inner.width as usize).iter().take(2) {
-                    put(buf, inner.x, y, line, inner.width, st(th.text, bg).add_modifier(Modifier::BOLD));
+                    put(
+                        buf,
+                        inner.x,
+                        y,
+                        line,
+                        inner.width,
+                        st(th.text, bg).add_modifier(Modifier::BOLD),
+                    );
                     y += 1;
                 }
                 let button_y = inner.bottom() - 1;
@@ -2645,11 +2853,31 @@ impl StatefulWidget for Approval {
                 if let Some(cmd) = &self.command
                     && y + 1 < button_y
                 {
-                    let row = Rect { x: inner.x, y, width: inner.width, height: 1 };
+                    let row = Rect {
+                        x: inner.x,
+                        y,
+                        width: inner.width,
+                        height: 1,
+                    };
                     fill(buf, row, th.markdown_code_bg);
-                    put(buf, inner.x + 1, y, &format!("❯ {}", truncate(cmd, inner.width.saturating_sub(3) as usize)), inner.width.saturating_sub(1), st(th.text, th.markdown_code_bg));
+                    put(
+                        buf,
+                        inner.x + 1,
+                        y,
+                        &format!(
+                            "❯ {}",
+                            truncate(cmd, inner.width.saturating_sub(3) as usize)
+                        ),
+                        inner.width.saturating_sub(1),
+                        st(th.text, th.markdown_code_bg),
+                    );
                 }
-                let row = Rect { x: inner.x, y: button_y, width: inner.width, height: 1 };
+                let row = Rect {
+                    x: inner.x,
+                    y: button_y,
+                    width: inner.width,
+                    height: 1,
+                };
                 self.buttons(row, buf, &th, state, false, false);
             }
         }
@@ -2750,10 +2978,25 @@ mod tests {
 
     fn rich_message() -> ChatMessage {
         ChatMessage::new(Role::Assistant, "")
-            .block(ChatBlock::Thinking { text: "weigh options".into(), secs: 2.5, collapsed: true, streaming: false })
-            .block(ChatBlock::Text("# Plan\n- add **retries**\n- run `cargo test`".into()))
-            .block(ChatBlock::ToolCall { name: "bash".into(), summary: "cargo test".into(), status: ToolStatus::Done, duration_ms: Some(340) })
-            .block(ChatBlock::Code { lang: Some("rust".into()), text: "fn main() {}\n".into() })
+            .block(ChatBlock::Thinking {
+                text: "weigh options".into(),
+                secs: 2.5,
+                collapsed: true,
+                streaming: false,
+            })
+            .block(ChatBlock::Text(
+                "# Plan\n- add **retries**\n- run `cargo test`".into(),
+            ))
+            .block(ChatBlock::ToolCall {
+                name: "bash".into(),
+                summary: "cargo test".into(),
+                status: ToolStatus::Done,
+                duration_ms: Some(340),
+            })
+            .block(ChatBlock::Code {
+                lang: Some("rust".into()),
+                text: "fn main() {}\n".into(),
+            })
             .block(ChatBlock::Divider("done".into()))
     }
 
@@ -2772,11 +3015,21 @@ mod tests {
         assert_eq!(runs[0], ("• ".to_string(), Inline::Plain));
         assert!(runs.contains(&("retries".to_string(), Inline::Bold)));
         assert!(runs.contains(&("fetch".to_string(), Inline::Code)));
-        assert_eq!(inline_runs("## Title")[0], ("Title".to_string(), Inline::Heading));
+        assert_eq!(
+            inline_runs("## Title")[0],
+            ("Title".to_string(), Inline::Heading)
+        );
         // wrapping keeps every row within the width and never loses text
         let rows = wrap_runs(&inline_runs("one two **three four** five six seven"), 10);
-        assert!(rows.iter().all(|r| r.iter().map(|(t, _)| t.width()).sum::<usize>() <= 10));
-        let joined: String = rows.iter().flat_map(|r| r.iter().map(|(t, _)| t.trim_end())).collect::<Vec<_>>().join(" ");
+        assert!(
+            rows.iter()
+                .all(|r| r.iter().map(|(t, _)| t.width()).sum::<usize>() <= 10)
+        );
+        let joined: String = rows
+            .iter()
+            .flat_map(|r| r.iter().map(|(t, _)| t.trim_end()))
+            .collect::<Vec<_>>()
+            .join(" ");
         assert_eq!(joined, "one two three four five six seven");
     }
 
@@ -2787,14 +3040,21 @@ mod tests {
         let msg = ChatMessage::new(Role::Assistant, "").block(ChatBlock::Text(String::new()));
         s.begin_stream(msg, "hello world".into(), t0);
         assert!(s.stream_tick(t0 + std::time::Duration::from_millis(500), 10.0));
-        let ChatBlock::Text(t) = &s.messages[0].blocks[0] else { panic!() };
+        let ChatBlock::Text(t) = &s.messages[0].blocks[0] else {
+            panic!()
+        };
         assert_eq!(t, "hello");
         assert!(s.messages[0].streaming);
         assert!(!s.stream_tick(t0 + std::time::Duration::from_secs(5), 10.0));
-        let ChatBlock::Text(t) = &s.messages[0].blocks[0] else { panic!() };
+        let ChatBlock::Text(t) = &s.messages[0].blocks[0] else {
+            panic!()
+        };
         assert_eq!(t, "hello world");
         assert!(!s.messages[0].streaming);
-        assert!(!s.stream_tick(t0 + std::time::Duration::from_secs(9), 10.0), "idle after completion");
+        assert!(
+            !s.stream_tick(t0 + std::time::Duration::from_secs(9), 10.0),
+            "idle after completion"
+        );
     }
 
     #[test]
@@ -2806,9 +3066,16 @@ mod tests {
         s.push(rich_message());
         ChatView::new().render(area, &mut buf, &mut s);
         let (hit, mi, bi) = s.row_hits[0];
-        let click = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: hit.x + 1, row: hit.y, modifiers: KeyModifiers::NONE };
+        let click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: hit.x + 1,
+            row: hit.y,
+            modifiers: KeyModifiers::NONE,
+        };
         assert!(s.handle_mouse(click).is_changed());
-        let ChatBlock::Thinking { collapsed, .. } = &s.messages[mi].blocks[bi] else { panic!() };
+        let ChatBlock::Thinking { collapsed, .. } = &s.messages[mi].blocks[bi] else {
+            panic!()
+        };
         assert!(!collapsed);
         // expanded: the body row now exists
         let rows_after = s.total_rows(59);
@@ -2821,13 +3088,24 @@ mod tests {
         let area = Rect::new(0, 0, 70, 1);
         let mut buf = Buffer::empty(area);
         let mut st_ = ApprovalState::default();
-        Approval::new("Allow bash?").style(ApprovalStyle::Inline).render(area, &mut buf, &mut st_);
-        assert!(st_.hits.iter().all(|h| h.area.height == 1 && h.area.right() <= 70));
+        Approval::new("Allow bash?")
+            .style(ApprovalStyle::Inline)
+            .render(area, &mut buf, &mut st_);
+        assert!(
+            st_.hits
+                .iter()
+                .all(|h| h.area.height == 1 && h.area.right() <= 70)
+        );
         assert!(st_.hits[1].area.width > 0);
         let mut d = ApprovalState::default();
-        Approval::new("rm -rf").danger(true).render(Rect::new(0, 0, 40, 6), &mut buf, &mut d);
+        Approval::new("rm -rf")
+            .danger(true)
+            .render(Rect::new(0, 0, 40, 6), &mut buf, &mut d);
         assert_eq!(d.hits[1].area.width, 0, "Always is not offered");
-        assert!(d.handle_key(KeyEvent::from(KeyCode::Char('a'))).is_ignored());
+        assert!(
+            d.handle_key(KeyEvent::from(KeyCode::Char('a')))
+                .is_ignored()
+        );
         d.handle_key(KeyEvent::from(KeyCode::Right));
         assert_eq!(d.focus, 2, "focus skips the hidden button");
     }
@@ -2841,22 +3119,60 @@ mod tests {
 
     #[test]
     fn every_widget_survives_all_sizes() {
-        for (w, h) in [(1, 1), (3, 2), (10, 3), (20, 3), (60, 16), (130, 42), (250, 70)] {
+        for (w, h) in [
+            (1, 1),
+            (3, 2),
+            (10, 3),
+            (20, 3),
+            (60, 16),
+            (130, 42),
+            (250, 70),
+        ] {
             let area = Rect::new(0, 0, w, h);
             let mut buf = Buffer::empty(area);
             let now = Instant::now();
             let mut chat = ChatState::new();
             chat.push(ChatMessage::new(Role::User, "hi"));
             chat.push(rich_message());
-            chat.push(ChatMessage::new(Role::Assistant, "").block(ChatBlock::Thinking { text: "x".into(), secs: 0.0, collapsed: false, streaming: true }).streaming(true));
+            chat.push(
+                ChatMessage::new(Role::Assistant, "")
+                    .block(ChatBlock::Thinking {
+                        text: "x".into(),
+                        secs: 0.0,
+                        collapsed: false,
+                        streaming: true,
+                    })
+                    .streaming(true),
+            );
             chat.follow = false;
-            ChatView::new().hover(true).show_time(true).now(now).render(area, &mut buf, &mut chat);
-            ChatView::new().bubbles(false).compact(true).render(area, &mut buf, &mut chat);
-            for cursor in [StreamCursor::Block, StreamCursor::Bar, StreamCursor::Underline, StreamCursor::None] {
-                StreamText::new("streaming some text here").elapsed(0.4).cursor(cursor).fade(true).word_mode(true).render(area, &mut buf);
+            ChatView::new()
+                .hover(true)
+                .show_time(true)
+                .now(now)
+                .render(area, &mut buf, &mut chat);
+            ChatView::new()
+                .bubbles(false)
+                .compact(true)
+                .render(area, &mut buf, &mut chat);
+            for cursor in [
+                StreamCursor::Block,
+                StreamCursor::Bar,
+                StreamCursor::Underline,
+                StreamCursor::None,
+            ] {
+                StreamText::new("streaming some text here")
+                    .elapsed(0.4)
+                    .cursor(cursor)
+                    .fade(true)
+                    .word_mode(true)
+                    .render(area, &mut buf);
             }
             TypingIndicator::new().now(now).render(area, &mut buf);
-            Thinking::new("Loading").elapsed(4.2).elapsed_label(true).now(now).render(area, &mut buf);
+            Thinking::new("Loading")
+                .elapsed(4.2)
+                .elapsed_label(true)
+                .now(now)
+                .render(area, &mut buf);
             ContextGauge::new(TokenUsage::default()).render(area, &mut buf);
             ToolCall::new("test").render(area, &mut buf);
             let tokens = [("a", 0.5f32)];
@@ -2864,9 +3180,20 @@ mod tests {
             DiffView::new(&[][..]).render(area, &mut buf);
             let mut composer_state = ComposerState::default();
             PromptComposer::new().render(area, &mut buf, &mut composer_state);
-            for style in [ApprovalStyle::Card, ApprovalStyle::Inline, ApprovalStyle::Banner] {
+            for style in [
+                ApprovalStyle::Card,
+                ApprovalStyle::Inline,
+                ApprovalStyle::Banner,
+            ] {
                 let mut a = ApprovalState::default();
-                Approval::new("Test").detail("d").command("cargo test").style(style).danger(true).now(now).focused(true).render(area, &mut buf, &mut a);
+                Approval::new("Test")
+                    .detail("d")
+                    .command("cargo test")
+                    .style(style)
+                    .danger(true)
+                    .now(now)
+                    .focused(true)
+                    .render(area, &mut buf, &mut a);
             }
         }
     }

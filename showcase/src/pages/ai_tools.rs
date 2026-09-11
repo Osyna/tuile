@@ -1,10 +1,9 @@
 //! AI Tools gallery: tool timeline, shell/code blocks, edit previews, change sets, JSON trees, retry notices.
 
 use std::time::{Duration, Instant};
-use tuiforge::prelude::*;
-use tuiforge::widgets::ai_tools::*;
-use tuiforge::widgets::ai::DiffLine;
 use tuiforge::layout::columns;
+use tuiforge::prelude::*;
+use tuiforge::widgets::ai::DiffLine;
 
 use super::{Ctx, Page, card};
 
@@ -35,27 +34,61 @@ impl Default for AiToolsPage {
         // Build timeline steps
         let mut timeline = ToolTimelineState::default();
         timeline.steps = vec![
-            ToolStep::new("read").summary("Read file src/main.rs").status(ToolStatus::Pending),
-            ToolStep::new("grep").summary("Search for pattern").status(ToolStatus::Pending).depth(1),
-            ToolStep::new("read").summary("Read file src/main.rs").status(ToolStatus::Pending),
-            ToolStep::new("write").summary("Write updated file").status(ToolStatus::Pending),
-            ToolStep::new("bash").summary("cargo build").status(ToolStatus::Pending),
-            ToolStep::new("test").summary("Run test suite").status(ToolStatus::Pending),
-            ToolStep::new("debug").summary("Attach debugger").status(ToolStatus::Pending),
-            ToolStep::new("eval").summary("Execute Python code").status(ToolStatus::Pending),
-            ToolStep::new("task").summary("Spawn subagent").status(ToolStatus::Pending).depth(1),
+            ToolStep::new("read")
+                .summary("Read file src/main.rs")
+                .status(ToolStatus::Pending),
+            ToolStep::new("grep")
+                .summary("Search for pattern")
+                .status(ToolStatus::Pending)
+                .depth(1),
+            ToolStep::new("read")
+                .summary("Read file src/main.rs")
+                .status(ToolStatus::Pending),
+            ToolStep::new("write")
+                .summary("Write updated file")
+                .status(ToolStatus::Pending),
+            ToolStep::new("bash")
+                .summary("cargo build")
+                .status(ToolStatus::Pending),
+            ToolStep::new("test")
+                .summary("Run test suite")
+                .status(ToolStatus::Pending),
+            ToolStep::new("debug")
+                .summary("Attach debugger")
+                .status(ToolStatus::Pending),
+            ToolStep::new("eval")
+                .summary("Execute Python code")
+                .status(ToolStatus::Pending),
+            ToolStep::new("task")
+                .summary("Spawn subagent")
+                .status(ToolStatus::Pending)
+                .depth(1),
         ];
 
         // Build change set
-        let mut changeset = ChangeSetState::default();
-        changeset.files = vec![
-            FileChange::new("src/main.rs", ChangeKind::Modified).added(12).removed(3),
-            FileChange::new("src/lib.rs", ChangeKind::Added).added(45).removed(0),
-            FileChange::new("tests/integration.rs", ChangeKind::Modified).added(8).removed(5),
-            FileChange::new("README.md", ChangeKind::Modified).added(2).removed(1),
-            FileChange::new("src/old_module.rs", ChangeKind::Deleted).added(0).removed(120),
-            FileChange::new("Cargo.toml", ChangeKind::Modified).added(3).removed(0),
-        ];
+        let changeset = ChangeSetState {
+            files: vec![
+                FileChange::new("src/main.rs", ChangeKind::Modified)
+                    .added(12)
+                    .removed(3),
+                FileChange::new("src/lib.rs", ChangeKind::Added)
+                    .added(45)
+                    .removed(0),
+                FileChange::new("tests/integration.rs", ChangeKind::Modified)
+                    .added(8)
+                    .removed(5),
+                FileChange::new("README.md", ChangeKind::Modified)
+                    .added(2)
+                    .removed(1),
+                FileChange::new("src/old_module.rs", ChangeKind::Deleted)
+                    .added(0)
+                    .removed(120),
+                FileChange::new("Cargo.toml", ChangeKind::Modified)
+                    .added(3)
+                    .removed(0),
+            ],
+            ..Default::default()
+        };
 
         // Build JSON tree
         let mut json = JsonTreeState::default();
@@ -107,7 +140,7 @@ impl AiToolsPage {
 
         // Advance steps every 1.5s
         let step_idx = (elapsed / 1.5) as usize;
-        
+
         if step_idx >= self.timeline.steps.len() {
             // All done, wait 3s then restart
             if elapsed > self.timeline.steps.len() as f32 * 1.5 + 3.0 {
@@ -125,7 +158,11 @@ impl AiToolsPage {
             if i < step_idx {
                 // Completed
                 if step.status != ToolStatus::Done && step.status != ToolStatus::Error {
-                    step.status = if i == 6 { ToolStatus::Error } else { ToolStatus::Done }; // debug step fails
+                    step.status = if i == 6 {
+                        ToolStatus::Error
+                    } else {
+                        ToolStatus::Done
+                    }; // debug step fails
                     step.duration = Some(Duration::from_millis(((i % 3 + 1) * 400) as u64));
                 }
             } else if i == step_idx {
@@ -172,11 +209,9 @@ impl Page for AiToolsPage {
 
         // Reduced layout below 90x30
         if area.width < 90 || area.height < 30 {
-            let cards = [
-                ("Tool timeline", 8u16),
-                ("Edit preview", 0u16),
-            ];
-            let rects = tuiforge::layout::stack(area, &cards.iter().map(|c| c.1).collect::<Vec<_>>(), 1);
+            let cards = [("Tool timeline", 8u16), ("Edit preview", 0u16)];
+            let rects =
+                tuiforge::layout::stack(area, &cards.iter().map(|c| c.1).collect::<Vec<_>>(), 1);
 
             // Timeline
             if !rects.is_empty() {
@@ -192,10 +227,22 @@ impl Page for AiToolsPage {
             if rects.len() > 1 {
                 let inner = card(buf, rects[1], th, cards[1].0);
                 let diff_lines = vec![
-                    DiffLine { kind: tuiforge::widgets::ai::DiffKind::Ctx, text: "fn main() {".into() },
-                    DiffLine { kind: tuiforge::widgets::ai::DiffKind::Del, text: "    println!(\"Hello\");".into() },
-                    DiffLine { kind: tuiforge::widgets::ai::DiffKind::Add, text: "    println!(\"Hello, world!\");".into() },
-                    DiffLine { kind: tuiforge::widgets::ai::DiffKind::Ctx, text: "}".into() },
+                    DiffLine {
+                        kind: tuiforge::widgets::ai::DiffKind::Ctx,
+                        text: "fn main() {".into(),
+                    },
+                    DiffLine {
+                        kind: tuiforge::widgets::ai::DiffKind::Del,
+                        text: "    println!(\"Hello\");".into(),
+                    },
+                    DiffLine {
+                        kind: tuiforge::widgets::ai::DiffKind::Add,
+                        text: "    println!(\"Hello, world!\");".into(),
+                    },
+                    DiffLine {
+                        kind: tuiforge::widgets::ai::DiffKind::Ctx,
+                        text: "}".into(),
+                    },
                 ];
                 EditPreview::new()
                     .theme(th)
@@ -215,11 +262,9 @@ impl Page for AiToolsPage {
         let right = cols[1];
 
         // Left column
-        let left_cards = [
-            ("Tool timeline", 18u16),
-            ("Shell", 0u16),
-        ];
-        let left_rects = tuiforge::layout::stack(left, &left_cards.iter().map(|c| c.1).collect::<Vec<_>>(), 1);
+        let left_cards = [("Tool timeline", 18u16), ("Shell", 0u16)];
+        let left_rects =
+            tuiforge::layout::stack(left, &left_cards.iter().map(|c| c.1).collect::<Vec<_>>(), 1);
 
         // Timeline card
         if !left_rects.is_empty() {
@@ -242,14 +287,20 @@ impl Page for AiToolsPage {
                     (true, " --> src/main.rs:42:10".into()),
                     (false, "   |".into()),
                     (true, "42 |     let x: u32 = \"hello\";".into()),
-                    (true, "   |                  ^^^^^^^ expected `u32`, found `&str`".into()),
+                    (
+                        true,
+                        "   |                  ^^^^^^^ expected `u32`, found `&str`".into(),
+                    ),
                     (false, "".into()),
                     (true, "error: could not compile `tuiforge`".into()),
                 ]
             } else {
                 vec![
                     (false, "   Compiling tuiforge v0.1.0".into()),
-                    (false, "    Finished `test` profile [optimized] in 2.3s".into()),
+                    (
+                        false,
+                        "    Finished `test` profile [optimized] in 2.3s".into(),
+                    ),
                     (false, "     Running unittests src/lib.rs".into()),
                     (false, "".into()),
                     (false, "running 8 tests".into()),
@@ -263,7 +314,11 @@ impl Page for AiToolsPage {
 
             ShellBlock::new()
                 .theme(th)
-                .command(if self.shell_failed { "cargo build" } else { "cargo test" })
+                .command(if self.shell_failed {
+                    "cargo build"
+                } else {
+                    "cargo test"
+                })
                 .cwd(Some("/workspace"))
                 .output(&output[..])
                 .exit_code(Some(if self.shell_failed { 101 } else { 0 }))
@@ -278,24 +333,46 @@ impl Page for AiToolsPage {
         // Right column - use Layout::vertical for proper budgeting
         use ratatui::layout::{Constraint, Layout};
         let right_rects = Layout::vertical([
-            Constraint::Length(10),  // Edit preview
-            Constraint::Length(10),  // Change set
-            Constraint::Fill(1),      // JSON
-            Constraint::Length(8),    // Code
-            Constraint::Length(1),    // Retry
-        ]).split(right);
+            Constraint::Length(10), // Edit preview
+            Constraint::Length(10), // Change set
+            Constraint::Fill(1),    // JSON
+            Constraint::Length(8),  // Code
+            Constraint::Length(1),  // Retry
+        ])
+        .split(right);
 
         // Edit preview card
-        if right_rects.len() > 0 {
+        if !right_rects.is_empty() {
             let inner = card(buf, right_rects[0], th, "Edit preview");
             let diff_lines = vec![
-                DiffLine { kind: tuiforge::widgets::ai::DiffKind::Ctx, text: "pub fn execute(&self) -> Result<(), Error> {".into() },
-                DiffLine { kind: tuiforge::widgets::ai::DiffKind::Del, text: "    let config = Config::default();".into() },
-                DiffLine { kind: tuiforge::widgets::ai::DiffKind::Add, text: "    let config = self.load_config()?;".into() },
-                DiffLine { kind: tuiforge::widgets::ai::DiffKind::Ctx, text: "    config.validate()?;".into() },
-                DiffLine { kind: tuiforge::widgets::ai::DiffKind::Del, text: "    self.run()".into() },
-                DiffLine { kind: tuiforge::widgets::ai::DiffKind::Add, text: "    self.run(&config)".into() },
-                DiffLine { kind: tuiforge::widgets::ai::DiffKind::Ctx, text: "}".into() },
+                DiffLine {
+                    kind: tuiforge::widgets::ai::DiffKind::Ctx,
+                    text: "pub fn execute(&self) -> Result<(), Error> {".into(),
+                },
+                DiffLine {
+                    kind: tuiforge::widgets::ai::DiffKind::Del,
+                    text: "    let config = Config::default();".into(),
+                },
+                DiffLine {
+                    kind: tuiforge::widgets::ai::DiffKind::Add,
+                    text: "    let config = self.load_config()?;".into(),
+                },
+                DiffLine {
+                    kind: tuiforge::widgets::ai::DiffKind::Ctx,
+                    text: "    config.validate()?;".into(),
+                },
+                DiffLine {
+                    kind: tuiforge::widgets::ai::DiffKind::Del,
+                    text: "    self.run()".into(),
+                },
+                DiffLine {
+                    kind: tuiforge::widgets::ai::DiffKind::Add,
+                    text: "    self.run(&config)".into(),
+                },
+                DiffLine {
+                    kind: tuiforge::widgets::ai::DiffKind::Ctx,
+                    text: "}".into(),
+                },
             ];
 
             let started = *self.edit_started.get_or_insert(ctx.now);
@@ -309,9 +386,16 @@ impl Page for AiToolsPage {
                 .render(inner, buf, &mut self.edit_preview);
 
             if let Some(decision) = self.edit_preview.take_decision() {
-                ctx.notify(format!("Edit {:?}", decision), tuiforge::theme::Variant::Default);
+                ctx.notify(
+                    format!("Edit {:?}", decision),
+                    tuiforge::theme::Variant::Default,
+                );
                 // Reset animation
-                self.edit_started = Some(ctx.now.checked_add(Duration::from_secs_f32(1.5)).unwrap_or(ctx.now));
+                self.edit_started = Some(
+                    ctx.now
+                        .checked_add(Duration::from_secs_f32(1.5))
+                        .unwrap_or(ctx.now),
+                );
             }
         }
 
@@ -365,8 +449,10 @@ impl Page for AiToolsPage {
         // Retry notice
         if right_rects.len() > 4 {
             let retry_start = *self.retry_started.get_or_insert(ctx.now);
-            let deadline = retry_start.checked_add(Duration::from_secs(6)).unwrap_or(ctx.now);
-            
+            let deadline = retry_start
+                .checked_add(Duration::from_secs(6))
+                .unwrap_or(ctx.now);
+
             // Reset every 7s
             if (ctx.now - retry_start).as_secs_f32() > 7.0 {
                 self.retry_started = Some(ctx.now);
@@ -398,7 +484,9 @@ impl Page for AiToolsPage {
                         self.shell_elapsed = 0.0;
                         return Outcome::Consumed;
                     }
-                    KeyCode::Enter if !self.focus.is(Id::Timeline) && !self.focus.is(Id::JsonTree) => {
+                    KeyCode::Enter
+                        if !self.focus.is(Id::Timeline) && !self.focus.is(Id::JsonTree) =>
+                    {
                         // Shell block toggle collapse
                         self.shell_collapsed = !self.shell_collapsed;
                         return Outcome::Consumed;

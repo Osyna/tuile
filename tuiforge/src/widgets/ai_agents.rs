@@ -19,13 +19,10 @@ use ratatui::layout::Rect;
 use ratatui::widgets::{StatefulWidget, Widget};
 
 use crate::anim::{self, Easing, Tween};
-use crate::core::{is_press, wheel_delta, Focus, Hit, HitBox, Interactive, Look, Outcome};
-use crate::draw::{
-    bold, fill, hbar, put, put_right, st, truncate, Border,
-};
+use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
+use crate::draw::{Border, bold, fill, hbar, put, put_right, st, truncate};
 use crate::fuzzy;
-use crate::layout::pad;
-use crate::theme::{self, Rgb, Theme, Variant};
+use crate::theme::{self, Rgb, Theme};
 use crate::widgets::ai::fmt_tokens;
 use crate::widgets::charts::{SparkChart, SparkStyle};
 use crate::widgets::spinner::spinners;
@@ -38,9 +35,7 @@ pub fn fmt_duration(d: Duration) -> String {
     let ms = d.as_millis();
     let secs = d.as_secs();
     if ms < 1000 {
-        format!("{}ms", ms)
-    } else if secs < 10 {
-        format!("{:.1}s", d.as_secs_f32())
+        format!("{ms}ms")
     } else if secs < 60 {
         format!("{:.1}s", d.as_secs_f32())
     } else if secs < 3600 {
@@ -127,7 +122,7 @@ impl Widget for ElapsedTimer {
             _ => Duration::ZERO,
         };
         let dur_str = fmt_duration(elapsed);
-        
+
         let dot_color = if self.running {
             let phase = anim::since(self.now.unwrap_or_else(Instant::now));
             let t = anim::pulse(phase, 1.6);
@@ -139,13 +134,27 @@ impl Widget for ElapsedTimer {
         let mut x = area.x;
         put(buf, x, area.y, "●", 1, st(dot_color, th.background));
         x += 2;
-        
+
         if let Some(lbl) = &self.label {
-            put(buf, x, area.y, lbl, area.width.saturating_sub(x - area.x), st(th.text, th.background));
+            put(
+                buf,
+                x,
+                area.y,
+                lbl,
+                area.width.saturating_sub(x - area.x),
+                st(th.text, th.background),
+            );
             x += lbl.len() as u16 + 1;
         }
-        
-        put(buf, x, area.y, &dur_str, area.width.saturating_sub(x - area.x), st(th.text, th.background));
+
+        put(
+            buf,
+            x,
+            area.y,
+            &dur_str,
+            area.width.saturating_sub(x - area.x),
+            st(th.text, th.background),
+        );
     }
 }
 
@@ -270,6 +279,11 @@ impl AgentTreeState {
         false
     }
 
+    /// Nodes currently visible (collapsed subtrees excluded); rows = this × 1 or 2 with tasks.
+    pub fn visible_len(&self) -> usize {
+        self.visible_rows().len()
+    }
+
     fn visible_rows(&self) -> Vec<TreeRow> {
         let Some(ref root) = self.root else {
             return Vec::new();
@@ -292,7 +306,7 @@ impl AgentTreeState {
             depth,
             is_last: is_last.to_vec(),
         });
-        
+
         let expanded = self.expanded.iter().any(|p| p == path);
         if expanded && !node.children.is_empty() {
             for (i, child) in node.children.iter().enumerate() {
@@ -353,7 +367,6 @@ impl AgentTreeState {
         self.expanded.clear();
     }
 
-
     pub fn take_activated(&mut self) -> Option<Vec<usize>> {
         None // would set a flag if needed
     }
@@ -390,10 +403,11 @@ impl Interactive for AgentTreeState {
             KeyCode::Right => {
                 if self.cursor < rows.len() {
                     let path = &rows[self.cursor].path;
-                    if let Some(node) = self.get_node(path) {
-                        if !node.children.is_empty() && !self.is_expanded(path) {
-                            self.toggle_expanded(path);
-                        }
+                    if let Some(node) = self.get_node(path)
+                        && !node.children.is_empty()
+                        && !self.is_expanded(path)
+                    {
+                        self.toggle_expanded(path);
                     }
                 }
                 Outcome::Consumed
@@ -401,10 +415,10 @@ impl Interactive for AgentTreeState {
             KeyCode::Enter => {
                 if self.cursor < rows.len() {
                     let path = &rows[self.cursor].path;
-                    if let Some(node) = self.get_node(path) {
-                        if !node.children.is_empty() {
-                            self.toggle_expanded(path);
-                        }
+                    if let Some(node) = self.get_node(path)
+                        && !node.children.is_empty()
+                    {
+                        self.toggle_expanded(path);
                     }
                 }
                 Outcome::Consumed
@@ -423,12 +437,12 @@ impl Interactive for AgentTreeState {
 
     fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
         let mut out = Outcome::Ignored;
-        if let Some(d) = wheel_delta(&m) {
-            if self.hit.hover {
-                let before = self.offset;
-                self.offset = (self.offset as i32 - d * 3).max(0) as usize;
-                out = out | Outcome::changed_if(before != self.offset);
-            }
+        if let Some(d) = wheel_delta(&m)
+            && self.hit.hover
+        {
+            let before = self.offset;
+            self.offset = (self.offset as i32 - d * 3).max(0) as usize;
+            out |= Outcome::changed_if(before != self.offset);
         }
         let hit_out = match self.hit.mouse(&m) {
             Hit::HoverChanged => Outcome::Consumed,
@@ -444,6 +458,7 @@ impl Interactive for AgentTreeState {
 /// Agent tree widget with expansion, cursor, tasks.
 pub struct AgentTree {
     show_tasks: bool,
+    focused: bool,
     now: Option<Instant>,
     theme: Option<Theme>,
 }
@@ -452,6 +467,7 @@ impl AgentTree {
     pub fn new() -> Self {
         Self {
             show_tasks: false,
+            focused: false,
             now: None,
             theme: None,
         }
@@ -459,6 +475,12 @@ impl AgentTree {
 
     pub fn show_tasks(mut self, v: bool) -> Self {
         self.show_tasks = v;
+        self
+    }
+
+    /// Cursor row uses `th.cursor_bg` when focused, `th.cursor_blurred_bg` otherwise.
+    pub fn focused(mut self, v: bool) -> Self {
+        self.focused = v;
         self
     }
 
@@ -493,11 +515,11 @@ impl StatefulWidget for AgentTree {
 
         let row_height = if self.show_tasks { 2 } else { 1 };
         let visible = area.height as usize / row_height;
-        
+
         if state.cursor >= rows.len() {
             state.cursor = rows.len().saturating_sub(1);
         }
-        
+
         if state.cursor >= state.offset + visible {
             state.offset = state.cursor.saturating_sub(visible - 1);
         } else if state.cursor < state.offset {
@@ -511,7 +533,7 @@ impl StatefulWidget for AgentTree {
             height: area.height,
         };
         state.scrollbar.offset = state.offset * row_height;
-        
+
         Scrollbar::vertical(rows.len() * row_height, area.height as usize)
             .offset(state.offset * row_height)
             .theme(&th)
@@ -519,7 +541,7 @@ impl StatefulWidget for AgentTree {
 
         let content_width = area.width.saturating_sub(1);
         let mut y = area.y;
-        
+
         for (i, row) in rows.iter().enumerate().skip(state.offset) {
             if y >= area.bottom() {
                 break;
@@ -529,8 +551,14 @@ impl StatefulWidget for AgentTree {
             let Some(node) = node else { continue };
 
             let is_cursor = i == state.cursor;
-            let bg = if is_cursor { th.cursor_bg } else { th.background };
-            
+            let bg = if !is_cursor {
+                th.background
+            } else if self.focused {
+                th.cursor_bg
+            } else {
+                th.cursor_blurred_bg
+            };
+
             if row_height == 2 {
                 fill(buf, Rect::new(area.x, y, content_width, 2), bg);
             } else {
@@ -538,7 +566,7 @@ impl StatefulWidget for AgentTree {
             }
 
             let mut x = area.x;
-            
+
             // Tree guides
             for (d, &last) in row.is_last.iter().enumerate() {
                 if d > 0 {
@@ -558,7 +586,11 @@ impl StatefulWidget for AgentTree {
 
             // Expand/collapse marker
             if !node.children.is_empty() {
-                let marker = if state.is_expanded(&row.path) { "▾" } else { "▸" };
+                let marker = if state.is_expanded(&row.path) {
+                    "▾"
+                } else {
+                    "▸"
+                };
                 put(buf, x, y, marker, 1, st(th.text_muted, bg));
                 x += 2;
             } else {
@@ -576,7 +608,14 @@ impl StatefulWidget for AgentTree {
                 let c = th.warning.blend(th.text_muted, t);
                 put(buf, x, y, node.status.glyph(), 1, st(c, bg));
             } else {
-                put(buf, x, y, node.status.glyph(), 1, st(node.status.color(&th), bg));
+                put(
+                    buf,
+                    x,
+                    y,
+                    node.status.glyph(),
+                    1,
+                    st(node.status.color(&th), bg),
+                );
             }
             x += 2;
 
@@ -590,12 +629,23 @@ impl StatefulWidget for AgentTree {
             let chip_width = model_str.len() as u16 + 2;
             if x + chip_width <= area.x + content_width {
                 fill(buf, Rect::new(x, y, chip_width, 1), th.surface);
-                put(buf, x + 1, y, &model_str, chip_width.saturating_sub(2), st(th.text_muted, th.surface));
+                put(
+                    buf,
+                    x + 1,
+                    y,
+                    &model_str,
+                    chip_width.saturating_sub(2),
+                    st(th.text_muted, th.surface),
+                );
                 x += chip_width + 1;
             }
 
             // Right-aligned: tokens · duration
-            let info = format!("{} · {}", fmt_tokens(node.tokens), fmt_duration(node.elapsed));
+            let info = format!(
+                "{} · {}",
+                fmt_tokens(node.tokens),
+                fmt_duration(node.elapsed)
+            );
             let info_w = info.len() as u16;
             if x + info_w <= area.x + content_width {
                 let rx = area.x + content_width - info_w;
@@ -607,14 +657,12 @@ impl StatefulWidget for AgentTree {
             y += 1;
 
             // Task row
-            if self.show_tasks && !node.task.is_empty() {
-                if y < area.bottom() {
-                    let task_x = area.x + (row.depth as u16 * 2) + 4;
-                    let task_width = content_width.saturating_sub(task_x - area.x);
-                    let task_str = truncate(&node.task, task_width as usize);
-                    put(buf, task_x, y, &task_str, task_width, st(th.text_muted, bg));
-                    y += 1;
-                }
+            if self.show_tasks && !node.task.is_empty() && y < area.bottom() {
+                let task_x = area.x + (row.depth as u16 * 2) + 4;
+                let task_width = content_width.saturating_sub(task_x - area.x);
+                let task_str = truncate(&node.task, task_width as usize);
+                put(buf, task_x, y, &task_str, task_width, st(th.text_muted, bg));
+                y += 1;
             }
         }
     }
@@ -716,17 +764,17 @@ impl Widget for AgentLanes<'_> {
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
-        
+
         // Name column width
         let max_name = self.lanes.iter().map(|l| l.name.len()).max().unwrap_or(0);
         let name_width = (max_name.min(14) + 1) as u16;
-        
+
         if area.width < name_width + 10 {
             return;
         }
 
         let track_width = area.width - name_width;
-        
+
         // Auto-scroll: keep clock at 80% position
         let scroll_threshold = self.window * 0.8;
         let view_start = if self.clock > scroll_threshold {
@@ -746,7 +794,7 @@ impl Widget for AgentLanes<'_> {
 
         for (i, lane) in self.lanes.iter().take(lanes_per_row).enumerate() {
             let y = area.y + i as u16;
-            
+
             // Alternating bg
             if i % 2 == 1 {
                 fill(buf, Rect::new(area.x, y, area.width, 1), th.surface);
@@ -754,7 +802,21 @@ impl Widget for AgentLanes<'_> {
 
             // Name
             let name_str = truncate(&lane.name, name_width.saturating_sub(1) as usize);
-            put(buf, area.x, y, &name_str, name_width, st(th.text, if i % 2 == 1 { th.surface } else { th.background }));
+            put(
+                buf,
+                area.x,
+                y,
+                &name_str,
+                name_width,
+                st(
+                    th.text,
+                    if i % 2 == 1 {
+                        th.surface
+                    } else {
+                        th.background
+                    },
+                ),
+            );
 
             // Track
             let track_x = area.x + name_width;
@@ -764,8 +826,10 @@ impl Widget for AgentLanes<'_> {
                     continue;
                 }
 
-                let cell_start = ((span.start - view_start) / self.window * track_width as f32).max(0.0) as u16;
-                let cell_end = ((span_end - view_start) / self.window * track_width as f32).min(track_width as f32) as u16;
+                let cell_start =
+                    ((span.start - view_start) / self.window * track_width as f32).max(0.0) as u16;
+                let cell_end = ((span_end - view_start) / self.window * track_width as f32)
+                    .min(track_width as f32) as u16;
                 let span_width = cell_end.saturating_sub(cell_start).max(1);
 
                 let span_color = span.status.color(&th);
@@ -778,13 +842,24 @@ impl Widget for AgentLanes<'_> {
                     span_color
                 };
 
-                fill(buf, Rect::new(track_x + cell_start, y, span_width, 1), span_bg);
-                
+                fill(
+                    buf,
+                    Rect::new(track_x + cell_start, y, span_width, 1),
+                    span_bg,
+                );
+
                 // Label if it fits
                 if span_width > 2 && !span.label.is_empty() {
                     let label_str = truncate(&span.label, span_width.saturating_sub(2) as usize);
                     let label_color = span_bg.text_on(1.0);
-                    put(buf, track_x + cell_start + 1, y, &label_str, span_width.saturating_sub(2), st(label_color, span_bg));
+                    put(
+                        buf,
+                        track_x + cell_start + 1,
+                        y,
+                        &label_str,
+                        span_width.saturating_sub(2),
+                        st(label_color, span_bg),
+                    );
                 }
             }
         }
@@ -792,7 +867,7 @@ impl Widget for AgentLanes<'_> {
         // Time axis
         let axis_y = area.bottom().saturating_sub(1);
         fill(buf, Rect::new(area.x, axis_y, area.width, 1), th.background);
-        
+
         // Ticks every 5s
         let tick_interval = 5.0;
         let mut t = (view_start / tick_interval).floor() * tick_interval;
@@ -800,16 +875,39 @@ impl Widget for AgentLanes<'_> {
             if t >= view_start {
                 let tick_x = ((t - view_start) / self.window * track_width as f32) as u16;
                 let tick_label = format!("{}s", t as i32);
-                put(buf, area.x + name_width + tick_x, axis_y, &tick_label, track_width.saturating_sub(tick_x), st(th.text_muted, th.background));
+                put(
+                    buf,
+                    area.x + name_width + tick_x,
+                    axis_y,
+                    &tick_label,
+                    track_width.saturating_sub(tick_x),
+                    st(th.text_muted, th.background),
+                );
             }
             t += tick_interval;
         }
 
         // Clock marker
         if self.clock >= view_start && self.clock <= view_end {
-            let marker_x = area.x + name_width + ((self.clock - view_start) / self.window * track_width as f32) as u16;
+            let marker_x = area.x
+                + name_width
+                + ((self.clock - view_start) / self.window * track_width as f32) as u16;
             for i in 0..lane_height.min(lanes_per_row as u16) {
-                put(buf, marker_x, area.y + i, "│", 1, st(th.accent, if i % 2 == 1 { th.surface } else { th.background }));
+                put(
+                    buf,
+                    marker_x,
+                    area.y + i,
+                    "│",
+                    1,
+                    st(
+                        th.accent,
+                        if i % 2 == 1 {
+                            th.surface
+                        } else {
+                            th.background
+                        },
+                    ),
+                );
             }
         }
     }
@@ -866,14 +964,14 @@ impl TokenMeter {
 impl Widget for TokenMeter {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let th = self.theme.unwrap_or_else(theme::current);
-        
+
         if area.height == 0 {
             return;
         }
 
         let b = self.breakdown;
         let total = b.total();
-        
+
         if total == 0 {
             return;
         }
@@ -888,9 +986,9 @@ impl Widget for TokenMeter {
         ];
 
         // Allocate cells ensuring >=1 per non-zero segment
-        let mut cells = vec![0u16; 4];
+        let mut cells = [0u16; 4];
         let _remaining = bar_width;
-        
+
         // First pass: proportional
         for (i, &(count, _, _)) in segments.iter().enumerate() {
             if count > 0 {
@@ -905,10 +1003,10 @@ impl Widget for TokenMeter {
         if sum > bar_width {
             // Shrink largest
             for _ in 0..(sum - bar_width) {
-                if let Some((idx, _)) = cells.iter().enumerate().max_by_key(|&(_, c)| c) {
-                    if cells[idx] > 1 {
-                        cells[idx] -= 1;
-                    }
+                if let Some((idx, _)) = cells.iter().enumerate().max_by_key(|&(_, c)| c)
+                    && cells[idx] > 1
+                {
+                    cells[idx] -= 1;
                 }
             }
         } else if sum < bar_width {
@@ -932,18 +1030,30 @@ impl Widget for TokenMeter {
         if self.compact {
             // Just show total on the right
             let total_str = fmt_tokens(total);
-            put_right(buf, Rect::new(area.x, area.y, area.width, 1), &total_str, st(th.text, th.background));
+            put_right(
+                buf,
+                Rect::new(area.x, area.y, area.width, 1),
+                &total_str,
+                st(th.text, th.background),
+            );
         } else if area.height > 1 {
             // Legend row
             let mut leg_x = area.x;
             let leg_y = area.y + 1;
-            
+
             for &(count, color, label) in &segments {
                 if count > 0 {
                     let entry = format!("■ {} {}  ", label, fmt_tokens(count));
                     if leg_x + entry.len() as u16 <= area.right() {
                         put(buf, leg_x, leg_y, "■", 1, st(color, th.background));
-                        put(buf, leg_x + 2, leg_y, &format!("{} {}", label, fmt_tokens(count)), area.width, st(th.text, th.background));
+                        put(
+                            buf,
+                            leg_x + 2,
+                            leg_y,
+                            &format!("{} {}", label, fmt_tokens(count)),
+                            area.width,
+                            st(th.text, th.background),
+                        );
                         leg_x += entry.len() as u16;
                     }
                 }
@@ -953,7 +1063,14 @@ impl Widget for TokenMeter {
             let total_str = format!("total {}", fmt_tokens(total));
             let total_x = area.right().saturating_sub(total_str.len() as u16);
             if total_x > leg_x {
-                put(buf, total_x, leg_y, &total_str, total_str.len() as u16, st(th.text, th.background));
+                put(
+                    buf,
+                    total_x,
+                    leg_y,
+                    &total_str,
+                    total_str.len() as u16,
+                    st(th.text, th.background),
+                );
             }
         }
     }
@@ -1049,24 +1166,23 @@ impl StatefulWidget for CostMeter {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let th = self.theme.unwrap_or_else(theme::current);
-        
+
         if area.height < 2 {
             return;
         }
 
         let spent = self.spent.unwrap_or(0.0);
-        
+
         // Update tween
         if let Some(d) = self.dur {
-            if let Some(n) = self.now {
-                if state.spent.target() != spent {
-                    state.spent.go_with(spent, n, d, Easing::OutCubic);
-                }
+            if let Some(n) = self.now
+                && state.spent.target() != spent
+            {
+                state.spent.go_with(spent, n, d, Easing::OutCubic);
             }
         } else {
             state.spent = Tween::new(spent);
         }
-
 
         let current = state.spent.value(self.now.unwrap_or_else(Instant::now));
         if let Some(budget) = self.budget {
@@ -1078,34 +1194,50 @@ impl StatefulWidget for CostMeter {
             } else {
                 th.success
             };
-            
-            hbar(buf, area.x, area.y, area.width, pct.min(1.0), color, th.panel);
+
+            hbar(
+                buf,
+                area.x,
+                area.y,
+                area.width,
+                pct.min(1.0),
+                color,
+                th.panel,
+            );
         }
 
         // Text row
         if area.height > 1 {
             let mut parts = Vec::new();
-            
+
             parts.push(fmt_usd(current));
-            
+
             if let Some(budget) = self.budget {
                 parts.push(format!(" / {}", fmt_usd(budget)));
             }
-            
+
             if let Some(rate) = self.rate_per_min {
                 parts.push(format!(" · {}/min", fmt_usd(rate)));
-                
-                if let Some(budget) = self.budget {
-                    if rate > 0.0 && current < budget {
-                        let remaining = budget - current;
-                        let mins = remaining / rate;
-                        parts.push(format!(" · ~{} min left", mins.round() as i32));
-                    }
+
+                if let Some(budget) = self.budget
+                    && rate > 0.0
+                    && current < budget
+                {
+                    let remaining = budget - current;
+                    let mins = remaining / rate;
+                    parts.push(format!(" · ~{} min left", mins.round() as i32));
                 }
             }
 
             let text = parts.join("");
-            put(buf, area.x, area.y + 1, &text, area.width, st(th.text, th.background));
+            put(
+                buf,
+                area.x,
+                area.y + 1,
+                &text,
+                area.width,
+                st(th.text, th.background),
+            );
         }
     }
 }
@@ -1174,13 +1306,13 @@ impl<'a> ContextMap<'a> {
 impl Widget for ContextMap<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let th = self.theme.unwrap_or_else(theme::current);
-        
+
         if area.height == 0 {
             return;
         }
 
         let palette = [th.secondary, th.accent, th.primary, th.success];
-        
+
         let used: u32 = self.segments.iter().map(|s| s.tokens).sum();
         let free = self.limit.saturating_sub(used);
 
@@ -1193,51 +1325,82 @@ impl Widget for ContextMap<'_> {
             let frac = seg.tokens as f32 / self.limit as f32;
             let mut width = (frac * area.width as f32).round() as u16;
             width = width.max(1).min(area.width.saturating_sub(x - area.x));
-            
+
             let mut color = seg.color.unwrap_or(palette[i % palette.len()]);
             if self.hover == Some(i) {
                 color = color.blend(th.boost, 0.3);
             }
-            
+
             fill(buf, Rect::new(x, area.y, width, 1), color);
             x += width;
         }
-        
+
         // Free space
         if x < area.right() {
             fill(buf, Rect::new(x, area.y, area.right() - x, 1), th.surface);
         }
 
         if self.compact {
-            let used_pct = if self.limit > 0 { (used as f32 / self.limit as f32 * 100.0) as u32 } else { 0 };
+            let used_pct = if self.limit > 0 {
+                (used as f32 / self.limit as f32 * 100.0) as u32
+            } else {
+                0
+            };
             let text = format!("{}% used", used_pct);
-            put_right(buf, Rect::new(area.x, area.y, area.width, 1), &text, st(th.text, th.background));
+            put_right(
+                buf,
+                Rect::new(area.x, area.y, area.width, 1),
+                &text,
+                st(th.text, th.background),
+            );
         } else if area.height > 1 {
             // Legend
             let mut leg_x = area.x;
             let leg_y = area.y + 1;
-            
+
             for (i, seg) in self.segments.iter().enumerate() {
                 if seg.tokens == 0 {
                     continue;
                 }
-                let pct = if self.limit > 0 { (seg.tokens as f32 / self.limit as f32 * 100.0) as u32 } else { 0 };
+                let pct = if self.limit > 0 {
+                    (seg.tokens as f32 / self.limit as f32 * 100.0) as u32
+                } else {
+                    0
+                };
                 let entry = format!("■ {} {}%  ", seg.label, pct);
-                
+
                 if leg_x + entry.len() as u16 <= area.right() {
                     let color = seg.color.unwrap_or(palette[i % palette.len()]);
                     put(buf, leg_x, leg_y, "■", 1, st(color, th.background));
-                    put(buf, leg_x + 2, leg_y, &format!("{} {}%", seg.label, pct), area.width, st(th.text, th.background));
+                    put(
+                        buf,
+                        leg_x + 2,
+                        leg_y,
+                        &format!("{} {}%", seg.label, pct),
+                        area.width,
+                        st(th.text, th.background),
+                    );
                     leg_x += entry.len() as u16;
                 }
             }
 
             // Free
-            let free_pct = if self.limit > 0 { (free as f32 / self.limit as f32 * 100.0) as u32 } else { 0 };
+            let free_pct = if self.limit > 0 {
+                (free as f32 / self.limit as f32 * 100.0) as u32
+            } else {
+                0
+            };
             let free_entry = format!("free {}%", free_pct);
             let free_x = area.right().saturating_sub(free_entry.len() as u16);
             if free_x > leg_x {
-                put(buf, free_x, leg_y, &free_entry, free_entry.len() as u16, st(th.text, th.background));
+                put(
+                    buf,
+                    free_x,
+                    leg_y,
+                    &free_entry,
+                    free_entry.len() as u16,
+                    st(th.text, th.background),
+                );
             }
         }
     }
@@ -1293,14 +1456,13 @@ impl CompactionBanner {
 impl Widget for CompactionBanner {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let th = self.theme.unwrap_or_else(theme::current);
-        
+
         if area.height < 2 {
             return;
         }
 
         let inner = Border::Round.inner(area);
         Border::Round.draw(buf, area, th.success, th.background);
-        
 
         if inner.height == 0 {
             return;
@@ -1313,7 +1475,14 @@ impl Widget for CompactionBanner {
             self.to_pct as u32,
             fmt_tokens(self.saved_tokens)
         );
-        put(buf, inner.x, inner.y, &title, inner.width, bold(st(th.text, th.background)));
+        put(
+            buf,
+            inner.x,
+            inner.y,
+            &title,
+            inner.width,
+            bold(st(th.text, th.background)),
+        );
 
         // Animated bar
         if inner.height > 1 {
@@ -1324,19 +1493,34 @@ impl Widget for CompactionBanner {
             let anim_dur = 1.2;
             let t = (elapsed / anim_dur).min(1.0);
             let eased = Easing::OutCubic.apply(t);
-            
+
             let current_pct = self.from_pct + (self.to_pct - self.from_pct) * eased;
             let bar_color = th.warning.blend(th.success, eased);
-            
-            hbar(buf, inner.x, inner.y + 1, inner.width, current_pct / 100.0, bar_color, th.panel);
+
+            hbar(
+                buf,
+                inner.x,
+                inner.y + 1,
+                inner.width,
+                current_pct / 100.0,
+                bar_color,
+                th.panel,
+            );
         }
 
         // Summary
-        if inner.height > 2 {
-            if let Some(ref s) = self.summary {
-                let summary_str = truncate(s, inner.width as usize);
-                put(buf, inner.x, inner.y + 2, &summary_str, inner.width, st(th.text_muted, th.background));
-            }
+        if inner.height > 2
+            && let Some(ref s) = self.summary
+        {
+            let summary_str = truncate(s, inner.width as usize);
+            put(
+                buf,
+                inner.x,
+                inner.y + 2,
+                &summary_str,
+                inner.width,
+                st(th.text_muted, th.background),
+            );
         }
     }
 }
@@ -1412,22 +1596,23 @@ impl Default for TurnStats {
 impl Widget for TurnStats {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let th = self.theme.unwrap_or_else(theme::current);
-        
+
         if area.height < 2 {
             return;
         }
 
         let cells = [
-            ("input", self.input.map(|n| fmt_tokens(n)), None),
-            ("output", self.output.map(|n| fmt_tokens(n)), None),
+            ("input", self.input.map(fmt_tokens), None),
+            ("output", self.output.map(fmt_tokens), None),
             (
                 "cache",
                 self.cache_hit.map(|f| format!("{}%", (f * 100.0) as u32)),
-                self.cache_hit.map(|f| if f > 0.5 { th.success } else { th.warning }),
+                self.cache_hit
+                    .map(|f| if f > 0.5 { th.success } else { th.warning }),
             ),
             ("tools", self.tool_calls.map(|n| n.to_string()), None),
-            ("time", self.duration.map(|d| fmt_duration(d)), None),
-            ("cost", self.cost.map(|c| fmt_usd(c)), None),
+            ("time", self.duration.map(fmt_duration), None),
+            ("cost", self.cost.map(fmt_usd), None),
         ];
 
         let active: Vec<_> = cells.iter().filter(|(_, v, _)| v.is_some()).collect();
@@ -1446,13 +1631,27 @@ impl Widget for TurnStats {
             }
 
             let Some(val) = value else { continue };
-            
+
             // Label row
-            put(buf, x, area.y, label, cell_width, st(th.text_muted, th.background));
-            
+            put(
+                buf,
+                x,
+                area.y,
+                label,
+                cell_width,
+                st(th.text_muted, th.background),
+            );
+
             // Value row
             let val_color = color.unwrap_or(th.text);
-            put(buf, x, area.y + 1, val, cell_width, bold(st(val_color, th.background)));
+            put(
+                buf,
+                x,
+                area.y + 1,
+                val,
+                cell_width,
+                bold(st(val_color, th.background)),
+            );
         }
     }
 }
@@ -1496,15 +1695,26 @@ impl<'a> RateGraph<'a> {
 impl Widget for RateGraph<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let th = self.theme.unwrap_or_else(theme::current);
-        
+
         if area.height < 2 || self.values.is_empty() {
             return;
         }
 
         let current = self.values.last().copied().unwrap_or(0.0);
-        let current_str = format!("{} {}", current.round() as u32, self.label.as_deref().unwrap_or(""));
-        
-        put(buf, area.x, area.y, &current_str, area.width, bold(st(th.accent, th.background)));
+        let current_str = format!(
+            "{} {}",
+            current.round() as u32,
+            self.label.as_deref().unwrap_or("")
+        );
+
+        put(
+            buf,
+            area.x,
+            area.y,
+            &current_str,
+            area.width,
+            bold(st(th.accent, th.background)),
+        );
 
         if area.height > 1 {
             let chart_area = Rect::new(area.x, area.y + 1, area.width, area.height - 1);
@@ -1652,19 +1862,19 @@ impl Interactive for SessionListState {
     }
 
     fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
-        if let Some(d) = wheel_delta(&m) {
-            if self.hit.hover {
-                let before = self.offset;
-                self.offset = (self.offset as i32 - d * 3).max(0) as usize;
-                return Outcome::changed_if(before != self.offset);
-            }
+        if let Some(d) = wheel_delta(&m)
+            && self.hit.hover
+        {
+            let before = self.offset;
+            self.offset = (self.offset as i32 - d * 3).max(0) as usize;
+            return Outcome::changed_if(before != self.offset);
         }
-        let hit_out = match self.hit.mouse(&m) {
+
+        match self.hit.mouse(&m) {
             Hit::HoverChanged => Outcome::Consumed,
             Hit::None => Outcome::Ignored,
             _ => Outcome::Consumed,
-        };
-        hit_out
+        }
     }
 }
 
@@ -1714,30 +1924,39 @@ impl StatefulWidget for SessionList {
         state.hit.set_area(area);
 
         let mut y = area.y;
-        
+
         // Title row
         if let Some(ref title) = self.title {
             let count = state.filtered().len();
             let header = format!("{} ({})", title, count);
-            put(buf, area.x, y, &header, area.width, bold(st(th.text, th.background)));
+            put(
+                buf,
+                area.x,
+                y,
+                &header,
+                area.width,
+                bold(st(th.text, th.background)),
+            );
             y += 1;
         }
 
         let row_height = if self.two_line { 2 } else { 1 };
         let visible = (area.bottom().saturating_sub(y) as usize) / row_height;
-        
+
         let filtered = state.filtered();
         if state.cursor >= filtered.len() {
             state.cursor = filtered.len().saturating_sub(1);
         }
-        
+
         if state.cursor >= state.offset + visible {
             state.offset = state.cursor.saturating_sub(visible - 1);
         } else if state.cursor < state.offset {
             state.offset = state.cursor;
         }
 
-        for (list_idx, &(entry_idx, _, ref positions)) in filtered.iter().enumerate().skip(state.offset) {
+        for (list_idx, &(entry_idx, _, ref positions)) in
+            filtered.iter().enumerate().skip(state.offset)
+        {
             if y >= area.bottom() {
                 break;
             }
@@ -1747,33 +1966,58 @@ impl StatefulWidget for SessionList {
             };
 
             let is_cursor = list_idx == state.cursor;
-            let bg = if is_cursor { th.cursor_bg } else { th.background };
-            
+            let bg = if is_cursor {
+                th.cursor_bg
+            } else {
+                th.background
+            };
+
             fill(buf, Rect::new(area.x, y, area.width, row_height as u16), bg);
 
             // Active dot or space
             let dot = if entry.active { "●" } else { " " };
-            put(buf, area.x, y, dot, 1, st(if entry.active { th.primary } else { th.text_muted }, bg));
+            put(
+                buf,
+                area.x,
+                y,
+                dot,
+                1,
+                st(
+                    if entry.active {
+                        th.primary
+                    } else {
+                        th.text_muted
+                    },
+                    bg,
+                ),
+            );
 
             // Title with fuzzy highlights
             let title_x = area.x + 2;
             let when_w = entry.when.len() as u16 + 1;
             let title_w = area.width.saturating_sub(2 + when_w);
-            
+
             if positions.is_empty() {
                 let title_str = truncate(&entry.title, title_w as usize);
                 put(buf, title_x, y, &title_str, title_w, bold(st(th.text, bg)));
             } else {
                 // Fuzzy highlight
-                let mut x = title_x;
-                for (i, ch) in entry.title.chars().enumerate() {
-                    if x >= title_x + title_w {
-                        break;
-                    }
-                    let highlighted = positions.contains(&i);
-                    let color = if highlighted { th.accent } else { th.text };
-                    put(buf, x, y, &ch.to_string(), 1, bold(st(color, bg)));
-                    x += 1;
+                for (x, (i, ch)) in
+                    (title_x..title_x + title_w).zip(entry.title.chars().enumerate())
+                {
+                    let color = if positions.contains(&i) {
+                        th.accent
+                    } else {
+                        th.text
+                    };
+                    put(
+                        buf,
+                        x,
+                        y,
+                        ch.encode_utf8(&mut [0; 4]),
+                        1,
+                        bold(st(color, bg)),
+                    );
                 }
             }
 
@@ -1791,7 +2035,14 @@ impl StatefulWidget for SessionList {
                     fmt_usd(entry.cost),
                     entry.model
                 );
-                put(buf, title_x, y, &detail, area.width.saturating_sub(2), st(th.text_muted, bg));
+                put(
+                    buf,
+                    title_x,
+                    y,
+                    &detail,
+                    area.width.saturating_sub(2),
+                    st(th.text_muted, bg),
+                );
                 y += 1;
             }
         }
@@ -1935,19 +2186,19 @@ impl Interactive for ModelPickerState {
     }
 
     fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
-        if let Some(d) = wheel_delta(&m) {
-            if self.hit.hover {
-                let before = self.offset;
-                self.offset = (self.offset as i32 - d * 3).max(0) as usize;
-                return Outcome::changed_if(before != self.offset);
-            }
+        if let Some(d) = wheel_delta(&m)
+            && self.hit.hover
+        {
+            let before = self.offset;
+            self.offset = (self.offset as i32 - d * 3).max(0) as usize;
+            return Outcome::changed_if(before != self.offset);
         }
-        let hit_out = match self.hit.mouse(&m) {
+
+        match self.hit.mouse(&m) {
             Hit::HoverChanged => Outcome::Consumed,
             Hit::None => Outcome::Ignored,
             _ => Outcome::Consumed,
-        };
-        hit_out
+        }
     }
 }
 
@@ -1980,34 +2231,49 @@ impl StatefulWidget for ModelPicker {
         let th = self.theme.unwrap_or_else(theme::current);
         state.hit.set_area(area);
         let visible = area.height as usize;
-        
+
         if state.cursor >= state.models.len() {
             state.cursor = state.models.len().saturating_sub(1);
         }
-        
+
         if state.cursor >= state.offset + visible {
             state.offset = state.cursor.saturating_sub(visible - 1);
         } else if state.cursor < state.offset {
             state.offset = state.cursor;
         }
 
-        let mut y = area.y;
-        for (i, model) in state.models.iter().enumerate().skip(state.offset) {
-            if y >= area.bottom() {
-                break;
-            }
-
+        for (y, (i, model)) in
+            (area.y..area.bottom()).zip(state.models.iter().enumerate().skip(state.offset))
+        {
             let is_cursor = i == state.cursor;
             let is_selected = i == state.selected;
-            let bg = if is_cursor { th.cursor_bg } else { th.background };
-            
+            let bg = if is_cursor {
+                th.cursor_bg
+            } else {
+                th.background
+            };
+
             fill(buf, Rect::new(area.x, y, area.width, 1), bg);
 
             let mut x = area.x;
-            
+
             // Selected marker
             let marker = if is_selected { "●" } else { "○" };
-            put(buf, x, y, marker, 1, st(if is_selected { th.primary } else { th.text_muted }, bg));
+            put(
+                buf,
+                x,
+                y,
+                marker,
+                1,
+                st(
+                    if is_selected {
+                        th.primary
+                    } else {
+                        th.text_muted
+                    },
+                    bg,
+                ),
+            );
             x += 2;
 
             // Model id
@@ -2020,18 +2286,39 @@ impl StatefulWidget for ModelPicker {
             let chip_w = provider_str.len() as u16 + 2;
             if x + chip_w < area.right() {
                 fill(buf, Rect::new(x, y, chip_w, 1), th.surface);
-                put(buf, x + 1, y, &provider_str, chip_w.saturating_sub(2), st(th.text_muted, th.surface));
+                put(
+                    buf,
+                    x + 1,
+                    y,
+                    &provider_str,
+                    chip_w.saturating_sub(2),
+                    st(th.text_muted, th.surface),
+                );
                 x += chip_w + 1;
             }
 
             // Context
             let ctx_str = fmt_tokens(model.context);
-            put(buf, x, y, &ctx_str, ctx_str.len() as u16, st(th.text_muted, bg));
+            put(
+                buf,
+                x,
+                y,
+                &ctx_str,
+                ctx_str.len() as u16,
+                st(th.text_muted, bg),
+            );
             x += ctx_str.len() as u16 + 2;
 
             // Prices
             let prices = format!("{} / {}", fmt_usd(model.in_price), fmt_usd(model.out_price));
-            put(buf, x, y, &prices, prices.len() as u16, st(th.text_muted, bg));
+            put(
+                buf,
+                x,
+                y,
+                &prices,
+                prices.len() as u16,
+                st(th.text_muted, bg),
+            );
             x += prices.len() as u16 + 2;
 
             // Capabilities
@@ -2040,11 +2327,16 @@ impl StatefulWidget for ModelPicker {
                     break;
                 }
                 let cap_str = format!("{} {}", cap.glyph(), cap.label());
-                put(buf, x, y, &cap_str, cap_str.len() as u16, st(cap.color(&th), bg));
+                put(
+                    buf,
+                    x,
+                    y,
+                    &cap_str,
+                    cap_str.len() as u16,
+                    st(cap.color(&th), bg),
+                );
                 x += cap_str.len() as u16 + 1;
             }
-
-            y += 1;
         }
     }
 }
@@ -2081,7 +2373,7 @@ mod tests {
         let area = Rect::new(0, 0, 20, 2);
         let mut buf = Buffer::empty(area);
         TokenMeter::new(b).theme(&th).render(area, &mut buf);
-        
+
         // Each non-zero segment should get >= 1 cell
         // Total should equal bar width
         // (visual test via buffer inspection would be needed for full validation)
@@ -2108,16 +2400,23 @@ mod tests {
 
     #[test]
     fn test_agent_lanes_autoscroll() {
-        let lane = Lane::new("Test").span(LaneSpan::new(0.0, Some(10.0), AgentStatus::Running, "test"));
+        let lane =
+            Lane::new("Test").span(LaneSpan::new(0.0, Some(10.0), AgentStatus::Running, "test"));
         let lanes = vec![lane];
-        
+
         // Clock at 5s, window 30s -> view_start = 0
         let area = Rect::new(0, 0, 50, 5);
         let mut buf = Buffer::empty(area);
-        AgentLanes::new(&lanes).clock(5.0).window(30.0).render(area, &mut buf);
+        AgentLanes::new(&lanes)
+            .clock(5.0)
+            .window(30.0)
+            .render(area, &mut buf);
 
         // Clock at 30s -> view_start = 30 - 24 = 6
-        AgentLanes::new(&lanes).clock(30.0).window(30.0).render(area, &mut buf);
+        AgentLanes::new(&lanes)
+            .clock(30.0)
+            .window(30.0)
+            .render(area, &mut buf);
         // (visual validation needed)
     }
 
@@ -2130,11 +2429,16 @@ mod tests {
             SessionEntry::new("Feature request", "3h ago"),
         ];
         state.filter = "feat".to_string();
-        
+
         let filtered = state.filtered();
         // Should rank "Build feature" and "Feature request" high
         assert!(filtered.len() >= 2);
-        assert!(filtered[0].1 > 0 || filtered.iter().any(|&(idx, _, _)| state.entries[idx].title.contains("feature")));
+        assert!(
+            filtered[0].1 > 0
+                || filtered
+                    .iter()
+                    .any(|&(idx, _, _)| state.entries[idx].title.contains("feature"))
+        );
     }
 
     #[test]
@@ -2147,39 +2451,66 @@ mod tests {
         let area_130x42 = Rect::new(0, 0, 130, 42);
         let area_250x70 = Rect::new(0, 0, 250, 70);
 
-        for area in [area_1x1, area_3x2, area_10x3, area_60x16, area_130x42, area_250x70] {
+        for area in [
+            area_1x1,
+            area_3x2,
+            area_10x3,
+            area_60x16,
+            area_130x42,
+            area_250x70,
+        ] {
             let mut buf = Buffer::empty(area);
             let now = Instant::now();
 
             // Test all widgets
             ElapsedTimer::new().now(now).render(area, &mut buf);
-            
+
             let mut tree_state = AgentTreeState::new();
             tree_state.root = Some(AgentNode::new("Test", "model", AgentStatus::Running));
-            AgentTree::new().now(now).render(area, &mut buf, &mut tree_state);
+            AgentTree::new()
+                .now(now)
+                .render(area, &mut buf, &mut tree_state);
 
             let lane = Lane::new("Lane");
-            AgentLanes::new(&[lane]).clock(5.0).now(now).render(area, &mut buf);
+            AgentLanes::new(&[lane])
+                .clock(5.0)
+                .now(now)
+                .render(area, &mut buf);
 
-            TokenMeter::new(TokenBreakdown::default()).theme(&th).render(area, &mut buf);
+            TokenMeter::new(TokenBreakdown::default())
+                .theme(&th)
+                .render(area, &mut buf);
 
             let mut cost_state = CostMeterState::new();
-            CostMeter::new().theme(&th).render(area, &mut buf, &mut cost_state);
+            CostMeter::new()
+                .theme(&th)
+                .render(area, &mut buf, &mut cost_state);
 
             let seg = ContextSegment::new("test", 1000);
-            ContextMap::new(&[seg], 10000).theme(&th).render(area, &mut buf);
+            ContextMap::new(&[seg], 10000)
+                .theme(&th)
+                .render(area, &mut buf);
 
-            CompactionBanner::new(80.0, 30.0, 5000).now(now).theme(&th).render(area, &mut buf);
+            CompactionBanner::new(80.0, 30.0, 5000)
+                .now(now)
+                .theme(&th)
+                .render(area, &mut buf);
 
             TurnStats::new().theme(&th).render(area, &mut buf);
 
-            RateGraph::new(&[1.0, 2.0]).theme(&th).render(area, &mut buf);
+            RateGraph::new(&[1.0, 2.0])
+                .theme(&th)
+                .render(area, &mut buf);
 
             let mut session_state = SessionListState::new();
-            SessionList::new().theme(&th).render(area, &mut buf, &mut session_state);
+            SessionList::new()
+                .theme(&th)
+                .render(area, &mut buf, &mut session_state);
 
             let mut model_state = ModelPickerState::new();
-            ModelPicker::new().theme(&th).render(area, &mut buf, &mut model_state);
+            ModelPicker::new()
+                .theme(&th)
+                .render(area, &mut buf, &mut model_state);
         }
     }
 }

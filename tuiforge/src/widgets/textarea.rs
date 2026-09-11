@@ -448,31 +448,7 @@ impl TextAreaState {
     }
 
     fn word_boundary(&self, row: usize, col: usize, forward: bool) -> usize {
-        let graphemes = self.graphemes(row);
-        let len = graphemes.len();
-        if forward {
-            let mut i = col;
-            while i < len && graphemes[i].chars().all(|c| !c.is_alphanumeric()) {
-                i += 1;
-            }
-            while i < len && graphemes[i].chars().all(|c| c.is_alphanumeric()) {
-                i += 1;
-            }
-            i
-        } else {
-            let mut i = col.saturating_sub(1);
-            while i > 0 && graphemes[i].chars().all(|c| !c.is_alphanumeric()) {
-                i = i.saturating_sub(1);
-            }
-            while i > 0
-                && graphemes[i.saturating_sub(1)]
-                    .chars()
-                    .all(|c| c.is_alphanumeric())
-            {
-                i = i.saturating_sub(1);
-            }
-            i
-        }
+        crate::core::word_boundary(&self.graphemes(row), col, forward)
     }
 
     fn duplicate_line(&mut self) {

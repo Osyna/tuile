@@ -420,6 +420,37 @@ pub trait Interactive {
     }
 }
 
+// text navigation
+
+/// Index of the next word boundary from `pos`, the rule behind Ctrl+Left / Ctrl+Right.
+///
+/// Forward: skip any run of non-alphanumerics, then the word itself, landing after it.
+/// Backward: the mirror, landing on the word's first grapheme. Both saturate at the ends.
+/// Shared by `Input` and `TextArea` so the two widgets cannot drift apart.
+pub fn word_boundary(graphemes: &[&str], pos: usize, forward: bool) -> usize {
+    let alnum = |g: &str| g.chars().all(char::is_alphanumeric);
+    let len = graphemes.len();
+    if forward {
+        let mut i = pos;
+        while i < len && !alnum(graphemes[i]) {
+            i += 1;
+        }
+        while i < len && alnum(graphemes[i]) {
+            i += 1;
+        }
+        i
+    } else {
+        let mut i = pos.saturating_sub(1);
+        while i > 0 && !alnum(graphemes[i]) {
+            i = i.saturating_sub(1);
+        }
+        while i > 0 && alnum(graphemes[i.saturating_sub(1)]) {
+            i = i.saturating_sub(1);
+        }
+        i
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -478,5 +509,21 @@ mod tests {
         f.next();
         f.next();
         assert!(f.is('d'));
+    }
+
+    #[test]
+    fn word_boundary_crosses_punctuation_and_stops_at_the_ends() {
+        // graphemes of "one, two"
+        let g = ["o", "n", "e", ",", " ", "t", "w", "o"];
+        // forward from inside the first word lands past it, then past the second
+        assert_eq!(word_boundary(&g, 0, true), 3);
+        assert_eq!(word_boundary(&g, 3, true), 8);
+        // backward from the end lands on the second word's first grapheme, then the first's
+        assert_eq!(word_boundary(&g, 8, false), 5);
+        assert_eq!(word_boundary(&g, 5, false), 0);
+        // both directions saturate rather than run off the ends
+        assert_eq!(word_boundary(&g, 8, true), 8);
+        assert_eq!(word_boundary(&g, 0, false), 0);
+        assert_eq!(word_boundary(&[], 0, true), 0);
     }
 }

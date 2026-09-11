@@ -396,31 +396,7 @@ impl InputState {
     }
 
     fn word_boundary(&self, pos: usize, forward: bool) -> usize {
-        let graphemes = self.graphemes();
-        let len = graphemes.len();
-        if forward {
-            let mut i = pos;
-            while i < len && graphemes[i].chars().all(|c| !c.is_alphanumeric()) {
-                i += 1;
-            }
-            while i < len && graphemes[i].chars().all(|c| c.is_alphanumeric()) {
-                i += 1;
-            }
-            i
-        } else {
-            let mut i = pos.saturating_sub(1);
-            while i > 0 && graphemes[i].chars().all(|c| !c.is_alphanumeric()) {
-                i = i.saturating_sub(1);
-            }
-            while i > 0
-                && graphemes[i.saturating_sub(1)]
-                    .chars()
-                    .all(|c| c.is_alphanumeric())
-            {
-                i = i.saturating_sub(1);
-            }
-            i
-        }
+        crate::core::word_boundary(&self.graphemes(), pos, forward)
     }
 
     fn accept_suggestion(&mut self) -> bool {

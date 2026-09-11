@@ -184,7 +184,7 @@ epoch), `fuzzy`, `runtime` (app loop, local clock, civil dates).
 
 </details>
 
-## 🖼️ Showcase
+## 📸 Showcase
 
 `showcase/` is a 22-page gallery. Keys: `]` `[` pages, `alt+1..9` jump, `^p` palette, `^t`
 theme, `^b` sidebar, `F1` help, `F3` reduce motion, `Tab` focus, mouse everywhere.

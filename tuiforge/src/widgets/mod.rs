@@ -13,8 +13,7 @@ pub mod scrollbar;
 pub mod button;
 pub mod slider;
 pub mod toggle;
-// text entry & forms
-pub mod form;
+// text entry
 pub mod input;
 pub mod select;
 pub mod textarea;
@@ -22,7 +21,6 @@ pub mod textarea;
 pub mod breadcrumbs;
 pub mod list;
 pub mod menu;
-pub mod sidebar;
 pub mod tabs;
 pub mod tree;
 // data
@@ -54,10 +52,16 @@ pub mod log;
 pub mod markdown;
 pub mod steps;
 pub mod text;
-// ai / llm
+// ai / llm harness
 pub mod ai;
+pub mod ai_agents;
+pub mod ai_compose;
+pub mod ai_tools;
 
 pub use ai::*;
+pub use ai_agents::*;
+pub use ai_compose::*;
+pub use ai_tools::*;
 pub use bigtext::*;
 pub use breadcrumbs::*;
 pub use button::*;
@@ -67,7 +71,6 @@ pub use collapsible::*;
 pub use color::*;
 pub use digits::*;
 pub use footer::*;
-pub use form::*;
 pub use header::*;
 pub use input::*;
 pub use list::*;
@@ -84,7 +87,6 @@ pub use progress::*;
 pub use scroll::*;
 pub use scrollbar::*;
 pub use select::*;
-pub use sidebar::*;
 pub use slider::*;
 pub use spinner::*;
 pub use split::*;

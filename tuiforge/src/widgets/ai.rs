@@ -22,9 +22,9 @@ use ratatui::style::Modifier;
 use ratatui::widgets::{StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
-use crate::anim::{blink, since};
+use crate::anim::{blink, pulse, since};
 use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
-use crate::draw::{Border, Edge, FieldShape, fill, put, put_centered, put_right, st, wrap};
+use crate::draw::{Border, Edge, FieldShape, fill, put, put_centered, put_right, st, truncate, wrap};
 use crate::theme::{self, Rgb, Theme};
 use crate::widgets::charts::{Meter, MeterStyle};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
@@ -64,6 +64,33 @@ impl Role {
     }
 }
 
+// ───────────────────────────── ChatBlock ─────────────────────────────
+
+/// Block content inside a chat message: text, code, thinking, tool calls, dividers.
+#[derive(Clone, Debug)]
+pub enum ChatBlock {
+    /// Plain text with inline markdown (`**bold**`, `` `code` ``, bullets).
+    Text(String),
+    /// Code block with optional language.
+    Code { lang: Option<String>, text: String },
+    /// Thinking block (expandable).
+    Thinking {
+        text: String,
+        secs: f32,
+        collapsed: bool,
+        streaming: bool,
+    },
+    /// Tool call result.
+    ToolCall {
+        name: String,
+        summary: String,
+        status: ToolStatus,
+        duration_ms: Option<u32>,
+    },
+    /// Horizontal divider with label.
+    Divider(String),
+}
+
 // ───────────────────────────── ChatMessage ─────────────────────────────
 
 /// One message in a chat conversation.
@@ -74,6 +101,8 @@ pub struct ChatMessage {
     pub text: String,
     pub time: Option<String>,
     pub streaming: bool,
+    /// Rich blocks (text, code, thinking, tool calls). When empty, `text` is rendered as plain.
+    pub blocks: Vec<ChatBlock>,
 }
 
 impl ChatMessage {
@@ -85,6 +114,7 @@ impl ChatMessage {
             text: text.into(),
             time: None,
             streaming: false,
+            blocks: Vec::new(),
         }
     }
 
@@ -105,6 +135,18 @@ impl ChatMessage {
         self.streaming = v;
         self
     }
+
+    /// Add a block to the message.
+    pub fn block(mut self, b: ChatBlock) -> Self {
+        self.blocks.push(b);
+        self
+    }
+
+    /// Set all blocks at once.
+    pub fn with_blocks(mut self, blocks: Vec<ChatBlock>) -> Self {
+        self.blocks = blocks;
+        self
+    }
 }
 
 // ───────────────────────────── ChatState ─────────────────────────────
@@ -117,6 +159,17 @@ pub struct ChatState {
     pub follow: bool,
     pub hit: HitBox,
     pub scrollbar_state: ScrollbarState,
+    /// Hovered row index (set from mouse moves when the view has `.hover(true)`).
+    pub hover_row: Option<usize>,
+    /// Thinking header rows from the last render: (row rect, msg_idx, block_idx).
+    row_hits: Vec<(Rect, usize, usize)>,
+    /// Rows below the viewport while not following.
+    pub unread: usize,
+    /// `▾ N new` pill from the last render; a click re-follows.
+    pill_hit: HitBox,
+    /// Full text being revealed by [`ChatState::stream_tick`].
+    streaming_text: Option<String>,
+    streaming_start: Option<Instant>,
 }
 
 impl ChatState {
@@ -156,6 +209,62 @@ impl ChatState {
     /// Scroll to end.
     pub fn scroll_to_end(&mut self) {
         self.follow = true;
+    }
+
+    /// Toggle a thinking block collapsed state.
+    pub fn toggle_thinking(&mut self, msg_idx: usize, block_idx: usize) {
+        if let Some(msg) = self.messages.get_mut(msg_idx) {
+            if block_idx < msg.blocks.len() {
+                if let ChatBlock::Thinking { collapsed, .. } = &mut msg.blocks[block_idx] {
+                    *collapsed = !*collapsed;
+                }
+            }
+        }
+    }
+    /// Push `msg` and reveal `full_text` into it over time with [`ChatState::stream_tick`]. The
+    /// text lands in the last `Text` or `Thinking` block, or in `msg.text` when there are none.
+    pub fn begin_stream(&mut self, mut msg: ChatMessage, full_text: String, now: Instant) {
+        msg.streaming = true;
+        self.messages.push(msg);
+        self.streaming_text = Some(full_text);
+        self.streaming_start = Some(now);
+    }
+
+    /// Reveal the streamed text at `cps` chars per second; `true` while still revealing. The
+    /// message's `streaming` flag (and a streaming thinking block's) is cleared at the end.
+    pub fn stream_tick(&mut self, now: Instant, cps: f32) -> bool {
+        let (Some(start), Some(full)) = (self.streaming_start, self.streaming_text.as_deref()) else {
+            return false;
+        };
+        let elapsed = now.saturating_duration_since(start).as_secs_f32();
+        let visible = revealed(full, elapsed, cps);
+        let done = visible.len() >= full.len();
+        if let Some(msg) = self.messages.last_mut() {
+            let target = msg.blocks.iter_mut().rev().find_map(|b| match b {
+                ChatBlock::Text(t) => Some((t, None)),
+                ChatBlock::Thinking { text, streaming, .. } => Some((text, Some(streaming))),
+                _ => None,
+            });
+            match target {
+                Some((text, streaming)) => {
+                    text.clear();
+                    text.push_str(visible);
+                    if let Some(s) = streaming {
+                        *s = !done;
+                    }
+                }
+                None => {
+                    msg.text.clear();
+                    msg.text.push_str(visible);
+                }
+            }
+            msg.streaming = !done;
+        }
+        if done {
+            self.streaming_text = None;
+            self.streaming_start = None;
+        }
+        !done
     }
 
     /// Total rows the conversation takes at `width` with the default look (`ChatView::new()`).
@@ -198,20 +307,40 @@ impl Interactive for ChatState {
                 self.follow = false;
                 Outcome::changed_if(before != self.scroll)
             }
-            KeyCode::End => {
+            KeyCode::End | KeyCode::Char('G') => {
                 self.follow = true;
-                Outcome::Changed
+                self.unread = 0;
+                Outcome::Consumed
             }
             _ => Outcome::Ignored,
         }
     }
 
     fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
+        use crate::core::{is_left_down, is_move, mouse_in, mouse_pos};
+        if is_move(&m) {
+            let before = self.hover_row;
+            self.hover_row = mouse_in(self.hit.area, &m)
+                .then(|| self.scroll + (mouse_pos(&m).y - self.hit.area.y) as usize);
+            return Outcome::changed_if(before != self.hover_row);
+        }
+        if is_left_down(&m) {
+            if self.pill_hit.area.width > 0 && mouse_in(self.pill_hit.area, &m) {
+                self.follow = true;
+                self.unread = 0;
+                return Outcome::Changed;
+            }
+            let pos = mouse_pos(&m);
+            if let Some(&(_, mi, bi)) = self.row_hits.iter().find(|(r, _, _)| r.contains(pos)) {
+                self.toggle_thinking(mi, bi);
+                return Outcome::Changed;
+            }
+        }
         let mut out = Outcome::Ignored;
         if let Some(d) = wheel_delta(&m) {
             let before = self.scroll;
             self.scroll = (self.scroll as i64 + d as i64 * 3).max(0) as usize;
-            self.follow = d > 0 && self.follow; // scrolling up leaves follow mode; render re-arms it at the bottom
+            self.follow = d > 0 && self.follow;
             out = Outcome::changed_if(before != self.scroll);
         }
         out | self.scrollbar_state.handle_mouse(m)
@@ -231,6 +360,8 @@ pub struct ChatView {
     now: Option<Instant>,
     theme: Option<Theme>,
     max_width: Option<u16>,
+    compact: bool,
+    hover: bool,
 }
 
 impl ChatView {
@@ -244,6 +375,8 @@ impl ChatView {
             now: None,
             theme: None,
             max_width: None,
+            compact: false,
+            hover: false,
         }
     }
 
@@ -283,6 +416,18 @@ impl ChatView {
         self
     }
 
+    /// Compact mode (no blank rows between messages).
+    pub fn compact(mut self, v: bool) -> Self {
+        self.compact = v;
+        self
+    }
+
+    /// Enable hover highlighting.
+    pub fn hover(mut self, v: bool) -> Self {
+        self.hover = v;
+        self
+    }
+
     /// Maximum bubble width.
     pub fn max_width(mut self, w: u16) -> Self {
         self.max_width = Some(w);
@@ -296,18 +441,167 @@ impl Default for ChatView {
     }
 }
 
+/// Inline style of a run inside a text row.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Inline {
+    Plain,
+    Bold,
+    Code,
+    Heading,
+}
+
+/// Split one markdown-ish line into styled runs: `**bold**`, `` `code` ``, `#`/`##` headings,
+/// `- `/`* ` bullets become `• `; numbered lists are kept as written.
+fn inline_runs(line: &str) -> Vec<(String, Inline)> {
+    let trimmed = line.trim_start();
+    let indent = &line[..line.len() - trimmed.len()];
+    if let Some(rest) = trimmed.strip_prefix("## ").or_else(|| trimmed.strip_prefix("# ")) {
+        return vec![(format!("{indent}{rest}"), Inline::Heading)];
+    }
+    let (prefix, body) = match trimmed.strip_prefix("- ").or_else(|| trimmed.strip_prefix("* ")) {
+        Some(rest) => (format!("{indent}• "), rest),
+        None => (indent.to_string(), trimmed),
+    };
+    let mut runs: Vec<(String, Inline)> = Vec::new();
+    if !prefix.is_empty() {
+        runs.push((prefix, Inline::Plain));
+    }
+    let mut cur = String::new();
+    let mut style = Inline::Plain;
+    let mut it = body.chars().peekable();
+    let flush = |cur: &mut String, style: Inline, runs: &mut Vec<(String, Inline)>| {
+        if !cur.is_empty() {
+            runs.push((std::mem::take(cur), style));
+        }
+    };
+    while let Some(c) = it.next() {
+        match c {
+            '`' => {
+                flush(&mut cur, style, &mut runs);
+                style = if style == Inline::Code { Inline::Plain } else { Inline::Code };
+            }
+            '*' if style != Inline::Code && it.peek() == Some(&'*') => {
+                it.next();
+                flush(&mut cur, style, &mut runs);
+                style = if style == Inline::Bold { Inline::Plain } else { Inline::Bold };
+            }
+            _ => cur.push(c),
+        }
+    }
+    flush(&mut cur, style, &mut runs);
+    if runs.is_empty() {
+        runs.push((String::new(), Inline::Plain));
+    }
+    runs
+}
+
+/// Greedy word wrap over styled runs; every output row is a list of runs whose widths sum to
+/// at most `width`.
+fn wrap_runs(runs: &[(String, Inline)], width: usize) -> Vec<Vec<(String, Inline)>> {
+    let width = width.max(1);
+    let mut rows: Vec<Vec<(String, Inline)>> = vec![Vec::new()];
+    let mut used = 0usize;
+    let push = |rows: &mut Vec<Vec<(String, Inline)>>, used: &mut usize, word: &str, style: Inline| {
+        let w = word.width();
+        if *used > 0 && *used + w > width {
+            rows.push(Vec::new());
+            *used = 0;
+        }
+        // a word longer than the row is hard-split
+        let mut rest = word;
+        while rest.width() > width {
+            let mut cut = 0;
+            let mut cw = 0;
+            for (i, ch) in rest.char_indices() {
+                let c = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
+                if cw + c > width - *used {
+                    break;
+                }
+                cw += c;
+                cut = i + ch.len_utf8();
+            }
+            if cut == 0 {
+                rows.push(Vec::new());
+                *used = 0;
+                continue;
+            }
+            rows.last_mut().unwrap().push((rest[..cut].to_string(), style));
+            rows.push(Vec::new());
+            *used = 0;
+            rest = &rest[cut..];
+        }
+        let row = rows.last_mut().unwrap();
+        let leading = *used == 0;
+        let piece = if leading { rest.trim_start() } else { rest };
+        if piece.is_empty() {
+            return;
+        }
+        match row.last_mut() {
+            Some((t, s)) if *s == style => t.push_str(piece),
+            _ => row.push((piece.to_string(), style)),
+        }
+        *used += piece.width();
+    };
+    for (text, style) in runs {
+        // keep the space attached to the word before it so runs re-join seamlessly
+        let mut start = 0;
+        let bytes = text.as_bytes();
+        for (i, b) in bytes.iter().enumerate() {
+            if *b == b' ' {
+                let word = &text[start..=i];
+                push(&mut rows, &mut used, word, *style);
+                start = i + 1;
+            }
+        }
+        if start < text.len() {
+            push(&mut rows, &mut used, &text[start..], *style);
+        }
+    }
+    rows
+}
+
 /// One laid-out row of the conversation.
 struct Row {
     /// Column offset inside the view and painted width (bubbles are narrower than the view).
     x: u16,
     w: u16,
     text: String,
+    /// Styled runs for markdown text rows; empty for every other kind.
+    runs: Vec<(String, Inline)>,
     kind: RowKind,
     role: Role,
-    /// Right-aligned secondary text (time) on author rows.
+    /// Right-aligned secondary text: time on author rows, language on the first code row,
+    /// duration on tool rows.
     right: Option<String>,
     /// Streaming caret after the text.
     caret: bool,
+    /// Tool status on tool rows.
+    status: Option<ToolStatus>,
+    /// Message and block index, for thinking-header clicks.
+    msg_idx: usize,
+    block_idx: usize,
+}
+
+impl Row {
+    fn new(x: u16, w: u16, kind: RowKind, role: Role, msg_idx: usize, block_idx: usize) -> Self {
+        Self {
+            x,
+            w,
+            text: String::new(),
+            runs: Vec::new(),
+            kind,
+            role,
+            right: None,
+            caret: false,
+            status: None,
+            msg_idx,
+            block_idx,
+        }
+    }
+    fn text(mut self, t: impl Into<String>) -> Self {
+        self.text = t.into();
+        self
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -316,6 +610,10 @@ enum RowKind {
     Text,
     Code,
     Blank,
+    ThinkingHeader,
+    ThinkingBody,
+    ToolCall,
+    Divider,
 }
 
 /// Hard wrap that keeps indentation (for code); `wrap()` collapses leading spaces.
@@ -341,99 +639,163 @@ impl ChatView {
     /// Lay the conversation out as rows for `width`; the same list drives counting, scrolling
     /// and drawing so they can never disagree.
     fn rows(&self, state: &ChatState, width: u16) -> Vec<Row> {
-        let mut rows = Vec::new();
+        let mut rows: Vec<Row> = Vec::new();
         if width < 4 {
             return rows;
         }
         for (mi, msg) in state.messages.iter().enumerate() {
-            if mi > 0 {
-                rows.push(Row {
-                    x: 0,
-                    w: 0,
-                    text: String::new(),
-                    kind: RowKind::Blank,
-                    role: msg.role,
-                    right: None,
-                    caret: false,
-                });
+            // a lone divider is a full-width rule, not a message
+            if let [ChatBlock::Divider(label)] = msg.blocks.as_slice() {
+                if mi > 0 && !self.compact {
+                    rows.push(Row::new(0, 0, RowKind::Blank, msg.role, mi, 0));
+                }
+                rows.push(Row::new(0, width, RowKind::Divider, msg.role, mi, 0).text(label.clone()));
+                continue;
             }
-            // horizontal placement
-            let (x, w) = match msg.role {
-                Role::User if self.bubbles => {
-                    let max_w = self.max_width.unwrap_or(width * 3 / 4).clamp(8, width);
-                    let longest = msg.text.lines().map(|l| l.width()).max().unwrap_or(0) as u16 + 2;
-                    let w = longest
-                        .max(msg.author.as_deref().unwrap_or("User").width() as u16 + 2)
-                        .min(max_w);
-                    (width - w, w)
-                }
-                Role::Assistant if self.bubbles => (0, width),
-                _ => (0, width),
-            };
-            let author = msg
-                .author
-                .clone()
-                .unwrap_or_else(|| msg.role.label().to_string());
-            let right = if self.show_time {
-                msg.time.clone()
+            if mi > 0 && !self.compact {
+                rows.push(Row::new(0, 0, RowKind::Blank, msg.role, mi, 0));
+            }
+            // horizontal placement: user bubbles hug the right edge
+            let (x, w) = if msg.role == Role::User && self.bubbles {
+                let max_w = self.max_width.unwrap_or(width * 3 / 4).clamp(8, width);
+                let longest = msg
+                    .text
+                    .lines()
+                    .chain(msg.blocks.iter().filter_map(|b| match b {
+                        ChatBlock::Text(t) => Some(t.as_str()),
+                        _ => None,
+                    }).flat_map(|t| t.lines()))
+                    .map(|l| l.width())
+                    .max()
+                    .unwrap_or(0) as u16
+                    + 2;
+                let author_w = msg.author.as_deref().unwrap_or("User").width() as u16 + 2;
+                let w = longest.max(author_w).min(max_w);
+                (width - w, w)
             } else {
-                None
+                (0, width)
             };
-            rows.push(Row {
-                x,
-                w,
-                text: author,
-                kind: RowKind::Author,
-                role: msg.role,
-                right,
-                caret: false,
-            });
+            let author = msg.author.clone().unwrap_or_else(|| msg.role.label().to_string());
+            let mut head = Row::new(x, w, RowKind::Author, msg.role, mi, 0).text(author);
+            head.right = if self.show_time { msg.time.clone() } else { None };
+            rows.push(head);
 
-            // body: prose is word-wrapped, fenced code is hard-wrapped and keeps indentation
             let text_w = w.saturating_sub(2) as usize;
-            let mut in_fence = false;
-            for line in msg.text.lines() {
-                if line.trim_start().starts_with("```") {
-                    in_fence = !in_fence;
-                    continue; // the fence itself is not shown; the code background marks it
+            let first_body = rows.len();
+            if msg.blocks.is_empty() {
+                let mut in_fence = false;
+                for line in msg.text.lines() {
+                    if line.trim_start().starts_with("```") {
+                        in_fence = !in_fence;
+                        continue;
+                    }
+                    if in_fence {
+                        for piece in hard_wrap(line, text_w) {
+                            rows.push(Row::new(x, w, RowKind::Code, msg.role, mi, 0).text(piece));
+                        }
+                    } else {
+                        for piece in wrap(line, text_w) {
+                            rows.push(Row::new(x, w, RowKind::Text, msg.role, mi, 0).text(piece));
+                        }
+                    }
                 }
-                let (kind, pieces) = if in_fence {
-                    (RowKind::Code, hard_wrap(line, text_w))
-                } else {
-                    (RowKind::Text, wrap(line, text_w))
-                };
-                for piece in pieces {
-                    rows.push(Row {
-                        x,
-                        w,
-                        text: piece,
-                        kind,
-                        role: msg.role,
-                        right: None,
-                        caret: false,
-                    });
+            }
+            for (bi, block) in msg.blocks.iter().enumerate() {
+                match block {
+                    ChatBlock::Text(text) => {
+                        for line in text.lines() {
+                            if line.trim().is_empty() {
+                                rows.push(Row::new(x, w, RowKind::Text, msg.role, mi, bi));
+                                continue;
+                            }
+                            for runs in wrap_runs(&inline_runs(line), text_w) {
+                                let mut row = Row::new(x, w, RowKind::Text, msg.role, mi, bi);
+                                row.runs = runs;
+                                rows.push(row);
+                            }
+                        }
+                        // a streaming text block that has not produced a line yet still gets a row
+                        if text.is_empty() {
+                            rows.push(Row::new(x, w, RowKind::Text, msg.role, mi, bi));
+                        }
+                    }
+                    ChatBlock::Code { lang, text } => {
+                        // header row carries the language chip; code lines never fight it
+                        let mut head = Row::new(x, w, RowKind::Code, msg.role, mi, bi);
+                        head.right = Some(lang.clone().unwrap_or_default());
+                        rows.push(head);
+                        for line in text.lines() {
+                            for piece in hard_wrap(line, text_w.saturating_sub(1)) {
+                                rows.push(Row::new(x, w, RowKind::Code, msg.role, mi, bi).text(format!(" {piece}")));
+                            }
+                        }
+                    }
+                    ChatBlock::Thinking { text, secs, collapsed, streaming } => {
+                        let header = if *streaming {
+                            "▾ Thinking…".to_string()
+                        } else if *collapsed {
+                            format!("▸ Thought for {secs:.1}s")
+                        } else {
+                            format!("▾ Thought for {secs:.1}s")
+                        };
+                        let mut row = Row::new(x, w, RowKind::ThinkingHeader, msg.role, mi, bi).text(header);
+                        row.caret = *streaming;
+                        rows.push(row);
+                        if !*collapsed || *streaming {
+                            for line in text.lines() {
+                                for piece in wrap(line, text_w.saturating_sub(2)) {
+                                    rows.push(
+                                        Row::new(x, w, RowKind::ThinkingBody, msg.role, mi, bi)
+                                            .text(format!("  {piece}")),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    ChatBlock::ToolCall { name, summary, status, duration_ms } => {
+                        let mut row = Row::new(x, w, RowKind::ToolCall, msg.role, mi, bi);
+                        row.status = Some(*status);
+                        row.text = name.clone();
+                        row.runs = vec![(summary.clone(), Inline::Plain)];
+                        row.right = duration_ms.map(fmt_ms);
+                        rows.push(row);
+                    }
+                    ChatBlock::Divider(label) => {
+                        rows.push(Row::new(x, w, RowKind::Divider, msg.role, mi, bi).text(label.clone()));
+                    }
                 }
             }
             if msg.streaming {
-                match rows.last_mut() {
-                    Some(last)
-                        if last.kind != RowKind::Author && last.text.width() + 1 < text_w =>
-                    {
-                        last.caret = true
+                // caret on the last text row, unless a thinking block is the one streaming
+                let thinking = rows[first_body..].last().is_some_and(|r| {
+                    matches!(r.kind, RowKind::ThinkingHeader | RowKind::ThinkingBody)
+                });
+                if !thinking {
+                    match rows.last_mut() {
+                        Some(last) if last.kind == RowKind::Text || last.kind == RowKind::Code => {
+                            last.caret = true;
+                        }
+                        _ => {
+                            let mut row = Row::new(x, w, RowKind::Text, msg.role, mi, 0);
+                            row.caret = true;
+                            rows.push(row);
+                        }
                     }
-                    _ => rows.push(Row {
-                        x,
-                        w,
-                        text: String::new(),
-                        kind: RowKind::Text,
-                        role: msg.role,
-                        right: None,
-                        caret: true,
-                    }),
                 }
             }
         }
         rows
+    }
+}
+
+/// `340ms`, `1.2s`, `1m 03s`.
+pub fn fmt_ms(ms: u32) -> String {
+    if ms < 1000 {
+        format!("{ms}ms")
+    } else if ms < 60_000 {
+        format!("{:.1}s", ms as f32 / 1000.0)
+    } else {
+        format!("{}m {:02}s", ms / 60_000, (ms / 1000) % 60)
     }
 }
 
@@ -442,6 +804,8 @@ impl StatefulWidget for ChatView {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         state.hit.set_area(area);
+        state.row_hits.clear();
+        state.pill_hit.set_area(Rect::ZERO);
         if area.width < 4 || area.height == 0 {
             return;
         }
@@ -453,79 +817,159 @@ impl StatefulWidget for ChatView {
         if state.follow || state.scroll >= max_scroll {
             state.scroll = max_scroll;
             state.follow = true;
+            state.unread = 0;
+        } else {
+            state.unread = max_scroll - state.scroll;
         }
-        let caret_on = blink(self.now.map(crate::anim::since).unwrap_or(0.0), 1.0);
+        let el = self.now.map(since).unwrap_or(0.0);
+        let caret_on = blink(el, 1.0);
 
         for (i, row) in rows.iter().enumerate().skip(state.scroll).take(viewport) {
             let y = area.y + (i - state.scroll) as u16;
             let color = row.role.color(&th);
-            let (bg, fg) = match (row.role, row.kind, self.bubbles) {
+            let hovered = self.hover && state.hover_row == Some(i) && row.kind != RowKind::Blank;
+            let (mut bg, fg) = match (row.role, row.kind, self.bubbles) {
                 (_, RowKind::Blank, _) => continue,
-                (Role::User, _, true) => (th.surface, th.text),
                 (_, RowKind::Code, _) => (th.markdown_code_bg, th.text),
-                (Role::System, _, _) | (Role::Tool, RowKind::Text, _) => {
-                    (th.background, th.text_muted)
-                }
+                (Role::User, _, true) => (th.surface, th.text),
+                (_, RowKind::ThinkingHeader | RowKind::ThinkingBody, _) => (th.background, th.text_muted),
+                (Role::System, _, _) | (Role::Tool, RowKind::Text, _) => (th.background, th.text_muted),
                 _ => (th.background, th.text),
             };
-            let line = Rect {
-                x: area.x + row.x,
-                y,
-                width: row.w,
-                height: 1,
-            };
+            if hovered && row.kind != RowKind::Code {
+                bg = th.hover_bg;
+            }
+            let line = Rect { x: area.x + row.x, y, width: row.w, height: 1 };
             fill(buf, line, bg);
-            if row.role == Role::Assistant && self.bubbles {
+            if row.role == Role::Assistant && self.bubbles && row.kind != RowKind::Divider {
                 self.bar.draw(buf, line.x, y, 1, false, color, bg);
             }
-            let inner = Rect {
-                x: line.x + 1,
-                width: line.width.saturating_sub(2),
-                ..line
-            };
+            let inner = Rect { x: line.x + 1, width: line.width.saturating_sub(2), ..line };
+
             match row.kind {
                 RowKind::Author => {
-                    let style = st(color, bg).add_modifier(Modifier::BOLD);
-                    let text = if row.role == Role::Tool {
-                        format!("⊛ {}", row.text)
-                    } else {
-                        row.text.clone()
-                    };
+                    let text = if row.role == Role::Tool { format!("⊛ {}", row.text) } else { row.text.clone() };
                     if row.role == Role::System {
-                        put_centered(
-                            buf,
-                            inner,
-                            &text,
-                            st(th.text_muted, bg).add_modifier(Modifier::BOLD),
-                        );
+                        put_centered(buf, inner, &text, st(th.text_muted, bg).add_modifier(Modifier::BOLD));
                     } else {
-                        put(buf, inner.x, y, &text, inner.width, style);
+                        put(buf, inner.x, y, &text, inner.width, st(color, bg).add_modifier(Modifier::BOLD));
                     }
                     if let Some(r) = &row.right {
                         put_right(buf, inner, r, st(th.text_muted, bg));
                     }
                 }
-                RowKind::Text | RowKind::Code => {
-                    let used = if row.role == Role::System {
-                        put_centered(buf, inner, &row.text, st(fg, bg));
-                        (inner.width + row.text.width() as u16) / 2
+                RowKind::Text => {
+                    let used = if row.runs.is_empty() {
+                        if row.role == Role::System {
+                            put_centered(buf, inner, &row.text, st(fg, bg));
+                            (inner.width + row.text.width() as u16) / 2
+                        } else {
+                            put(buf, inner.x, y, &row.text, inner.width, st(fg, bg))
+                        }
                     } else {
-                        put(buf, inner.x, y, &row.text, inner.width, st(fg, bg))
+                        let mut x = inner.x;
+                        for (text, style) in &row.runs {
+                            if x >= inner.right() {
+                                break;
+                            }
+                            let s = match style {
+                                Inline::Plain => st(fg, bg),
+                                Inline::Bold => st(th.text, bg).add_modifier(Modifier::BOLD),
+                                Inline::Code => st(th.accent, th.markdown_code_bg),
+                                Inline::Heading => st(color, bg).add_modifier(Modifier::BOLD),
+                            };
+                            x += put(buf, x, y, text, inner.right() - x, s);
+                        }
+                        x - inner.x
                     };
                     if row.caret && caret_on {
                         put(buf, inner.x + used, y, "▌", 1, st(color, bg));
                     }
                 }
+                RowKind::Code => {
+                    let used = put(buf, inner.x, y, &row.text, inner.width, st(fg, bg));
+                    if let Some(lang) = row.right.as_deref().filter(|l| !l.is_empty()) {
+                        // painted language chip on the block's header row
+                        let chip = format!(" {lang} ");
+                        let cw = (chip.width() as u16).min(inner.width);
+                        put(buf, inner.right() - cw, y, &chip, cw, st(th.accent, th.surface));
+                    }
+                    if row.caret && caret_on {
+                        put(buf, inner.x + used, y, "▌", 1, st(color, bg));
+                    }
+                }
+                RowKind::ThinkingHeader => {
+                    let base = st(th.text_muted, bg).add_modifier(Modifier::ITALIC);
+                    if row.caret {
+                        // a 6-cell brighter window sweeps across the label while thinking streams
+                        let chars: Vec<char> = row.text.chars().collect();
+                        let n = chars.len() as f32;
+                        let sweep = (el / 1.4).fract() * (n + 12.0) - 6.0;
+                        let mut x = inner.x;
+                        for (ci, ch) in chars.iter().enumerate() {
+                            if x >= inner.right() {
+                                break;
+                            }
+                            let d = (ci as f32 - sweep).abs();
+                            let fg = th.text_muted.blend(th.text, (1.0 - d / 3.0).clamp(0.0, 1.0));
+                            x += put(buf, x, y, ch.encode_utf8(&mut [0; 4]), 1, st(fg, bg).add_modifier(Modifier::ITALIC));
+                        }
+                    } else {
+                        put(buf, inner.x, y, &row.text, inner.width, base);
+                    }
+                    state.row_hits.push((line, row.msg_idx, row.block_idx));
+                }
+                RowKind::ThinkingBody => {
+                    put(buf, inner.x, y, &row.text, inner.width, st(th.text_muted, bg).add_modifier(Modifier::ITALIC));
+                }
+                RowKind::ToolCall => {
+                    let status = row.status.unwrap_or(ToolStatus::Pending);
+                    let (glyph, gc): (&str, Rgb) = match status {
+                        ToolStatus::Pending => ("○", th.text_muted),
+                        ToolStatus::Running => (spinners::DOTS.frame(el), th.primary),
+                        ToolStatus::Done => ("✓", th.success),
+                        ToolStatus::Error => ("✗", th.error),
+                    };
+                    let right_w = row.right.as_ref().map_or(0, |r| r.width() as u16 + 1);
+                    let mut x = inner.x;
+                    x += put(buf, x, y, "⊛", 1, st(th.accent, bg));
+                    x += put(buf, x, y, " ", 1, st(fg, bg));
+                    x += put(buf, x, y, glyph, 1, st(gc, bg));
+                    x += put(buf, x, y, " ", 1, st(fg, bg));
+                    let name_style = st(th.text, bg).add_modifier(Modifier::BOLD);
+                    x += put(buf, x, y, &row.text, inner.right().saturating_sub(x + right_w), name_style);
+                    if let Some((summary, _)) = row.runs.first() {
+                        let avail = inner.right().saturating_sub(x + right_w + 2) as usize;
+                        if avail > 3 {
+                            put(buf, x + 2, y, &truncate(summary, avail), avail as u16, st(th.text_muted, bg));
+                        }
+                    }
+                    if let Some(r) = &row.right {
+                        put_right(buf, inner, r, st(th.text_muted, bg));
+                    }
+                }
+                RowKind::Divider => {
+                    let label = if row.text.is_empty() { String::new() } else { format!(" {} ", row.text) };
+                    let dash_w = inner.width.saturating_sub(label.width() as u16) as usize;
+                    let left = dash_w / 2;
+                    let text = format!("{}{}{}", "─".repeat(left), label, "─".repeat(dash_w - left));
+                    put(buf, inner.x, y, &text, inner.width, st(th.border, bg));
+                }
                 RowKind::Blank => {}
             }
         }
 
+        if !state.follow && state.unread > 0 {
+            // painted "N new" pill; a click re-follows
+            let text = format!(" ▾ {} new ", state.unread);
+            let w = (text.width() as u16).min(area.width);
+            let pill = Rect { x: area.right().saturating_sub(w + 2), y: area.bottom() - 1, width: w, height: 1 };
+            put(buf, pill.x, pill.y, &text, w, st(th.primary.text_on(0.9), th.primary).add_modifier(Modifier::BOLD));
+            state.pill_hit.set_area(pill);
+        }
+
         if total > viewport {
-            let sb_area = Rect {
-                x: area.right() - 1,
-                width: 1,
-                ..area
-            };
+            let sb_area = Rect { x: area.right() - 1, width: 1, ..area };
             Scrollbar::vertical(total, viewport)
                 .offset(state.scroll)
                 .theme(&th)
@@ -534,15 +978,35 @@ impl StatefulWidget for ChatView {
     }
 }
 
-// ───────────────────────────── StreamText ─────────────────────────────
 
-/// Streaming text reveal animation.
-#[derive(Clone, Debug)]
+/// Cursor style for streaming text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StreamCursor {
+    /// Block cursor `▌`.
+    Block,
+    /// Bar cursor `▏`.
+    Bar,
+    /// Underline on last char.
+    Underline,
+    /// No cursor.
+    None,
+}
+
+impl Default for StreamCursor {
+    fn default() -> Self {
+        Self::Block
+    }
+}
+
+// ───────────────────────────── StreamText ─────────────────────────────
 pub struct StreamText {
     text: String,
     elapsed: f32,
     cps: f32,
     caret: bool,
+    cursor: StreamCursor,
+    fade: bool,
+    word_mode: bool,
     theme: Option<Theme>,
 }
 
@@ -554,6 +1018,9 @@ impl StreamText {
             elapsed: 0.0,
             cps: 40.0,
             caret: true,
+            cursor: StreamCursor::Block,
+            fade: false,
+            word_mode: false,
             theme: None,
         }
     }
@@ -591,6 +1058,24 @@ impl StreamText {
     pub fn done(&self) -> bool {
         (self.elapsed * self.cps) >= self.text.chars().count() as f32
     }
+
+    /// Set cursor style.
+    pub fn cursor(mut self, c: StreamCursor) -> Self {
+        self.cursor = c;
+        self
+    }
+
+    /// Fade newest chars from muted to text color.
+    pub fn fade(mut self, v: bool) -> Self {
+        self.fade = v;
+        self
+    }
+
+    /// Reveal whole words at once.
+    pub fn word_mode(mut self, v: bool) -> Self {
+        self.word_mode = v;
+        self
+    }
 }
 
 /// The prefix of `text` revealed `elapsed` seconds into a stream at `cps` chars per second.
@@ -602,29 +1087,146 @@ pub fn revealed(text: &str, elapsed: f32, cps: f32) -> &str {
     }
 }
 
+/// Like [`revealed`] but never stops mid-word: the cut advances to the next whitespace.
+pub fn revealed_words(text: &str, elapsed: f32, cps: f32) -> &str {
+    let head = revealed(text, elapsed, cps);
+    if head.len() >= text.len() {
+        return text;
+    }
+    match text[head.len()..].find(char::is_whitespace) {
+        Some(off) => &text[..head.len() + off],
+        None => text,
+    }
+}
+
 impl Widget for StreamText {
     fn render(self, area: Rect, buf: &mut Buffer) {
         if area.width < 1 || area.height == 0 {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
-        let rev = revealed(&self.text, self.elapsed, self.cps);
+        let bg = th.background;
+        let rev = if self.word_mode {
+            revealed_words(&self.text, self.elapsed, self.cps)
+        } else {
+            revealed(&self.text, self.elapsed, self.cps)
+        };
+        let total = rev.chars().count();
+        // newest 12 chars fade in from muted to text colour by age
+        const FADE: usize = 12;
         let lines = wrap(rev, area.width as usize);
+        let mut seen = 0usize;
         let mut y = area.y;
+        let mut end = (area.x, area.y);
         for line in lines.iter().take(area.height as usize) {
-            put(buf, area.x, y, line, area.width, st(th.text, th.background));
-            y = y.saturating_add(1);
+            let mut x = area.x;
+            if self.fade && !self.done() {
+                for ch in line.chars() {
+                    let age = total.saturating_sub(seen + 1);
+                    let t = if age >= FADE { 1.0 } else { age as f32 / FADE as f32 };
+                    let fg = th.text_muted.blend(th.text, t);
+                    x += put(buf, x, y, ch.encode_utf8(&mut [0; 4]), area.right().saturating_sub(x), st(fg, bg));
+                    seen += 1;
+                }
+                // the wrap dropped one space per line break
+                seen += 1;
+            } else {
+                x += put(buf, x, y, line, area.width, st(th.text, bg));
+            }
+            end = (x, y);
+            y += 1;
         }
-
-        if self.caret && !self.done() && y > area.y {
-            let last_y = y.saturating_sub(1);
-            let empty = String::new();
-            let last_line = lines.last().unwrap_or(&empty);
-            let x = area.x + last_line.width() as u16;
-            if x < area.right() && blink(self.elapsed, 1.0) {
-                put(buf, x, last_y, "▌", 1, st(th.primary, th.background));
+        if self.caret && !self.done() && blink(self.elapsed, 1.0) {
+            let (x, y) = end;
+            match self.cursor {
+                StreamCursor::Block if x < area.right() => {
+                    put(buf, x, y, "▌", 1, st(th.primary, bg));
+                }
+                StreamCursor::Bar if x < area.right() => {
+                    put(buf, x, y, "▏", 1, st(th.primary, bg));
+                }
+                StreamCursor::Underline if x > area.x => {
+                    if let Some(cell) = buf.cell_mut((x - 1, y)) {
+                        cell.modifier |= Modifier::UNDERLINED;
+                    }
+                }
+                _ => {}
             }
         }
+    }
+}
+
+// ───────────────────────────── TypingIndicator ─────────────────────────────
+
+/// Three-dot typing animation (traveling wave pulse).
+pub struct TypingIndicator {
+    label: String,
+    now: Option<Instant>,
+    theme: Option<Theme>,
+}
+
+impl TypingIndicator {
+    /// Create with default label.
+    pub fn new() -> Self {
+        Self {
+            label: "Assistant is typing".to_string(),
+            now: None,
+            theme: None,
+        }
+    }
+
+    /// Set label text.
+    pub fn label(mut self, s: impl Into<String>) -> Self {
+        self.label = s.into();
+        self
+    }
+
+    /// Set animation time.
+    pub fn now(mut self, n: Instant) -> Self {
+        self.now = Some(n);
+        self
+    }
+
+    /// Set theme.
+    pub fn theme(mut self, th: &Theme) -> Self {
+        self.theme = Some(*th);
+        self
+    }
+}
+
+impl Default for TypingIndicator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Widget for TypingIndicator {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        if area.width < 1 || area.height == 0 {
+            return;
+        }
+        let th = self.theme.unwrap_or_else(theme::current);
+        let elapsed = self.now.map(since).unwrap_or(0.0);
+        
+        let mut x = area.x;
+        for i in 0..3 {
+            let phase = elapsed - i as f32 * 0.15;
+            let t = pulse(phase, 0.9);
+            let color = th.text_muted.blend(th.primary, t);
+            put(buf, x, area.y, "●", 1, st(color, th.background));
+            x = x.saturating_add(1);
+            if x >= area.right() {
+                return;
+            }
+            put(buf, x, area.y, " ", 1, st(th.text, th.background));
+            x = x.saturating_add(1);
+            if x >= area.right() {
+                return;
+            }
+        }
+        
+        let label_style = st(th.text_muted, th.background);
+        put(buf, x, area.y, &self.label, area.right().saturating_sub(x), label_style);
     }
 }
 
@@ -639,6 +1241,8 @@ pub struct Thinking {
     spinner: &'static SpinnerDef,
     started: Option<Instant>,
     now: Option<Instant>,
+    elapsed_secs: Option<f32>,
+    show_elapsed: bool,
     shimmer: bool,
     color: Option<Rgb>,
     theme: Option<Theme>,
@@ -653,6 +1257,8 @@ impl Thinking {
             spinner: &spinners::DOTS,
             started: None,
             now: None,
+            elapsed_secs: None,
+            show_elapsed: false,
             shimmer: true,
             color: None,
             theme: None,
@@ -698,6 +1304,18 @@ impl Thinking {
     /// Set theme.
     pub fn theme(mut self, th: &Theme) -> Self {
         self.theme = Some(*th);
+        self
+    }
+
+    /// Set elapsed time explicitly.
+    pub fn elapsed(mut self, secs: f32) -> Self {
+        self.elapsed_secs = Some(secs);
+        self
+    }
+
+    /// Append elapsed time label `(N.Ns)`.
+    pub fn elapsed_label(mut self, v: bool) -> Self {
+        self.show_elapsed = v;
         self
     }
 }
@@ -747,11 +1365,11 @@ impl Widget for Thinking {
             tail.push(' ');
             tail.push_str(d);
         }
-        if let Some(started) = self.started {
-            tail.push_str(&format!(
-                " ({:.1}s)",
-                now.saturating_duration_since(started).as_secs_f32()
-            ));
+        let secs = self
+            .elapsed_secs
+            .or_else(|| self.started.map(|s| now.saturating_duration_since(s).as_secs_f32()));
+        if let Some(secs) = secs.filter(|_| self.show_elapsed || self.started.is_some()) {
+            tail.push_str(&format!(" ({secs:.1}s)"));
         }
         if !tail.is_empty() && x < area.right() {
             put(
@@ -963,7 +1581,7 @@ pub enum ToolStatus {
     Pending,
     Running,
     Done,
-    Failed,
+    Error,
 }
 
 // ───────────────────────────── ToolCall ─────────────────────────────
@@ -1079,7 +1697,7 @@ impl Widget for ToolCall {
                 (frames.get(idx).copied().unwrap_or("⠋"), th.primary)
             }
             ToolStatus::Done => ("✓", th.success),
-            ToolStatus::Failed => ("✗", th.error),
+            ToolStatus::Error => ("✗", th.error),
         };
 
         Border::Round.draw(buf, area, color, th.background);
@@ -1714,14 +2332,25 @@ pub enum ApprovalChoice {
 #[derive(Clone, Debug, Default)]
 pub struct ApprovalState {
     pub choice: Option<ApprovalChoice>,
+    /// Focused button: 0 once, 1 always, 2 deny.
     pub focus: usize,
     pub hits: [HitBox; 3],
+    /// Set by a `.danger(true)` render: `Always` is not offered.
+    pub no_always: bool,
 }
 
 impl ApprovalState {
     /// Take choice.
     pub fn take_choice(&mut self) -> Option<ApprovalChoice> {
         self.choice.take()
+    }
+
+    fn choice_at(&self, i: usize) -> ApprovalChoice {
+        match i {
+            0 => ApprovalChoice::Once,
+            1 if !self.no_always => ApprovalChoice::Always,
+            _ => ApprovalChoice::Deny,
+        }
     }
 }
 
@@ -1736,7 +2365,7 @@ impl Interactive for ApprovalState {
                 self.choice = Some(ApprovalChoice::Once);
                 Outcome::Changed
             }
-            KeyCode::Char('a') => {
+            KeyCode::Char('a') if !self.no_always => {
                 self.choice = Some(ApprovalChoice::Always);
                 Outcome::Changed
             }
@@ -1744,16 +2373,22 @@ impl Interactive for ApprovalState {
                 self.choice = Some(ApprovalChoice::Deny);
                 Outcome::Changed
             }
-            KeyCode::Left | KeyCode::Right | KeyCode::Tab => {
+            KeyCode::Right | KeyCode::Tab => {
                 self.focus = (self.focus + 1) % 3;
+                if self.no_always && self.focus == 1 {
+                    self.focus = 2;
+                }
+                Outcome::Consumed
+            }
+            KeyCode::Left => {
+                self.focus = (self.focus + 2) % 3;
+                if self.no_always && self.focus == 1 {
+                    self.focus = 0;
+                }
                 Outcome::Consumed
             }
             KeyCode::Enter => {
-                self.choice = Some(match self.focus {
-                    0 => ApprovalChoice::Once,
-                    1 => ApprovalChoice::Always,
-                    _ => ApprovalChoice::Deny,
-                });
+                self.choice = Some(self.choice_at(self.focus));
                 Outcome::Changed
             }
             _ => Outcome::Ignored,
@@ -1761,13 +2396,9 @@ impl Interactive for ApprovalState {
     }
 
     fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
-        for (i, hit) in self.hits.iter_mut().enumerate() {
-            if let Hit::Click = hit.mouse(&m) {
-                self.choice = Some(match i {
-                    0 => ApprovalChoice::Once,
-                    1 => ApprovalChoice::Always,
-                    _ => ApprovalChoice::Deny,
-                });
+        for i in 0..3 {
+            if let Hit::Click = self.hits[i].mouse(&m) {
+                self.choice = Some(self.choice_at(i));
                 return Outcome::Changed;
             }
         }
@@ -1775,6 +2406,23 @@ impl Interactive for ApprovalState {
     }
 }
 
+
+/// Approval visual style.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApprovalStyle {
+    /// Card layout (current default).
+    Card,
+    /// Single-row inline buttons.
+    Inline,
+    /// Full-width banner.
+    Banner,
+}
+
+impl Default for ApprovalStyle {
+    fn default() -> Self {
+        Self::Card
+    }
+}
 // ───────────────────────────── Approval ─────────────────────────────
 
 /// Approval dialog widget.
@@ -1782,7 +2430,11 @@ impl Interactive for ApprovalState {
 pub struct Approval {
     title: String,
     detail: Option<String>,
+    command: Option<String>,
+    style: ApprovalStyle,
+    danger: bool,
     focused: bool,
+    now: Option<Instant>,
     theme: Option<Theme>,
 }
 
@@ -1792,7 +2444,11 @@ impl Approval {
         Self {
             title: title.into(),
             detail: None,
+            command: None,
+            style: ApprovalStyle::Card,
+            danger: false,
             focused: false,
+            now: None,
             theme: None,
         }
     }
@@ -1809,6 +2465,30 @@ impl Approval {
         self
     }
 
+    /// Set approval style.
+    pub fn style(mut self, s: ApprovalStyle) -> Self {
+        self.style = s;
+        self
+    }
+
+    /// Show command preview.
+    pub fn command(mut self, cmd: impl Into<String>) -> Self {
+        self.command = Some(cmd.into());
+        self
+    }
+
+    /// Mark as dangerous (error colors, no Always button).
+    pub fn danger(mut self, v: bool) -> Self {
+        self.danger = v;
+        self
+    }
+
+    /// Set animation time.
+    pub fn now(mut self, n: Instant) -> Self {
+        self.now = Some(n);
+        self
+    }
+
     /// Set focus.
     pub fn focused(mut self, v: bool) -> Self {
         self.focused = v;
@@ -1821,12 +2501,73 @@ impl Approval {
         self
     }
 
-    /// Rows the card needs at `width`: frame, title, wrapped detail, a gap, the button row.
+    /// Rows this approval needs at `width`: Inline 1; Banner 2; Card = frame + title + wrapped
+    /// detail + command row + gap + buttons.
     pub fn height(&self, width: u16) -> u16 {
-        let detail = self.detail.as_ref().map_or(0, |d| {
-            wrap(d, width.saturating_sub(2) as usize).len() as u16
-        });
-        2 + 1 + detail + 1 + 1
+        match self.style {
+            ApprovalStyle::Inline => 1,
+            ApprovalStyle::Banner => 2,
+            ApprovalStyle::Card => {
+                let inner_w = width.saturating_sub(2) as usize;
+                let title_w = self.title.width() + if self.danger { 2 } else { 0 };
+                let title = if title_w > inner_w { 2 } else { 1 };
+                let detail = self.detail.as_ref().map_or(0, |d| wrap(d, inner_w).len() as u16);
+                2 + title + detail + u16::from(self.command.is_some()) + 1 + 1
+            }
+        }
+    }
+
+    /// Accent colour: warning, or a slowly pulsing error tone for dangerous requests.
+    fn accent(&self, th: &Theme) -> Rgb {
+        if self.danger {
+            let el = self.now.map(since).unwrap_or(0.0);
+            th.error.blend(th.border, pulse(el, 1.4) * 0.6)
+        } else {
+            th.warning
+        }
+    }
+
+    /// Paint the choice buttons into `row` (right-aligned when `right`), recording hits.
+    fn buttons(&self, row: Rect, buf: &mut Buffer, th: &Theme, state: &mut ApprovalState, right: bool, compact: bool) {
+        let specs: [(&str, &str, Rgb); 3] = [
+            (if compact { "once" } else { "Allow once" }, "y", th.success),
+            (if compact { "always" } else { "Always" }, "a", th.primary),
+            (if compact { "deny" } else { "Deny" }, "n", th.error),
+        ];
+        let visible: Vec<usize> = (0..3).filter(|&i| !(self.danger && i == 1)).collect();
+        let texts: Vec<String> = visible
+            .iter()
+            .map(|&i| {
+                let (label, key, _) = specs[i];
+                if compact { format!(" [{key}] {label} ") } else { format!(" {label}  {key} ") }
+            })
+            .collect();
+        let total: u16 = texts.iter().map(|t| t.width() as u16).sum::<u16>() + (texts.len() as u16 - 1) * 2;
+        let mut x = if right { row.right().saturating_sub(total) } else if total < row.width {
+            row.x + (row.width - total) / 2
+        } else {
+            row.x
+        };
+        for hit in state.hits.iter_mut() {
+            hit.set_area(Rect::ZERO);
+        }
+        for (&i, text) in visible.iter().zip(&texts) {
+            let w = (text.width() as u16).min(row.right().saturating_sub(x));
+            if w == 0 {
+                break;
+            }
+            let focused = self.focused && state.focus == i;
+            let bg = if focused { Theme::shade(specs[i].2, 1) } else { specs[i].2 };
+            let btn = Rect { x, y: row.y, width: w, height: 1 };
+            state.hits[i].set_area(btn);
+            let mut style = st(bg.text_on(0.9), bg);
+            if focused {
+                style = style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+            }
+            fill(buf, btn, bg);
+            put(buf, btn.x, btn.y, text, w, style);
+            x += w + 2;
+        }
     }
 }
 
@@ -1834,80 +2575,83 @@ impl StatefulWidget for Approval {
     type State = ApprovalState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 12 || area.height < 5 {
+        state.no_always = self.danger;
+        if state.no_always && state.focus == 1 {
+            state.focus = 0;
+        }
+        if area.width < 12 || area.height == 0 {
             return;
         }
-
         let th = self.theme.unwrap_or_else(theme::current);
-        Border::Round.draw(buf, area, th.warning, th.background);
-        let inner = Border::Round.inner(area);
-
-        if inner.height < 2 {
-            return;
-        }
-
-        let mut y = inner.y;
-        put(
-            buf,
-            inner.x,
-            y,
-            &self.title,
-            inner.width,
-            st(th.text, th.background).add_modifier(Modifier::BOLD),
-        );
-        y = y.saturating_add(1);
-
-        if let Some(ref detail) = self.detail {
-            let lines = wrap(detail, inner.width as usize);
-            for line in lines {
-                if y >= inner.bottom().saturating_sub(2) {
-                    break;
+        let accent = self.accent(&th);
+        match self.style {
+            ApprovalStyle::Inline => {
+                // `◔ title   [y] once [a] always [n] deny`
+                let row = Rect { height: 1, ..area };
+                fill(buf, row, th.background);
+                let glyph = if self.danger { "▲" } else { "◔" };
+                let mut x = area.x;
+                x += put(buf, x, area.y, glyph, 1, st(accent, th.background));
+                x += 1;
+                // reserve the buttons' width on the right
+                let btn_w: u16 = if self.danger { 26 } else { 38 };
+                let title_w = area.width.saturating_sub(x - area.x + btn_w + 2);
+                put(buf, x, area.y, &truncate(&self.title, title_w as usize), title_w, st(th.text, th.background).add_modifier(Modifier::BOLD));
+                self.buttons(row, buf, &th, state, true, true);
+            }
+            ApprovalStyle::Banner => {
+                if area.height < 2 {
+                    return;
                 }
-                put(
-                    buf,
-                    inner.x,
-                    y,
-                    &line,
-                    inner.width,
-                    st(th.text_muted, th.background),
-                );
-                y = y.saturating_add(1);
+                let tint = accent.blend(th.background, 0.8);
+                let band = Rect { height: 2, ..area };
+                fill(buf, band, tint);
+                Edge::Full.draw(buf, area.x, area.y, 2, false, accent, tint);
+                let text_w = area.width.saturating_sub(3);
+                put(buf, area.x + 2, area.y, &truncate(&self.title, text_w as usize), text_w, st(th.text, tint).add_modifier(Modifier::BOLD));
+                // second row: command/detail left, compact buttons right
+                let btn_w: u16 = if self.danger { 26 } else { 38 };
+                let sub_w = area.width.saturating_sub(btn_w + 4);
+                let sub = self.command.as_deref().or(self.detail.as_deref()).unwrap_or("");
+                put(buf, area.x + 2, area.y + 1, &truncate(sub, sub_w as usize), sub_w, st(th.text_muted, tint));
+                let row = Rect { x: area.x, y: area.y + 1, width: area.width.saturating_sub(1), height: 1 };
+                self.buttons(row, buf, &th, state, true, true);
             }
-        }
-
-        // buttons
-        let button_y = inner.bottom().saturating_sub(1);
-        let specs = [
-            ("Allow once", "y", ApprovalChoice::Once, th.success),
-            ("Always", "a", ApprovalChoice::Always, th.primary),
-            ("Deny", "n", ApprovalChoice::Deny, th.error),
-        ];
-
-        // three flat buttons, evenly spaced; the label is padded so the whole pill is painted
-        let cell_w = inner.width / 3;
-        for (i, (label, key, _, color)) in specs.iter().enumerate() {
-            let focused = self.focused && state.focus == i;
-            let bg = if focused {
-                Theme::shade(*color, 1)
-            } else {
-                *color
-            };
-            let text = format!(" {label}  {key} ");
-            let w = (text.width() as u16).min(cell_w.max(1));
-            let x = inner.x + i as u16 * cell_w + cell_w.saturating_sub(w) / 2;
-            let btn = Rect {
-                x,
-                y: button_y,
-                width: w,
-                height: 1,
-            };
-            state.hits[i].set_area(btn);
-            let mut style = st(bg.text_on(0.9), bg);
-            if focused {
-                style = style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+            ApprovalStyle::Card => {
+                if area.height < 5 {
+                    return;
+                }
+                let bg = th.background;
+                Border::Round.draw(buf, area, accent, bg);
+                let inner = Border::Round.inner(area);
+                let mut y = inner.y;
+                let glyph = if self.danger { "▲ " } else { "" };
+                let title = format!("{glyph}{}", self.title);
+                for line in wrap(&title, inner.width as usize).iter().take(2) {
+                    put(buf, inner.x, y, line, inner.width, st(th.text, bg).add_modifier(Modifier::BOLD));
+                    y += 1;
+                }
+                let button_y = inner.bottom() - 1;
+                let cmd_rows = u16::from(self.command.is_some());
+                if let Some(detail) = &self.detail {
+                    for line in wrap(detail, inner.width as usize) {
+                        if y + cmd_rows + 1 >= button_y {
+                            break;
+                        }
+                        put(buf, inner.x, y, &line, inner.width, st(th.text_muted, bg));
+                        y += 1;
+                    }
+                }
+                if let Some(cmd) = &self.command
+                    && y + 1 < button_y
+                {
+                    let row = Rect { x: inner.x, y, width: inner.width, height: 1 };
+                    fill(buf, row, th.markdown_code_bg);
+                    put(buf, inner.x + 1, y, &format!("❯ {}", truncate(cmd, inner.width.saturating_sub(3) as usize)), inner.width.saturating_sub(1), st(th.text, th.markdown_code_bg));
+                }
+                let row = Rect { x: inner.x, y: button_y, width: inner.width, height: 1 };
+                self.buttons(row, buf, &th, state, false, false);
             }
-            fill(buf, btn, bg);
-            put(buf, btn.x, btn.y, &text, w, style);
         }
     }
 }
@@ -2004,42 +2748,126 @@ mod tests {
         assert_eq!(state.choice, None);
     }
 
-    #[test]
-    fn widgets_render_without_panic_at_60x16() {
-        let area = Rect::new(0, 0, 60, 16);
-        let mut buf = Buffer::empty(area);
-        let mut chat_state = ChatState::new();
-        ChatView::new().render(area, &mut buf, &mut chat_state);
-        StreamText::new("test").render(area, &mut buf);
-        Thinking::new("Loading").render(area, &mut buf);
-        ContextGauge::new(TokenUsage::default()).render(area, &mut buf);
-        ToolCall::new("test").render(area, &mut buf);
-        let tokens = [("a", 0.5f32)];
-        TokenHeat::new(&tokens).render(area, &mut buf);
-        DiffView::new(&[][..]).render(area, &mut buf);
-        let mut composer_state = ComposerState::default();
-        PromptComposer::new().render(area, &mut buf, &mut composer_state);
-        let mut approval_state = ApprovalState::default();
-        Approval::new("Test").render(area, &mut buf, &mut approval_state);
+    fn rich_message() -> ChatMessage {
+        ChatMessage::new(Role::Assistant, "")
+            .block(ChatBlock::Thinking { text: "weigh options".into(), secs: 2.5, collapsed: true, streaming: false })
+            .block(ChatBlock::Text("# Plan\n- add **retries**\n- run `cargo test`".into()))
+            .block(ChatBlock::ToolCall { name: "bash".into(), summary: "cargo test".into(), status: ToolStatus::Done, duration_ms: Some(340) })
+            .block(ChatBlock::Code { lang: Some("rust".into()), text: "fn main() {}\n".into() })
+            .block(ChatBlock::Divider("done".into()))
     }
 
     #[test]
-    fn widgets_render_without_panic_at_20x3() {
-        let area = Rect::new(0, 0, 20, 3);
+    fn plain_message_rows_unchanged_by_blocks_feature() {
+        let mut a = ChatState::new();
+        a.push(ChatMessage::new(Role::Assistant, "hello\nworld"));
+        // author row + two text rows, independent of the (empty) block list
+        assert_eq!(a.total_rows(40), 3);
+        assert!(a.messages[0].blocks.is_empty());
+    }
+
+    #[test]
+    fn inline_markup_splits_runs_and_bullets() {
+        let runs = inline_runs("- add **retries** to `fetch`");
+        assert_eq!(runs[0], ("• ".to_string(), Inline::Plain));
+        assert!(runs.contains(&("retries".to_string(), Inline::Bold)));
+        assert!(runs.contains(&("fetch".to_string(), Inline::Code)));
+        assert_eq!(inline_runs("## Title")[0], ("Title".to_string(), Inline::Heading));
+        // wrapping keeps every row within the width and never loses text
+        let rows = wrap_runs(&inline_runs("one two **three four** five six seven"), 10);
+        assert!(rows.iter().all(|r| r.iter().map(|(t, _)| t.width()).sum::<usize>() <= 10));
+        let joined: String = rows.iter().flat_map(|r| r.iter().map(|(t, _)| t.trim_end())).collect::<Vec<_>>().join(" ");
+        assert_eq!(joined, "one two three four five six seven");
+    }
+
+    #[test]
+    fn stream_tick_reveals_monotonically_and_finishes() {
+        let t0 = Instant::now();
+        let mut s = ChatState::new();
+        let msg = ChatMessage::new(Role::Assistant, "").block(ChatBlock::Text(String::new()));
+        s.begin_stream(msg, "hello world".into(), t0);
+        assert!(s.stream_tick(t0 + std::time::Duration::from_millis(500), 10.0));
+        let ChatBlock::Text(t) = &s.messages[0].blocks[0] else { panic!() };
+        assert_eq!(t, "hello");
+        assert!(s.messages[0].streaming);
+        assert!(!s.stream_tick(t0 + std::time::Duration::from_secs(5), 10.0));
+        let ChatBlock::Text(t) = &s.messages[0].blocks[0] else { panic!() };
+        assert_eq!(t, "hello world");
+        assert!(!s.messages[0].streaming);
+        assert!(!s.stream_tick(t0 + std::time::Duration::from_secs(9), 10.0), "idle after completion");
+    }
+
+    #[test]
+    fn clicking_thinking_header_toggles_it() {
+        use ratatui::crossterm::event::{MouseButton, MouseEventKind};
+        let area = Rect::new(0, 0, 60, 12);
         let mut buf = Buffer::empty(area);
-        let mut chat_state = ChatState::new();
-        ChatView::new().render(area, &mut buf, &mut chat_state);
-        StreamText::new("test").render(area, &mut buf);
-        Thinking::new("Loading").render(area, &mut buf);
-        ContextGauge::new(TokenUsage::default()).render(area, &mut buf);
-        ToolCall::new("test").render(area, &mut buf);
-        let tokens = [("a", 0.5f32)];
-        TokenHeat::new(&tokens).render(area, &mut buf);
-        let diff: Vec<DiffLine> = vec![];
-        DiffView::new(&diff).render(area, &mut buf);
-        let mut composer_state = ComposerState::default();
-        PromptComposer::new().render(area, &mut buf, &mut composer_state);
-        let mut approval_state = ApprovalState::default();
-        Approval::new("Test").render(area, &mut buf, &mut approval_state);
+        let mut s = ChatState::new();
+        s.push(rich_message());
+        ChatView::new().render(area, &mut buf, &mut s);
+        let (hit, mi, bi) = s.row_hits[0];
+        let click = MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: hit.x + 1, row: hit.y, modifiers: KeyModifiers::NONE };
+        assert!(s.handle_mouse(click).is_changed());
+        let ChatBlock::Thinking { collapsed, .. } = &s.messages[mi].blocks[bi] else { panic!() };
+        assert!(!collapsed);
+        // expanded: the body row now exists
+        let rows_after = s.total_rows(59);
+        s.toggle_thinking(mi, bi);
+        assert!(rows_after > s.total_rows(59));
+    }
+
+    #[test]
+    fn approval_inline_fits_one_row_and_danger_hides_always() {
+        let area = Rect::new(0, 0, 70, 1);
+        let mut buf = Buffer::empty(area);
+        let mut st_ = ApprovalState::default();
+        Approval::new("Allow bash?").style(ApprovalStyle::Inline).render(area, &mut buf, &mut st_);
+        assert!(st_.hits.iter().all(|h| h.area.height == 1 && h.area.right() <= 70));
+        assert!(st_.hits[1].area.width > 0);
+        let mut d = ApprovalState::default();
+        Approval::new("rm -rf").danger(true).render(Rect::new(0, 0, 40, 6), &mut buf, &mut d);
+        assert_eq!(d.hits[1].area.width, 0, "Always is not offered");
+        assert!(d.handle_key(KeyEvent::from(KeyCode::Char('a'))).is_ignored());
+        d.handle_key(KeyEvent::from(KeyCode::Right));
+        assert_eq!(d.focus, 2, "focus skips the hidden button");
+    }
+
+    #[test]
+    fn revealed_words_stops_at_boundaries() {
+        assert_eq!(revealed_words("hello big world", 0.3, 10.0), "hello");
+        assert_eq!(revealed_words("hello big world", 0.7, 10.0), "hello big");
+        assert_eq!(revealed_words("hello", 9.0, 10.0), "hello");
+    }
+
+    #[test]
+    fn every_widget_survives_all_sizes() {
+        for (w, h) in [(1, 1), (3, 2), (10, 3), (20, 3), (60, 16), (130, 42), (250, 70)] {
+            let area = Rect::new(0, 0, w, h);
+            let mut buf = Buffer::empty(area);
+            let now = Instant::now();
+            let mut chat = ChatState::new();
+            chat.push(ChatMessage::new(Role::User, "hi"));
+            chat.push(rich_message());
+            chat.push(ChatMessage::new(Role::Assistant, "").block(ChatBlock::Thinking { text: "x".into(), secs: 0.0, collapsed: false, streaming: true }).streaming(true));
+            chat.follow = false;
+            ChatView::new().hover(true).show_time(true).now(now).render(area, &mut buf, &mut chat);
+            ChatView::new().bubbles(false).compact(true).render(area, &mut buf, &mut chat);
+            for cursor in [StreamCursor::Block, StreamCursor::Bar, StreamCursor::Underline, StreamCursor::None] {
+                StreamText::new("streaming some text here").elapsed(0.4).cursor(cursor).fade(true).word_mode(true).render(area, &mut buf);
+            }
+            TypingIndicator::new().now(now).render(area, &mut buf);
+            Thinking::new("Loading").elapsed(4.2).elapsed_label(true).now(now).render(area, &mut buf);
+            ContextGauge::new(TokenUsage::default()).render(area, &mut buf);
+            ToolCall::new("test").render(area, &mut buf);
+            let tokens = [("a", 0.5f32)];
+            TokenHeat::new(&tokens).render(area, &mut buf);
+            DiffView::new(&[][..]).render(area, &mut buf);
+            let mut composer_state = ComposerState::default();
+            PromptComposer::new().render(area, &mut buf, &mut composer_state);
+            for style in [ApprovalStyle::Card, ApprovalStyle::Inline, ApprovalStyle::Banner] {
+                let mut a = ApprovalState::default();
+                Approval::new("Test").detail("d").command("cargo test").style(style).danger(true).now(now).focused(true).render(area, &mut buf, &mut a);
+            }
+        }
     }
 }

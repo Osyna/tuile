@@ -6,6 +6,9 @@ use std::time::Instant;
 use tuiforge::prelude::*;
 
 pub mod ai;
+pub mod ai_agents;
+pub mod ai_compose;
+pub mod ai_tools;
 pub mod bigmenu;
 pub mod charts;
 pub mod content;
@@ -13,7 +16,6 @@ pub mod controls;
 pub mod dashboard;
 pub mod data;
 pub mod feedback;
-pub mod forms;
 pub mod inputs;
 pub mod layout;
 pub mod loading;
@@ -22,7 +24,6 @@ pub mod navigation;
 pub mod notifications;
 pub mod options;
 pub mod settings;
-pub mod sidebars;
 pub mod spinners;
 pub mod themes;
 pub mod welcome;
@@ -105,7 +106,6 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(controls::ControlsPage::default()),
         Box::new(inputs::InputsPage::default()),
         Box::new(navigation::NavigationPage::default()),
-        Box::new(sidebars::SidebarsPage::default()),
         Box::new(bigmenu::BigMenuPage::default()),
         Box::new(data::DataPage::default()),
         Box::new(charts::ChartsPage::default()),
@@ -114,9 +114,11 @@ pub fn all() -> Vec<Box<dyn Page>> {
         Box::new(loading::LoadingPage::default()),
         Box::new(spinners::SpinnersPage::default()),
         Box::new(ai::AiPage::default()),
+        Box::new(ai_tools::AiToolsPage::default()),
+        Box::new(ai_agents::AiAgentsPage::default()),
+        Box::new(ai_compose::AiComposePage::default()),
         Box::new(layout::LayoutPage::default()),
         Box::new(content::ContentPage::default()),
-        Box::new(forms::FormsPage::default()),
         Box::new(settings::SettingsPage::default()),
         Box::new(options::OptionsPage::default()),
         Box::new(themes::ThemesPage::default()),

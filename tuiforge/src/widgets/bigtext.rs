@@ -27,7 +27,8 @@ use crate::theme::{self, Rgb, Theme, gradient as color_gradient};
 /// Available big fonts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum BigFont {
-    /// 3-row box-drawing font (default, the current look).
+    /// 3-row heavy box-drawing font (`━┃┏┓┗┛`): solid strokes in every terminal font, unlike
+    /// double lines which render as two thin gappy strokes. Default.
     #[default]
     Box3,
     /// 5-row figlet-style font with painted solid cells (background paint, not fg glyphs).
@@ -46,62 +47,71 @@ impl BigFont {
             BigFont::Block5 => 5,
         }
     }
+
+    /// Natural cells between glyphs: line fonts need one so adjacent strokes do not fuse into a
+    /// mesh; pixel glyphs already carry their own trailing gap.
+    pub fn gap(self) -> u16 {
+        match self {
+            BigFont::Box3 | BigFont::Thin3 => 1,
+            BigFont::Block5 | BigFont::Half3 => 0,
+        }
+    }
 }
 
 /// Glyph for one character in the Box3 font; unknown characters fall back to `?`, lowercase is uppercased.
 fn glyph_box3(c: char) -> [&'static str; 3] {
     match c.to_ascii_uppercase() {
-        'A' => ["╔═╗", "╠═╣", "╩ ╩"],
-        'B' => ["╔╗ ", "╠╩╗", "╚═╝"],
-        'C' => ["╔═╗", "║  ", "╚═╝"],
-        'D' => ["╔╦╗", "║║║", "╚╩╝"],
-        'E' => ["╔═╗", "║╣ ", "╚═╝"],
-        'F' => ["╔═╗", "╠╣ ", "╚  "],
-        'G' => ["╔═╗", "║ ╦", "╚═╝"],
-        'H' => ["╦ ╦", "╠═╣", "╩ ╩"],
-        'I' => ["╦", "║", "╩"],
-        'J' => [" ╦", " ║", "╚╝"],
-        'K' => ["╦╔═", "╠╩╗", "╩ ╩"],
-        'L' => ["╦  ", "║  ", "╩═╝"],
-        'M' => ["╔╦╗", "║║║", "╩ ╩"],
-        'N' => ["╔╗╔", "║║║", "╝╚╝"],
-        'O' => ["╔═╗", "║ ║", "╚═╝"],
-        'P' => ["╔═╗", "╠═╝", "╩  "],
-        'Q' => ["╔═╗ ", "║ ║ ", "╚═╬╗"],
-        'R' => ["╦═╗", "╠╦╝", "╩╚═"],
-        'S' => ["╔═╗", "╚═╗", "╚═╝"],
-        'T' => ["╔╦╗", " ║ ", " ╩ "],
-        'U' => ["╦ ╦", "║ ║", "╚═╝"],
-        'V' => ["╦  ╦", "╚╗╔╝", " ╚╝ "],
-        'W' => ["╦ ╦", "║║║", "╚╩╝"],
-        'X' => ["╗ ╔", "╔╩╗", "╝ ╚"],
-        'Y' => ["╦ ╦", "╚╦╝", " ╩ "],
-        'Z' => ["╔═╗", "╔═╝", "╚═╝"],
-        '0' => ["╔═╗", "║║║", "╚═╝"],
-        '1' => ["╗", "║", "╩"],
-        '2' => ["╔═╗", "╔═╝", "╚══"],
-        '3' => ["╔═╗", " ═╣", "╚═╝"],
-        '4' => ["╦ ╦", "╚═╣", "  ╩"],
-        '5' => ["╔══", "╚═╗", "╚═╝"],
-        '6' => ["╔═╗", "╠═╗", "╚═╝"],
-        '7' => ["╔═╗", " ╔╝", " ╩ "],
-        '8' => ["╔═╗", "╠═╣", "╚═╝"],
-        '9' => ["╔═╗", "╚═╣", "╚═╝"],
+        'A' => ["┏━┓", "┣━┫", "┻ ┻"],
+        'B' => ["┏┓ ", "┣┻┓", "┗━┛"],
+        'C' => ["┏━┓", "┃  ", "┗━┛"],
+        'D' => ["┏┳┓", "┃┃┃", "┗┻┛"],
+        'E' => ["┏━┓", "┃┫ ", "┗━┛"],
+        'F' => ["┏━┓", "┣┫ ", "┗  "],
+        'G' => ["┏━┓", "┃ ┳", "┗━┛"],
+        'H' => ["┳ ┳", "┣━┫", "┻ ┻"],
+        'I' => ["┳", "┃", "┻"],
+        'J' => [" ┳", " ┃", "┗┛"],
+        'K' => ["┳┏━", "┣┻┓", "┻ ┻"],
+        'L' => ["┳  ", "┃  ", "┻━┛"],
+        'M' => ["┏┳┓", "┃┃┃", "┻ ┻"],
+        'N' => ["┏┓┏", "┃┃┃", "┛┗┛"],
+        'O' => ["┏━┓", "┃ ┃", "┗━┛"],
+        'P' => ["┏━┓", "┣━┛", "┻  "],
+        'Q' => ["┏━┓ ", "┃ ┃ ", "┗━╋┓"],
+        'R' => ["┳━┓", "┣┳┛", "┻┗━"],
+        'S' => ["┏━┓", "┗━┓", "┗━┛"],
+        'T' => ["┏┳┓", " ┃ ", " ┻ "],
+        'U' => ["┳ ┳", "┃ ┃", "┗━┛"],
+        'V' => ["┳  ┳", "┗┓┏┛", " ┗┛ "],
+        'W' => ["┳ ┳", "┃┃┃", "┗┻┛"],
+        'X' => ["┓ ┏", "┏┻┓", "┛ ┗"],
+        'Y' => ["┳ ┳", "┗┳┛", " ┻ "],
+        'Z' => ["┏━┓", "┏━┛", "┗━┛"],
+        '0' => ["┏━┓", "┃┃┃", "┗━┛"],
+        '1' => ["┓", "┃", "┻"],
+        '2' => ["┏━┓", "┏━┛", "┗━━"],
+        '3' => ["┏━┓", " ━┫", "┗━┛"],
+        '4' => ["┳ ┳", "┗━┫", "  ┻"],
+        '5' => ["┏━━", "┗━┓", "┗━┛"],
+        '6' => ["┏━┓", "┣━┓", "┗━┛"],
+        '7' => ["┏━┓", " ┏┛", " ┻ "],
+        '8' => ["┏━┓", "┣━┫", "┗━┛"],
+        '9' => ["┏━┓", "┗━┫", "┗━┛"],
         ' ' => [" ", " ", " "],
         '.' => [" ", " ", "•"],
         ',' => ["  ", "  ", "• "],
         ':' => [" ", "•", "•"],
-        '-' => ["  ", "══", "  "],
-        '_' => ["   ", "   ", "═══"],
-        '+' => ["   ", " ╬ ", "   "],
-        '!' => ["╦", "║", "•"],
-        '?' => ["╔═╗", " ╔╝", " • "],
-        '/' => ["  ╔", " ╔╝", "╔╝ "],
-        '[' => ["╔═", "║ ", "╚═"],
-        ']' => ["═╗", " ║", "═╝"],
-        '<' => ["  ╔", "╔╝ ", "╚╗ "],
-        '>' => ["╗  ", " ╚╗", "╔╝ "],
-        _ => ["╔═╗", " ╔╝", " • "],
+        '-' => ["  ", "━━", "  "],
+        '_' => ["   ", "   ", "━━━"],
+        '+' => ["   ", " ╋ ", "   "],
+        '!' => ["┳", "┃", "•"],
+        '?' => ["┏━┓", " ┏┛", " • "],
+        '/' => ["  ┏", " ┏┛", "┏┛ "],
+        '[' => ["┏━", "┃ ", "┗━"],
+        ']' => ["━┓", " ┃", "━┛"],
+        '<' => ["  ┏", "┏┛ ", "┗┓ "],
+        '>' => ["┓  ", " ┗┓", "┏┛ "],
+        _ => ["┏━┓", " ┏┛", " • "],
     }
 }
 
@@ -184,18 +194,17 @@ const HALF3_ROWS: [(usize, usize); 3] = [(0, 1), (2, 2), (3, 4)];
 /// `Thin3` is `Box3` with light rounded strokes: same shapes, one glyph mapping.
 fn thin3_char(c: char) -> char {
     match c {
-        '╔' => '╭',
-        '╗' => '╮',
-        '╚' => '╰',
-        '╝' => '╯',
-        '═' => '─',
-        '║' => '│',
-        '╠' => '├',
-        '╣' => '┤',
-        '╦' => '┬',
-        '╩' => '┴',
-        '╬' => '┼',
-        '▪' => '·',
+        '┏' => '╭',
+        '┓' => '╮',
+        '┗' => '╰',
+        '┛' => '╯',
+        '━' => '─',
+        '┃' => '│',
+        '┣' => '├',
+        '┫' => '┤',
+        '┳' => '┬',
+        '┻' => '┴',
+        '╋' => '┼',
         other => other,
     }
 }
@@ -220,7 +229,7 @@ fn paint(buf: &mut Buffer, x: u16, y: u16, color: Rgb) {
 pub struct BigText<'a> {
     text: &'a str,
     font: BigFont,
-    spacing: u16,
+    spacing: Option<u16>,
     align: Alignment,
     color: Option<Rgb>,
     gradient: Option<&'a [Rgb]>,
@@ -234,7 +243,7 @@ impl<'a> BigText<'a> {
         Self {
             text,
             font: BigFont::Box3,
-            spacing: 0,
+            spacing: None,
             align: Alignment::Left,
             color: None,
             gradient: None,
@@ -256,9 +265,9 @@ impl<'a> BigText<'a> {
         self
     }
 
-    /// Cells between glyphs (default 0: letters touch like figlet).
+    /// Cells between glyphs (default: the font's natural [`BigFont::gap`]).
     pub fn spacing(mut self, s: u16) -> Self {
-        self.spacing = s;
+        self.spacing = Some(s);
         self
     }
 
@@ -308,7 +317,11 @@ impl<'a> BigText<'a> {
     }
 
     pub fn width(&self) -> u16 {
-        Self::width_of(self.text, self.font, self.spacing)
+        Self::width_of(self.text, self.font, self.gap())
+    }
+
+    fn gap(&self) -> u16 {
+        self.spacing.unwrap_or(self.font.gap())
     }
 
     /// Draw with an explicit colour resolver (used by [`BigMenu`] for hover/selection).
@@ -354,7 +367,7 @@ impl<'a> BigText<'a> {
                             style,
                         );
                     }
-                    x += g[0].width() as u16 + self.spacing;
+                    x += g[0].width() as u16 + self.gap();
                 }
                 BigFont::Thin3 => {
                     let g = glyph_box3(c);
@@ -370,7 +383,7 @@ impl<'a> BigText<'a> {
                             style,
                         );
                     }
-                    x += g[0].width() as u16 + self.spacing;
+                    x += g[0].width() as u16 + self.gap();
                 }
                 BigFont::Block5 => {
                     let g = glyph_px5(c);
@@ -385,7 +398,7 @@ impl<'a> BigText<'a> {
                             }
                         }
                     }
-                    x += px5_width(c) + self.spacing;
+                    x += px5_width(c) + self.gap();
                 }
                 BigFont::Half3 => {
                     let g = glyph_px5(c);
@@ -407,7 +420,7 @@ impl<'a> BigText<'a> {
                             }
                         }
                     }
-                    x += px5_width(c) + self.spacing;
+                    x += px5_width(c) + self.gap();
                 }
             }
         }
@@ -811,15 +824,15 @@ impl<'a> BigMenu<'a> {
     fn chrome(&self) -> (u16, u16, u16, u16) {
         match self.style {
             BigMenuStyle::Plain | BigMenuStyle::Glow | BigMenuStyle::Horizontal => (0, 0, 0, 0),
-            BigMenuStyle::Arrows => (3, 3, 0, 0),
+            BigMenuStyle::Arrows => (2, 2, 0, 0),
             BigMenuStyle::Boxed => (2, 2, 1, 1),
             BigMenuStyle::Underline => (0, 0, 0, 1),
-            BigMenuStyle::Shadow => (0, 1, 0, 0),
+            BigMenuStyle::Shadow => (0, 1, 0, 1),
             BigMenuStyle::Bracket => {
                 let bw = BigText::width_of("[", self.font, 0) + 1;
                 (bw, bw, 0, 0)
             }
-            BigMenuStyle::Cards => (3, 3, 1, 1),
+            BigMenuStyle::Cards => (2, 2, 1, 1),
             BigMenuStyle::Retro => (2, 0, 0, 0),
         }
     }
@@ -843,17 +856,22 @@ impl<'a> BigMenu<'a> {
     pub fn width(&self) -> u16 {
         let (l, r, _, _) = self.chrome();
         (0..self.len())
-            .map(|i| BigText::width_of(self.label(i), self.font, 0))
+            .map(|i| BigText::width_of(self.label(i), self.font, self.font.gap()))
             .max()
             .unwrap_or(0)
             + l
             + r
     }
 
-    /// Longest prefix of `label` whose big-text width fits in `max`.
-    fn fit(label: &str, font: BigFont, max: u16) -> &str {
+    /// `(prefix, spacing)`: the label at the font's natural gap when it fits in `max`, else
+    /// with the letters touching, else the longest prefix that fits with touching letters.
+    fn fit(label: &str, font: BigFont, max: u16) -> (&str, u16) {
+        let gap = font.gap();
+        if BigText::width_of(label, font, gap) <= max {
+            return (label, gap);
+        }
         if BigText::width_of(label, font, 0) <= max {
-            return label;
+            return (label, 0);
         }
         let mut end = 0;
         for (i, c) in label.char_indices() {
@@ -862,7 +880,7 @@ impl<'a> BigMenu<'a> {
             }
             end = i + c.len_utf8();
         }
-        &label[..end]
+        (&label[..end], 0)
     }
 }
 
@@ -914,14 +932,14 @@ impl StatefulWidget for BigMenu<'_> {
         if self.style == BigMenuStyle::Horizontal {
             let gap = self.gap.max(2);
             let total: u16 = (0..len)
-                .map(|i| BigText::width_of(self.label(i), self.font, 0))
+                .map(|i| BigText::width_of(self.label(i), self.font, self.font.gap()))
                 .sum::<u16>()
                 + gap * (len as u16 - 1);
             // scroll by whole items until the selection is visible
             let mut first = 0;
             let fits = |first: usize| {
                 let w: u16 = (first..=state.selected)
-                    .map(|i| BigText::width_of(self.label(i), self.font, 0))
+                    .map(|i| BigText::width_of(self.label(i), self.font, self.font.gap()))
                     .sum::<u16>()
                     + gap * (state.selected - first) as u16;
                 w <= area.width
@@ -939,8 +957,8 @@ impl StatefulWidget for BigMenu<'_> {
                 area.x
             };
             for i in first..len {
-                let label = Self::fit(self.label(i), self.font, area.right().saturating_sub(x));
-                let w = BigText::width_of(label, self.font, 0);
+                let (label, sp) = Self::fit(self.label(i), self.font, area.right().saturating_sub(x));
+                let w = BigText::width_of(label, self.font, sp);
                 if w == 0 {
                     break;
                 }
@@ -955,6 +973,7 @@ impl StatefulWidget for BigMenu<'_> {
                 let disabled = self.menu_item(i).is_some_and(|m| m.disabled);
                 let mut text = BigText::new(label)
                     .font(self.font)
+                    .spacing(sp)
                     .align(Alignment::Left)
                     .bold(i == state.selected && self.focused);
                 if i == state.selected
@@ -984,9 +1003,9 @@ impl StatefulWidget for BigMenu<'_> {
         let max_label_w = area.width.saturating_sub(pad_l + pad_r);
 
         // per-item geometry (text x/width, item y) – recomputed on demand, no allocation
-        let geom = |i: usize| -> (Rect, &str) {
-            let label = Self::fit(self.label(i), self.font, max_label_w);
-            let w = BigText::width_of(label, self.font, 0);
+        let geom = |i: usize| -> (Rect, &str, u16) {
+            let (label, sp) = Self::fit(self.label(i), self.font, max_label_w);
+            let w = BigText::width_of(label, self.font, sp);
             let x = match self.align {
                 Alignment::Left => area.x + pad_l,
                 Alignment::Center => area.x + pad_l + max_label_w.saturating_sub(w) / 2,
@@ -1001,11 +1020,12 @@ impl StatefulWidget for BigMenu<'_> {
                     height: rows,
                 },
                 label,
+                sp,
             )
         };
 
         for i in first..len {
-            let (text, label) = geom(i);
+            let (text, label, sp) = geom(i);
             if text.y + rows + bottom > area.bottom() {
                 break;
             }
@@ -1046,24 +1066,28 @@ impl StatefulWidget for BigMenu<'_> {
                     );
                 }
                 BigMenuStyle::Shadow => {
-                    // emboss: a dim copy one cell right, drawn first so only its trailing edge shows
+                    // drop shadow: the glyph silhouette one cell right and down, flattened into a
+                    // painted plate (contract 15) so hollow line-font letters do not interleave
+                    // with the shadow's strokes
                     let shade = if selected {
-                        base.blend(th.background, 0.65)
+                        base.blend(th.background, 0.8)
                     } else {
-                        th.background.blend(th.text, 0.15)
+                        th.background.blend(th.text, 0.08)
                     };
+                    let plate = Rect { x: text.x + 1, y: text.y + 1, ..text }.intersection(buf.area);
                     BigText::new(label)
                         .font(self.font)
+                        .spacing(sp)
                         .align(Alignment::Left)
-                        .draw(
-                            Rect {
-                                x: text.x + 1,
-                                ..text
-                            },
-                            buf,
-                            &th,
-                            shade,
-                        );
+                        .draw(plate, buf, &th, shade);
+                    for y in plate.top()..plate.bottom() {
+                        for x in plate.left()..plate.right() {
+                            let cell = &mut buf[(x, y)];
+                            if cell.symbol() != " " {
+                                cell.set_symbol(" ").set_bg(shade.color());
+                            }
+                        }
+                    }
                 }
                 BigMenuStyle::Cards => {
                     let card = Rect {
@@ -1105,6 +1129,7 @@ impl StatefulWidget for BigMenu<'_> {
 
             let mut big = BigText::new(label)
                 .font(self.font)
+                .spacing(sp)
                 .align(Alignment::Left)
                 .bold(selected && self.focused);
             if self.style == BigMenuStyle::Cards {
@@ -1160,7 +1185,7 @@ impl StatefulWidget for BigMenu<'_> {
                     }
                     BigMenuStyle::Bracket => {
                         let bw = pad_l - 1;
-                        BigText::new("[").font(self.font).draw(
+                        BigText::new("[").font(self.font).spacing(0).draw(
                             Rect {
                                 x: text.x.saturating_sub(bw + 1),
                                 width: bw,
@@ -1170,7 +1195,7 @@ impl StatefulWidget for BigMenu<'_> {
                             &th,
                             base,
                         );
-                        BigText::new("]").font(self.font).draw(
+                        BigText::new("]").font(self.font).spacing(0).draw(
                             Rect {
                                 x: text.x + text.width + 1,
                                 width: bw,
@@ -1209,8 +1234,8 @@ impl StatefulWidget for BigMenu<'_> {
                 .value(now)
                 .clamp(first as f32, (len - 1) as f32);
             let (i0, i1, t) = (v.floor() as usize, v.ceil() as usize, v.fract());
-            let (a, _) = geom(i0);
-            let (b, _) = geom(i1);
+            let (a, _, _) = geom(i0);
+            let (b, _, _) = geom(i1);
             let lerp = |p: u16, q: u16| (p as f32 + (q as f32 - p as f32) * t).round() as u16;
             let (x, w, y) = (
                 lerp(a.x, b.x),
@@ -1232,12 +1257,14 @@ mod tests {
     fn box3_width_matches_rendered_cells() {
         assert_eq!(BigText::width_of("HI", BigFont::Box3, 0), 4);
         assert_eq!(BigText::width_of("HI", BigFont::Box3, 1), 5);
+        // line fonts default to a 1-cell gap so strokes of neighbours never fuse
+        assert_eq!(BigText::new("HI").width(), 5);
+        assert_eq!(BigText::new("HI").spacing(0).width(), 4);
         let mut buf = Buffer::empty(Rect::new(0, 0, 10, 3));
-        BigText::new("HI")
-            .font(BigFont::Box3)
-            .render(buf.area, &mut buf);
-        assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "╦");
-        assert_eq!(buf.cell((3, 1)).unwrap().symbol(), "║");
+        BigText::new("HI").font(BigFont::Box3).render(buf.area, &mut buf);
+        assert_eq!(buf.cell((0, 0)).unwrap().symbol(), "┳");
+        assert_eq!(buf.cell((3, 1)).unwrap().symbol(), " ", "gap column stays empty");
+        assert_eq!(buf.cell((4, 1)).unwrap().symbol(), "┃");
     }
 
     #[test]

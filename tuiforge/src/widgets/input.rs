@@ -25,7 +25,7 @@ use crate::draw::{FieldShape, fill, put, st};
 use crate::layout::pad;
 use crate::theme::{self, Theme};
 
-// ───────────────────────────── types ─────────────────────────────
+// types
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InputRestrict {
@@ -81,7 +81,7 @@ pub struct InputState {
     custom_filter: Option<fn(char) -> bool>,
 }
 
-// ───────────────────────────── builder ─────────────────────────────
+// builder
 
 impl Input {
     pub fn new() -> Self {
@@ -206,7 +206,7 @@ impl Default for Input {
     }
 }
 
-// ───────────────────────────── state ─────────────────────────────
+// state
 
 impl InputState {
     pub fn new() -> Self {
@@ -636,7 +636,7 @@ impl Interactive for InputState {
     }
 }
 
-// ───────────────────────────── render ─────────────────────────────
+// render
 
 impl StatefulWidget for Input {
     type State = InputState;

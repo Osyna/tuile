@@ -36,7 +36,7 @@ pub fn pad(area: Rect, x: u16, y: u16) -> Rect {
     }
 }
 
-/// Shrink with individual sides (top, right, bottom, left) — CSS order.
+/// Shrink with individual sides (top, right, bottom, left), CSS order.
 pub fn pad_trbl(area: Rect, t: u16, r: u16, b: u16, l: u16) -> Rect {
     Rect {
         x: area.x.saturating_add(l),

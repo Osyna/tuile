@@ -24,7 +24,7 @@ use crate::draw::{
 };
 use crate::theme::{self, Rgb, Theme, Variant, gradient as color_gradient};
 
-// ───────────────────────────── helpers ─────────────────────────────
+// helpers
 
 /// Nice bounds for axis scaling: expands (min, max) to round numbers and picks a step.
 pub fn nice_bounds(min: f64, max: f64) -> (f64, f64, f64) {
@@ -61,7 +61,7 @@ fn map_range(v: f64, in_min: f64, in_max: f64, out_min: f64, out_max: f64) -> f6
     lerp(out_min, out_max, t.clamp(0.0, 1.0))
 }
 
-// ───────────────────────────── braille canvas ─────────────────────────────
+// braille canvas
 
 /// 2×4 dot rasterizer for line graphs and scatter plots. Each cell holds 8 dots arranged:
 /// ```text
@@ -166,7 +166,7 @@ impl BrailleCanvas {
     }
 }
 
-// ───────────────────────────── spark chart ─────────────────────────────
+// spark chart
 
 /// Style for sparkline rendering.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -437,7 +437,7 @@ impl Widget for SparkChart<'_> {
     }
 }
 
-// ───────────────────────────── bar graph ─────────────────────────────
+// bar graph
 
 /// One group of bars in a [`BarGraph`].
 #[derive(Clone, Debug)]
@@ -695,7 +695,7 @@ impl Widget for BarGraph<'_> {
     }
 }
 
-// ───────────────────────────── line graph ─────────────────────────────
+// line graph
 
 /// Line style for a series in [`LineGraph`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -1003,7 +1003,7 @@ impl Widget for LineGraph<'_> {
     }
 }
 
-// ───────────────────────────── scatter plot ─────────────────────────────
+// scatter plot
 
 /// Scatter plot (thin wrapper over [`LineGraph`] with `Points` style).
 #[derive(Clone, Debug)]
@@ -1054,7 +1054,7 @@ impl Widget for ScatterPlot<'_> {
     }
 }
 
-// ───────────────────────────── heatmap ─────────────────────────────
+// heatmap
 
 /// 2D heatmap with gradient coloring.
 #[derive(Clone, Debug)]
@@ -1271,7 +1271,7 @@ impl Widget for Heatmap<'_> {
     }
 }
 
-// ───────────────────────────── activity graph ─────────────────────────────
+// activity graph
 
 /// GitHub-style contribution grid: weeks as columns, days as rows. Cells are painted
 /// (2 cells per week: colour + gutter) so low levels stay faithful in every terminal.
@@ -1369,7 +1369,7 @@ impl Widget for ActivityGraph<'_> {
     }
 }
 
-// ───────────────────────────── meter ─────────────────────────────────
+// meter
 
 /// Meter display style.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -1613,7 +1613,7 @@ impl Widget for Meter<'_> {
     }
 }
 
-// ───────────────────────────── radial gauge ─────────────────────────────
+// radial gauge
 
 /// Semicircular gauge using braille arc (experimental; may be removed if it doesn't look good).
 pub struct RadialGauge {

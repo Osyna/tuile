@@ -27,7 +27,7 @@ use crate::draw::{FieldShape, bold, fill, put, put_cell, st};
 use crate::theme::{self, Rgb, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
-// ───────────────────────────── types ─────────────────────────────
+// types
 /// Cursor drawing style.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum CursorStyle {
@@ -79,7 +79,7 @@ pub struct TextAreaState {
     clipboard: String,
 }
 
-// ───────────────────────────── builder ─────────────────────────────
+// builder
 
 impl TextArea {
     pub fn new() -> Self {
@@ -191,7 +191,7 @@ impl Default for TextArea {
     }
 }
 
-// ───────────────────────────── state ─────────────────────────────
+// state
 
 impl TextAreaState {
     pub fn new() -> Self {
@@ -739,7 +739,7 @@ impl Interactive for TextAreaState {
     }
 }
 
-// ───────────────────────────── render ─────────────────────────────
+// render
 
 impl StatefulWidget for TextArea {
     type State = TextAreaState;

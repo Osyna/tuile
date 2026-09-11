@@ -103,9 +103,9 @@ fn event_loop<A: App>(
     }
 }
 
-// ───────────────────────────── wall clock ─────────────────────────────
+// wall clock
 
-/// Local time as `(hours, minutes, seconds)` — no timezone crate, uses `date +%z` once.
+/// Local time as `(hours, minutes, seconds)`. No timezone crate; calls `date +%z` once.
 pub fn local_hms() -> (u32, u32, u32) {
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)

@@ -18,9 +18,7 @@ use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, mouse_in, mouse_p
 use crate::draw::{fill, put, put_centered, st};
 use crate::theme::{self, Rgb, Theme, gradient};
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Swatches
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Swatch grid state.
 #[derive(Clone, Debug, Default)]
@@ -225,9 +223,7 @@ impl StatefulWidget for Swatches {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // ColorPicker
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// HSL color picker state.
 #[derive(Clone, Debug)]
@@ -569,9 +565,7 @@ fn rgb_to_hsl(rgb: Rgb) -> (f32, f32, f32) {
     (h, s, l)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // GradientBar
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Horizontal gradient bar with labels and marker.
 #[derive(Clone, Debug)]
@@ -664,9 +658,7 @@ impl Widget for GradientBar {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // ThemePalette
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Renders every role of a Theme as labeled swatches.
 #[derive(Clone, Debug)]

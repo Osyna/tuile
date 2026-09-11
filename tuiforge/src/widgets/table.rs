@@ -31,7 +31,7 @@ use crate::layout::pad_trbl;
 use crate::theme::{self, Theme, Variant};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
-// ───────────────────────────── column ─────────────────────────────
+// column
 
 /// One column definition: title, width constraint, alignment, sortability, and a unique key.
 #[derive(Clone, Debug)]
@@ -71,7 +71,7 @@ impl TableColumn {
     }
 }
 
-// ───────────────────────────── cell & row ─────────────────────────────
+// cell & row
 
 /// One cell: text, optional style override, and a numeric sort key.
 #[derive(Clone, Debug, Default)]
@@ -163,7 +163,7 @@ impl TableRow {
     }
 }
 
-// ───────────────────────────── cursor modes ─────────────────────────────
+// cursor modes
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TableCursor {
@@ -183,7 +183,7 @@ pub enum TableBorders {
     All,
 }
 
-// ───────────────────────────── state ─────────────────────────────
+// state
 
 /// Mutable state for a data table: cursor, selection, sort, filter, scroll, hover, resize.
 #[derive(Clone, Debug, Default)]
@@ -412,7 +412,7 @@ impl Interactive for DataTableState {
     }
 }
 
-// ───────────────────────────── widget ─────────────────────────────
+// widget
 
 /// Data table with sortable headers, cursor, selection, zebra stripes, scrollbars.
 #[derive(Clone, Debug)]
@@ -782,7 +782,7 @@ impl StatefulWidget for DataTable {
     }
 }
 
-// ───────────────────────────── key-value list ─────────────────────────────
+// key-value list
 
 /// Simple two-column list for definition-style content (label: value).
 pub struct KeyValueList {

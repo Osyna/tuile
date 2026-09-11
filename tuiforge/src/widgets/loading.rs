@@ -57,7 +57,7 @@ fn cell(buf: &mut Buffer, x: u16, y: u16, c: Rgb) {
     put(buf, x, y, " ", 1, st(c, c));
 }
 
-// ───────────────────────────── Loader ─────────────────────────────
+// Loader
 
 /// Which animation a [`Loader`] plays.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -745,7 +745,7 @@ fn radar(buf: &mut Buffer, r: Rect, el: f32, p: &Palette) {
     }
 }
 
-// ───────────────────────────── Skeleton ─────────────────────────────
+// Skeleton
 
 /// Painted skeleton placeholder with a diagonal shimmer band.
 #[derive(Clone, Debug)]
@@ -1031,7 +1031,7 @@ impl Widget for Skeleton {
     }
 }
 
-// ───────────────────────────── LoadingOverlay ─────────────────────────────
+// LoadingOverlay
 
 /// Dim an area and centre a [`Loader`] (plus an optional message) over it: the "this panel
 /// is busy" state. Draw it last, over the content it covers.

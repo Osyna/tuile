@@ -1,5 +1,5 @@
 //! Feedback: progress bars, every spinner, loading states, toasts (with corners), callouts,
-//! dialogs and tooltips — all live.
+//! dialogs and tooltips, all live.
 
 use tuiforge::draw::{fill, put, st};
 use tuiforge::prelude::*;
@@ -481,7 +481,7 @@ impl Page for FeedbackPage {
             &mut self.toaster,
         );
         {
-            let hint = "toasts appear in this box — click one to dismiss, Esc clears";
+            let hint = "toasts appear in this box; click one to dismiss, Esc clears";
             put(
                 buf,
                 t.x,

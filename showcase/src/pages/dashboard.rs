@@ -1,4 +1,4 @@
-//! Dashboard: a realistic ops screen composed from widgets of every family — stat cards,
+//! Dashboard: a realistic ops screen composed from widgets of every family, from stat cards,
 //! line/bar graphs, a live data table, meters, a deploy button driving a progress bar,
 //! a switch, and an event log. Everything updates from a deterministic simulation.
 
@@ -245,7 +245,7 @@ impl Page for DashboardPage {
                 self.deploying = None;
                 self.log.push(
                     LogLevel::Success,
-                    "deploy api-gateway 1.43.0 complete — 100% traffic",
+                    "deploy api-gateway 1.43.0 complete, 100% traffic",
                 );
                 ctx.notify("Deploy complete", Variant::Success);
             }

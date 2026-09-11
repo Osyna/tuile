@@ -300,7 +300,6 @@ impl Page for ThemesPage {
             8,
             st(th.primary.text_on(0.9), th.primary).add_modifier(Modifier::BOLD),
         );
-        // input
         let inp = Rect {
             x: x + 18,
             y,
@@ -388,7 +387,6 @@ impl Page for ThemesPage {
                 th.panel,
             );
         }
-        // toast
         let ty = y + 4;
         if ty < p_in.bottom() {
             let toast = Rect {

@@ -1,5 +1,5 @@
-//! Settings: a realistic preferences form assembled from library widgets in ~300 lines —
-//! selects, switches, sliders, steppers, radios, segmented controls, swatches, validated
+//! Settings: a realistic preferences form assembled from library widgets in ~300 lines.
+//! Selects, switches, sliders, steppers, radios, segmented controls, swatches, validated
 //! inputs, dependent fields, a confirm dialog and toasts.
 
 use tuiforge::draw::{fill, put, st};

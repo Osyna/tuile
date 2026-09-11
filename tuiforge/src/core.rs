@@ -6,7 +6,7 @@ use ratatui::crossterm::event::{
 };
 use ratatui::layout::{Position, Rect};
 
-// ───────────────────────────── outcome ─────────────────────────────
+// outcome
 
 /// Result of feeding an event to a widget state.
 ///
@@ -55,7 +55,7 @@ impl std::ops::BitOrAssign for Outcome {
     }
 }
 
-// ───────────────────────────── look ─────────────────────────────
+// look
 
 /// Interaction state that drives a widget's styling (Textual `:focus`, `:hover`, `:disabled`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -99,7 +99,7 @@ impl Look {
     }
 }
 
-// ───────────────────────────── focus ring ─────────────────────────────
+// focus ring
 
 /// Tab-order over a list of ids (any `Copy + PartialEq`, typically a small enum).
 ///
@@ -205,7 +205,7 @@ impl<T: Copy + PartialEq> Focus<T> {
     }
 }
 
-// ───────────────────────────── mouse ─────────────────────────────
+// mouse
 
 pub fn mouse_pos(m: &MouseEvent) -> Position {
     Position {
@@ -253,7 +253,7 @@ pub enum Hit {
     Press,
     /// Left button dragged while pressed here.
     Drag,
-    /// Left button released inside after a press inside — a click.
+    /// Left button released inside after a press inside: a click.
     Click,
     /// Press was cancelled (released outside).
     Cancel,
@@ -336,7 +336,7 @@ impl HitBox {
     }
 }
 
-// ───────────────────────────── keys ─────────────────────────────
+// keys
 
 /// Key presses only (crossterm may also report repeats/releases with the kitty protocol).
 pub fn is_press(k: &KeyEvent) -> bool {
@@ -364,7 +364,7 @@ pub fn plain_char(k: &KeyEvent) -> Option<char> {
     }
 }
 
-/// `Enter` or `Space` — the universal "activate" keys.
+/// `Enter` or `Space`, the universal "activate" keys.
 pub fn is_activate(k: &KeyEvent) -> bool {
     matches!(k.code, KeyCode::Enter | KeyCode::Char(' '))
 }

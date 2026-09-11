@@ -33,7 +33,7 @@ use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
 use crate::widgets::spinner::{SpinnerDef, spinners};
 use crate::widgets::textarea::{TextArea, TextAreaState};
 
-// ───────────────────────────── Role ─────────────────────────────
+// Role
 
 /// Role in a chat conversation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -66,7 +66,7 @@ impl Role {
     }
 }
 
-// ───────────────────────────── ChatBlock ─────────────────────────────
+// ChatBlock
 
 /// Block content inside a chat message: text, code, thinking, tool calls, dividers.
 #[derive(Clone, Debug)]
@@ -93,7 +93,7 @@ pub enum ChatBlock {
     Divider(String),
 }
 
-// ───────────────────────────── ChatMessage ─────────────────────────────
+// ChatMessage
 
 /// One message in a chat conversation.
 #[derive(Clone, Debug)]
@@ -151,7 +151,7 @@ impl ChatMessage {
     }
 }
 
-// ───────────────────────────── ChatState ─────────────────────────────
+// ChatState
 
 /// State for a chat view: messages, scroll position, follow mode.
 #[derive(Clone, Debug, Default)]
@@ -208,7 +208,7 @@ impl ChatState {
         self.scroll = 0;
     }
 
-    /// Scroll to end.
+    /// Enable auto-scroll: next render scrolls to the last message.
     pub fn scroll_to_end(&mut self) {
         self.follow = true;
     }
@@ -351,7 +351,7 @@ impl Interactive for ChatState {
     }
 }
 
-// ───────────────────────────── ChatView ─────────────────────────────
+// ChatView
 
 /// Chat view with bubbles or full-width messages. Assistant messages carry a role-coloured
 /// bar on the left; its thickness is `.bar(Edge)` (thin by default, `Edge::Full` for a block).
@@ -517,6 +517,7 @@ fn inline_runs(line: &str) -> Vec<(String, Inline)> {
 /// at most `width`.
 fn wrap_runs(runs: &[(String, Inline)], width: usize) -> Vec<Vec<(String, Inline)>> {
     let width = width.max(1);
+    // invariant: `rows` starts with one row and only ever grows, so `last_mut()` is always Some
     let mut rows: Vec<Vec<(String, Inline)>> = vec![Vec::new()];
     let mut used = 0usize;
     let push =
@@ -545,13 +546,13 @@ fn wrap_runs(runs: &[(String, Inline)], width: usize) -> Vec<Vec<(String, Inline
                     continue;
                 }
                 rows.last_mut()
-                    .unwrap()
+                    .expect("rows is never empty")
                     .push((rest[..cut].to_string(), style));
                 rows.push(Vec::new());
                 *used = 0;
                 rest = &rest[cut..];
             }
-            let row = rows.last_mut().unwrap();
+            let row = rows.last_mut().expect("rows is never empty");
             let leading = *used == 0;
             let piece = if leading { rest.trim_start() } else { rest };
             if piece.is_empty() {
@@ -1130,7 +1131,7 @@ pub enum StreamCursor {
     None,
 }
 
-// ───────────────────────────── StreamText ─────────────────────────────
+// StreamText
 pub struct StreamText {
     text: String,
     elapsed: f32,
@@ -1297,7 +1298,7 @@ impl Widget for StreamText {
     }
 }
 
-// ───────────────────────────── TypingIndicator ─────────────────────────────
+// TypingIndicator
 
 /// Three-dot typing animation (traveling wave pulse).
 pub struct TypingIndicator {
@@ -1378,7 +1379,7 @@ impl Widget for TypingIndicator {
     }
 }
 
-// ───────────────────────────── Thinking ─────────────────────────────
+// Thinking
 
 /// One-row "the model is working" indicator: spinner, label with a sweeping shimmer band,
 /// optional detail and elapsed counter (`⠋ Thinking… reading 3 files (3.2s)`).
@@ -1533,7 +1534,7 @@ impl Widget for Thinking {
     }
 }
 
-// ───────────────────────────── TokenUsage ─────────────────────────────
+// TokenUsage
 
 /// Token usage stats.
 #[derive(Clone, Copy, Debug, Default)]
@@ -1573,7 +1574,7 @@ pub fn fmt_tokens(n: u32) -> String {
     }
 }
 
-// ───────────────────────────── ContextGauge ─────────────────────────────
+// ContextGauge
 
 /// Token usage gauge: `context 15.6k / 200k  8%  $0.0123` over a bar. The bar is a [`Meter`],
 /// so every meter style works (`Block` default, `Line`, `Segments`, btop `Blocks`/`Dots`) and a
@@ -1722,7 +1723,7 @@ impl Widget for ContextGauge<'_> {
     }
 }
 
-// ───────────────────────────── ToolStatus ─────────────────────────────
+// ToolStatus
 
 /// Tool call execution status.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -1733,7 +1734,7 @@ pub enum ToolStatus {
     Error,
 }
 
-// ───────────────────────────── ToolCall ─────────────────────────────
+// ToolCall
 
 /// Tool call display widget.
 #[derive(Clone, Debug)]
@@ -1816,7 +1817,8 @@ impl ToolCall {
         self
     }
 
-    /// Calculate height.
+    /// Rows this block needs: 3 when collapsed, otherwise 3 plus one row per output line.
+    /// Independent of width, so the caller can budget layout before it knows the column.
     pub fn height(&self, _width: u16) -> u16 {
         if self.collapsed {
             return 3; // border + header + border
@@ -1913,7 +1915,7 @@ impl Widget for ToolCall {
     }
 }
 
-// ───────────────────────────── TokenHeat ─────────────────────────────
+// TokenHeat
 
 /// Token probability heatmap.
 #[derive(Clone, Debug)]
@@ -2032,7 +2034,7 @@ impl Widget for TokenHeat {
     }
 }
 
-// ───────────────────────────── DiffKind ─────────────────────────────
+// DiffKind
 
 /// Diff line type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -2043,7 +2045,7 @@ pub enum DiffKind {
     Hunk,
 }
 
-// ───────────────────────────── DiffLine ─────────────────────────────
+// DiffLine
 
 /// One line in a diff.
 #[derive(Clone, Debug)]
@@ -2052,7 +2054,7 @@ pub struct DiffLine {
     pub text: String,
 }
 
-// ───────────────────────────── DiffView ─────────────────────────────
+// DiffView
 
 /// Unified diff viewer.
 #[derive(Clone, Debug)]
@@ -2260,7 +2262,7 @@ impl Widget for DiffView {
     }
 }
 
-// ───────────────────────────── ComposerState ─────────────────────────────
+// ComposerState
 
 /// State for prompt composer.
 #[derive(Clone, Debug, Default)]
@@ -2311,7 +2313,7 @@ impl Interactive for ComposerState {
     }
 }
 
-// ───────────────────────────── PromptComposer ─────────────────────────────
+// PromptComposer
 
 /// Prompt composer: a text field in one of the omp composer shapes (thin side bars by
 /// default) with a hint row - model pill, send/newline keys, attachments, token estimate.
@@ -2465,9 +2467,9 @@ impl StatefulWidget for PromptComposer {
     }
 }
 
-// ───────────────────────────── ApprovalChoice ─────────────────────────────
+// ApprovalChoice
 
-/// Approval choice.
+/// User choice from approval prompt: once, always, or deny.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ApprovalChoice {
     Once,
@@ -2475,7 +2477,7 @@ pub enum ApprovalChoice {
     Deny,
 }
 
-// ───────────────────────────── ApprovalState ─────────────────────────────
+// ApprovalState
 
 /// State for approval dialog.
 #[derive(Clone, Debug, Default)]
@@ -2489,7 +2491,7 @@ pub struct ApprovalState {
 }
 
 impl ApprovalState {
-    /// Take choice.
+    /// Return and clear the user's choice, if set.
     pub fn take_choice(&mut self) -> Option<ApprovalChoice> {
         self.choice.take()
     }
@@ -2567,7 +2569,7 @@ pub enum ApprovalStyle {
     Banner,
 }
 
-// ───────────────────────────── Approval ─────────────────────────────
+// Approval
 
 /// Approval dialog widget.
 #[derive(Clone, Debug)]

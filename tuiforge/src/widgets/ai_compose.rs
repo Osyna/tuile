@@ -26,7 +26,7 @@ use crate::theme::{self, Rgb, Theme};
 use crate::widgets::ai::fmt_tokens;
 use crate::widgets::spinner::spinners;
 
-// ───────────────────────────── slash menu ─────────────────────────────
+// slash menu
 
 /// Slash command descriptor.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -59,7 +59,7 @@ impl SlashCommand {
     }
 }
 
-/// Slash menu state.
+/// Popup query, ranked matches, hit boxes, and selection; the widget writes `ranked` and `names` each render, reads `selected` when the user picks a command.
 #[derive(Clone, Debug, Default)]
 pub struct SlashMenuState {
     pub open: bool,
@@ -438,9 +438,9 @@ impl<'a> StatefulWidget for SlashMenu<'a> {
     }
 }
 
-// ───────────────────────────── mention picker ─────────────────────────────
+// mention picker
 
-/// Mention kind.
+/// File, directory, symbol, URL, or agent reference types for the mention picker.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MentionKind {
     File,
@@ -471,7 +471,7 @@ impl MentionKind {
     }
 }
 
-/// Mention item.
+/// Label, kind, optional detail line, and recent flag for one mention picker row.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MentionItem {
     pub label: String,
@@ -502,7 +502,7 @@ impl MentionItem {
     }
 }
 
-/// Mention picker state.
+/// Popup query, ranked matches, hit boxes, and selection; the widget writes `ranked` and `names` each render, reads `selected` when the user picks an item.
 #[derive(Clone, Debug, Default)]
 pub struct MentionPickerState {
     pub open: bool,
@@ -870,9 +870,9 @@ impl<'a> StatefulWidget for MentionPicker<'a> {
     }
 }
 
-// ───────────────────────────── attachment chips ─────────────────────────────
+// attachment chips
 
-/// Attachment kind.
+/// Image, file, snippet, or URL attachment types.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AttachmentKind {
     Image,
@@ -892,7 +892,7 @@ impl AttachmentKind {
     }
 }
 
-/// Attachment.
+/// Name, kind, and optional size label for one attachment chip.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Attachment {
     pub name: String,
@@ -916,7 +916,7 @@ impl Attachment {
     }
 }
 
-/// Attachment chips state.
+/// Hover index, hit boxes, remove button hits, and removal flag; the widget writes hit state each render, reads `removed` when the user deletes a chip.
 #[derive(Clone, Debug, Default)]
 pub struct AttachmentChipsState {
     pub hover: Option<usize>,
@@ -972,7 +972,7 @@ impl Interactive for AttachmentChipsState {
     }
 }
 
-/// Attachment chips.
+/// Horizontal row of removable attachment chips with hover and focus states.
 pub struct AttachmentChips<'a> {
     attachments: &'a [Attachment],
     focused: bool,
@@ -1104,9 +1104,9 @@ impl<'a> StatefulWidget for AttachmentChips<'a> {
     }
 }
 
-// ───────────────────────────── mode badge ─────────────────────────────
+// mode badge
 
-/// Harness mode.
+/// Plan, Act, Ask, or Auto modes for the AI harness.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HarnessMode {
     Plan,
@@ -1258,7 +1258,7 @@ impl Widget for ModeBadge {
     }
 }
 
-// ───────────────────────────── harness status ─────────────────────────────
+// harness status
 
 /// Harness status line.
 pub struct HarnessStatus {
@@ -1485,7 +1485,6 @@ impl Widget for HarnessStatus {
                         },
                         th.surface,
                     );
-                    // then filled portion
                     hbar(
                         buf,
                         x,
@@ -1502,9 +1501,9 @@ impl Widget for HarnessStatus {
     }
 }
 
-// ───────────────────────────── question card ─────────────────────────────
+// question card
 
-/// Question option.
+/// Label and description for one question card option row.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct QuestionOption {
     pub label: String,
@@ -1521,7 +1520,7 @@ impl QuestionOption {
     }
 }
 
-/// Question card state.
+/// Cursor position, selected flags, submission indices, cancellation flag, and hit boxes; the widget writes hits each render, reads `submitted` or `cancelled` when the user answers or cancels.
 #[derive(Clone, Debug, Default)]
 pub struct QuestionCardState {
     pub cursor: usize,
@@ -1532,11 +1531,11 @@ pub struct QuestionCardState {
 }
 
 impl QuestionCardState {
-    /// Take answer.
+    /// Returns selected option indices and clears the submission flag.
     pub fn take_answer(&mut self) -> Option<Vec<usize>> {
         self.submitted.take()
     }
-    /// Take cancelled.
+    /// Returns whether the card was cancelled and clears the flag.
     pub fn take_cancelled(&mut self) -> bool {
         std::mem::replace(&mut self.cancelled, false)
     }
@@ -1579,18 +1578,20 @@ impl Interactive for QuestionCardState {
                 Outcome::Changed
             }
             KeyCode::Char(c) if c.is_ascii_digit() => {
-                let digit = c.to_digit(10).unwrap() as usize;
-                if digit > 0 && digit <= self.selected.len() {
-                    let idx = digit - 1;
-                    if self.selected.len() == 1 {
-                        // single mode: submit
-                        self.selected[idx] = true;
-                        self.submitted = Some(vec![idx]);
-                        return Outcome::Changed;
-                    } else {
-                        // multi mode: toggle
-                        self.selected[idx] = !self.selected[idx];
-                        return Outcome::Consumed;
+                if let Some(digit) = c.to_digit(10) {
+                    let digit = digit as usize;
+                    if digit > 0 && digit <= self.selected.len() {
+                        let idx = digit - 1;
+                        if self.selected.len() == 1 {
+                            // single mode: submit
+                            self.selected[idx] = true;
+                            self.submitted = Some(vec![idx]);
+                            return Outcome::Changed;
+                        } else {
+                            // multi mode: toggle
+                            self.selected[idx] = !self.selected[idx];
+                            return Outcome::Consumed;
+                        }
                     }
                 }
                 Outcome::Ignored
@@ -1624,7 +1625,7 @@ impl Interactive for QuestionCardState {
     }
 }
 
-/// Question card.
+/// Interactive card presenting a question with single or multi-select options, keyboard shortcuts, and a recommended hint.
 pub struct QuestionCard<'a> {
     question: String,
     options: &'a [QuestionOption],
@@ -1860,9 +1861,9 @@ impl<'a> StatefulWidget for QuestionCard<'a> {
     }
 }
 
-// ───────────────────────────── plan view ─────────────────────────────
+// plan view
 
-/// Task state.
+/// Pending, in-progress, done, blocked, or dropped states for plan tasks; each has a glyph, color, and modifier.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TaskState {
     Pending,
@@ -1899,7 +1900,7 @@ impl TaskState {
     }
 }
 
-/// Plan task.
+/// Text and state for one task row in a plan phase.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlanTask {
     pub text: String,
@@ -1916,7 +1917,7 @@ impl PlanTask {
     }
 }
 
-/// Plan phase.
+/// Named phase with a task list and collapse flag.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlanPhase {
     pub name: String,
@@ -1945,7 +1946,7 @@ impl PlanPhase {
     }
 }
 
-/// Plan view state.
+/// Cursor position, scroll offset, hit boxes, and per-phase collapse state; the widget writes hits each render, reads `collapsed` to show or hide phase tasks.
 #[derive(Clone, Debug, Default)]
 pub struct PlanViewState {
     pub cursor: usize,
@@ -2017,7 +2018,7 @@ impl Interactive for PlanViewState {
     }
 }
 
-/// Plan view.
+/// Collapsible tree of plan phases and tasks with keyboard navigation and animated state icons.
 pub struct PlanView<'a> {
     title: Option<String>,
     phases: &'a [PlanPhase],
@@ -2211,9 +2212,9 @@ impl<'a> StatefulWidget for PlanView<'a> {
     }
 }
 
-// ───────────────────────────── message queue ─────────────────────────────
+// message queue
 
-/// Queued message.
+/// Text and timestamp label for one queued message row.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct QueuedMessage {
     pub text: String,
@@ -2230,7 +2231,7 @@ impl QueuedMessage {
     }
 }
 
-/// Message queue state.
+/// Cursor position, hit boxes, and removal index; the widget writes hits each render, reads `removed` when the user deletes a message.
 #[derive(Clone, Debug, Default)]
 pub struct MessageQueueState {
     pub cursor: usize,
@@ -2300,7 +2301,7 @@ impl Interactive for MessageQueueState {
     }
 }
 
-/// Message queue.
+/// Scrollable list of queued messages with delete controls.
 pub struct MessageQueue<'a> {
     messages: &'a [QueuedMessage],
     theme: Option<Theme>,
@@ -2425,9 +2426,9 @@ impl<'a> StatefulWidget for MessageQueue<'a> {
     }
 }
 
-// ───────────────────────────── suggestions ─────────────────────────────
+// suggestions
 
-/// Suggestions state.
+/// Cursor position, hit boxes, and activation index; the widget writes hits each render, reads `activated` when the user picks a suggestion.
 #[derive(Clone, Debug, Default)]
 pub struct SuggestionsState {
     pub cursor: usize,
@@ -2466,10 +2467,12 @@ impl Interactive for SuggestionsState {
                 Outcome::Ignored
             }
             KeyCode::Char(c) if c.is_ascii_digit() => {
-                let digit = c.to_digit(10).unwrap() as usize;
-                if digit > 0 && digit <= self.hits.len() {
-                    self.activated = Some(digit - 1);
-                    return Outcome::Changed;
+                if let Some(digit) = c.to_digit(10) {
+                    let digit = digit as usize;
+                    if digit > 0 && digit <= self.hits.len() {
+                        self.activated = Some(digit - 1);
+                        return Outcome::Changed;
+                    }
                 }
                 Outcome::Ignored
             }
@@ -2496,7 +2499,8 @@ impl Interactive for SuggestionsState {
     }
 }
 
-/// Suggestions chips.
+/// Row of clickable suggestion chips; the cursor moves with left/right and Enter takes the
+/// selected text out of the state.
 pub struct Suggestions<'a> {
     items: &'a [&'a str],
     theme: Option<Theme>,

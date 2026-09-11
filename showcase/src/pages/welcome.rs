@@ -29,7 +29,7 @@ const FEATURES: [(&str, &str); 8] = [
     ),
     (
         "Animation",
-        "tweened switches, sliders, tabs, progress, toasts — 60 fps only while moving",
+        "tweened switches, sliders, tabs, progress and toasts at 60 fps only while moving",
     ),
     (
         "Overlays",

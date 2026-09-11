@@ -20,9 +20,7 @@ use crate::core::{Hit, HitBox, Interactive, Outcome, is_activate, is_press};
 use crate::draw::{LOWER_BLOCKS, fill, put, put_aligned, put_centered, st};
 use crate::theme::{self, Rgb, Theme, Variant};
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Label
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Plain text label with variant tinting, alignment and wrapping.
 #[derive(Clone, Debug)]
@@ -184,9 +182,7 @@ impl Widget for Label {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Rule
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Horizontal or vertical separator line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -331,9 +327,7 @@ impl Widget for Rule {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Badge, Pill, KeyCap
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Badge rendering style.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -515,9 +509,7 @@ impl Widget for KeyCap {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Link
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Clickable link with visited state.
 #[derive(Clone, Debug, Default)]
@@ -632,9 +624,7 @@ impl StatefulWidget for Link {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // StatCard
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Stat card with big value, label, delta and sparkline.
 #[derive(Clone, Debug)]
@@ -788,14 +778,8 @@ impl Widget for StatCard {
         if !self.trend.is_empty() && y < inner.y + inner.height {
             let spark_w = inner.width.min(self.trend.len() as u16);
             if let (Some(min), Some(max)) = (
-                self.trend
-                    .iter()
-                    .copied()
-                    .min_by(|a, b| a.partial_cmp(b).unwrap()),
-                self.trend
-                    .iter()
-                    .copied()
-                    .max_by(|a, b| a.partial_cmp(b).unwrap()),
+                self.trend.iter().copied().min_by(|a, b| a.total_cmp(b)),
+                self.trend.iter().copied().max_by(|a, b| a.total_cmp(b)),
             ) {
                 let range = (max - min).max(1e-9);
                 let start = self.trend.len().saturating_sub(spark_w as usize);
@@ -820,9 +804,7 @@ impl Widget for StatCard {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // StatusLine
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Separator between [`StatusLine`] segments.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -994,9 +976,7 @@ impl Widget for StatusLine<'_> {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Markup parser
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Mini console markup parser: `[b]bold[/b]`, `[i]italic[/]`, `[primary]`, `[#rrggbb]`, etc.
 pub struct Markup;

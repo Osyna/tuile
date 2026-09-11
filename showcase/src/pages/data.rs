@@ -1,4 +1,4 @@
-//! Tables and digits showcase: sortable data table, cell navigation, key-value list, big digits.
+//! Tables and digits: sortable data table, cell navigation, key-value list, big digits.
 
 use std::time::Instant;
 
@@ -83,10 +83,9 @@ impl Page for DataPage {
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
-        if self.focus.is_none() {
-            self.focus = Some(Focus::new([Id::MainTable, Id::CellTable, Id::Counter]));
-        }
-        let focus = self.focus.as_ref().unwrap();
+        let focus = self
+            .focus
+            .get_or_insert_with(|| Focus::new([Id::MainTable, Id::CellTable, Id::Counter]));
 
         let th = &ctx.theme;
         let rows = tuiforge::layout::stack(area, &[area.height.saturating_sub(11), 10], 1);
@@ -94,7 +93,7 @@ impl Page for DataPage {
             return;
         }
 
-        // ─── main table card ───
+        // main table card
         let main_card = rows[0];
         let main_inner = Border::Round.draw_titled_with(
             buf,
@@ -209,7 +208,7 @@ impl Page for DataPage {
             );
         }
 
-        // ─── bottom row: cell table + kvlist + digits ───
+        // bottom row: cell table + kvlist + digits
         let bottom_area = rows[1];
         let bottom_cols = tuiforge::layout::cols(
             bottom_area,
@@ -354,7 +353,10 @@ impl Page for DataPage {
                     return self.handle_filter_key(*k);
                 }
 
-                let focus = self.focus.as_mut().unwrap();
+                let Some(focus) = self.focus.as_mut() else {
+                    return Outcome::Ignored;
+                };
+
                 match k.code {
                     KeyCode::Tab => {
                         focus.next();

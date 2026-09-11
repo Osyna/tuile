@@ -1,5 +1,5 @@
-//! Controls: buttons, toggles, radios, segmented controls, sliders, steppers and ratings —
-//! every variant and style side by side, all focusable and mouse-driven.
+//! Controls: buttons, toggles, radios, segmented controls, sliders, steppers and ratings.
+//! Every variant and style side by side, all focusable and mouse-driven.
 
 use tuiforge::draw::{fill, put, st};
 use tuiforge::prelude::*;
@@ -692,7 +692,7 @@ impl Page for ControlsPage {
         let sv = row(s2, 5, 1);
         if sv.bottom() <= s.bottom() {
             let line = format!(
-                "volume {:.0} · brightness {:.0}% · range {:.0}–{:.0} · tab {} · rating {}/5",
+                "volume {:.0} · brightness {:.0}% · range {:.0}..{:.0} · tab {} · rating {}/5",
                 self.volume.value,
                 self.brightness.value * 100.0,
                 self.range.lo,

@@ -201,33 +201,30 @@ impl AiPage {
             }
             Step::Tool(i, status) => {
                 let (name, summary) = TOOLS[i];
-                let msg = self
-                    .chat
-                    .messages
-                    .last_mut()
-                    .expect("assistant message exists");
-                let existing = msg.blocks.iter_mut().find_map(|b| match b {
-                    ChatBlock::ToolCall {
-                        name: n,
-                        status: s,
-                        duration_ms,
-                        ..
-                    } if n == name => Some((s, duration_ms)),
-                    _ => None,
-                });
-                match existing {
-                    Some((s, dur)) => {
-                        *s = status;
-                        if matches!(status, ToolStatus::Done | ToolStatus::Error) {
-                            *dur = Some([820, 1_340, 12][i]);
+                if let Some(msg) = self.chat.messages.last_mut() {
+                    let existing = msg.blocks.iter_mut().find_map(|b| match b {
+                        ChatBlock::ToolCall {
+                            name: n,
+                            status: s,
+                            duration_ms,
+                            ..
+                        } if n == name => Some((s, duration_ms)),
+                        _ => None,
+                    });
+                    match existing {
+                        Some((s, dur)) => {
+                            *s = status;
+                            if matches!(status, ToolStatus::Done | ToolStatus::Error) {
+                                *dur = Some([820, 1_340, 12][i]);
+                            }
                         }
+                        None => msg.blocks.push(ChatBlock::ToolCall {
+                            name: name.into(),
+                            summary: summary.into(),
+                            status,
+                            duration_ms: None,
+                        }),
                     }
-                    None => msg.blocks.push(ChatBlock::ToolCall {
-                        name: name.into(),
-                        summary: summary.into(),
-                        status,
-                        duration_ms: None,
-                    }),
                 }
             }
             Step::Code => {
@@ -255,8 +252,9 @@ impl AiPage {
 
     /// Re-point the stream at the last message without pushing a new one.
     fn chat_restream(&mut self, full: &str, now: Instant) {
-        let msg = self.chat.messages.pop().expect("message to restream");
-        self.chat.begin_stream(msg, full.to_string(), now);
+        if let Some(msg) = self.chat.messages.pop() {
+            self.chat.begin_stream(msg, full.to_string(), now);
+        }
     }
 
     fn tick(&mut self, now: Instant) {

@@ -1,4 +1,4 @@
-//! Showcase for input widgets: Input, TextArea, Select, Combobox, MultiSelect.
+//! Input widgets: Input, TextArea, Select, Combobox, MultiSelect.
 
 use std::time::Instant;
 

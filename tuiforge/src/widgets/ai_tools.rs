@@ -28,7 +28,7 @@ use crate::widgets::ai::{DiffKind, DiffLine, ToolStatus};
 use crate::widgets::spinner::spinners;
 use crate::widgets::{Scrollbar, ScrollbarState};
 
-// ─────────────────────────────────── ToolStep ───────────────────────────────────
+// ToolStep
 
 /// One step in a tool execution timeline.
 #[derive(Clone, Debug)]
@@ -93,7 +93,7 @@ impl ToolStep {
     }
 }
 
-// ─────────────────────────────────── ToolTimelineState ───────────────────────────────────
+// ToolTimelineState
 
 /// State for [`ToolTimeline`].
 #[derive(Clone, Debug, Default)]
@@ -196,7 +196,7 @@ impl Interactive for ToolTimelineState {
     }
 }
 
-// ─────────────────────────────────── ToolTimeline ───────────────────────────────────
+// ToolTimeline
 
 /// Tool execution timeline with nested steps, live elapsed time, expandable output.
 #[derive(Clone, Debug)]
@@ -435,7 +435,7 @@ impl StatefulWidget for ToolTimeline {
     }
 }
 
-// ─────────────────────────────────── ShellBlock ───────────────────────────────────
+// ShellBlock
 
 /// Shell command block with streaming output.
 #[derive(Clone, Debug)]
@@ -731,7 +731,7 @@ impl Widget for ShellBlock<'_> {
     }
 }
 
-// ─────────────────────────────────── CodeBlock ───────────────────────────────────
+// CodeBlock
 
 /// Code block with language, path, line numbers, syntax highlighting.
 #[derive(Clone, Debug)]
@@ -955,7 +955,7 @@ impl Widget for CodeBlock<'_> {
     }
 }
 
-// ─────────────────────────────────── EditDecision ───────────────────────────────────
+// EditDecision
 
 /// User decision for an edit preview.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -965,7 +965,7 @@ pub enum EditDecision {
     Edit,
 }
 
-// ─────────────────────────────────── EditPreviewState ───────────────────────────────────
+// EditPreviewState
 
 /// State for [`EditPreview`].
 #[derive(Clone, Debug, Default)]
@@ -1051,7 +1051,7 @@ impl Interactive for EditPreviewState {
     }
 }
 
-// ─────────────────────────────────── EditPreview ───────────────────────────────────
+// EditPreview
 
 /// Edit preview with animated reveal and decision buttons.
 #[derive(Clone, Debug)]
@@ -1266,7 +1266,7 @@ impl StatefulWidget for EditPreview<'_> {
     }
 }
 
-// ─────────────────────────────────── ChangeKind ───────────────────────────────────
+// ChangeKind
 
 /// File change kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1277,7 +1277,7 @@ pub enum ChangeKind {
     Renamed(/* from offset in path */ usize),
 }
 
-// ─────────────────────────────────── FileChange ───────────────────────────────────
+// FileChange
 
 /// One file in a change set.
 #[derive(Clone, Debug)]
@@ -1309,7 +1309,7 @@ impl FileChange {
     }
 }
 
-// ─────────────────────────────────── ChangeSetState ───────────────────────────────────
+// ChangeSetState
 
 /// State for [`ChangeSet`].
 #[derive(Clone, Debug, Default)]
@@ -1381,7 +1381,7 @@ impl Interactive for ChangeSetState {
     }
 }
 
-// ─────────────────────────────────── ChangeSet ───────────────────────────────────
+// ChangeSet
 
 /// File change set with stat bars.
 #[derive(Clone, Debug)]
@@ -1544,7 +1544,7 @@ impl StatefulWidget for ChangeSet {
     }
 }
 
-// ─────────────────────────────────── Json ───────────────────────────────────────
+// Json
 
 /// Simple JSON value for tree rendering.
 #[derive(Clone, Debug, PartialEq)]
@@ -1804,7 +1804,7 @@ impl Parser {
     }
 }
 
-// ─────────────────────────────────── JsonTreeState ───────────────────────────────────
+// JsonTreeState
 
 /// State for [`JsonTree`].
 #[derive(Clone, Debug, Default)]
@@ -1905,7 +1905,7 @@ impl Interactive for JsonTreeState {
     }
 }
 
-// ─────────────────────────────────── JsonTree ───────────────────────────────────
+// JsonTree
 
 /// JSON tree viewer.
 #[derive(Clone, Debug)]
@@ -2062,7 +2062,7 @@ impl StatefulWidget for JsonTree {
     }
 }
 
-// ─────────────────────────────────── RetryNotice ───────────────────────────────────
+// RetryNotice
 
 /// Retry countdown notice.
 #[derive(Clone, Debug)]

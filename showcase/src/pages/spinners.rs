@@ -175,7 +175,6 @@ impl Page for SpinnersPage {
             .theme(&th)
             .render(filter_area, buf, &mut self.filter);
 
-        // grid
         let g = card(
             buf,
             grid_a,
@@ -272,7 +271,6 @@ impl Page for SpinnersPage {
                 .render(sb, buf, &mut self.scrollbar);
         }
 
-        // preview
         if preview_h > 0 {
             let def = self.hover.unwrap_or(self.selected);
             let p = pad(

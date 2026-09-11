@@ -17,9 +17,7 @@ use crate::draw::{fill, put, put_centered, st};
 use crate::theme::{self, Rgb, Theme, Variant};
 use unicode_width::UnicodeWidthStr;
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Steps
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Status of one step in a sequence.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -327,9 +325,7 @@ impl Steps {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Timeline
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// One entry in a timeline.
 #[derive(Clone, Debug)]

@@ -212,9 +212,9 @@ impl Collapsible {
         } else {
             self.markers.0
         };
-        let header_text = if let Some(ref sub) = self.subtitle {
+        let header_text = if let Some(sub) = &self.subtitle {
             if !sub.is_empty() {
-                format!("{} {} — {}", marker, self.title, sub)
+                format!("{} {} · {}", marker, self.title, sub)
             } else {
                 format!("{} {}", marker, self.title)
             }

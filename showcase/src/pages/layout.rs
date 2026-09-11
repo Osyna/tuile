@@ -122,7 +122,7 @@ impl Page for LayoutPage {
                         1 => ("─".repeat(60), th.border_blurred),
                         5 => ("  │ id │ name         │ status  │ latency │ region     │ notes                          │".to_string(), th.text_muted),
                         6 => (format!("  │ {:>2} │ node-{:<7} │ healthy │ {:>4} ms │ {:<10} │ scrolled horizontally to see me │", i, i * 7, 40 + i * 3, ["us-east", "eu-west", "ap-south"][i % 3]), th.text),
-                        _ => (format!("{:>3}  The quick brown fox jumps over the lazy dog — line {i} keeps scrolling smoothly with the wheel, arrows and PgUp/PgDn.", i + 1), th.text),
+                        _ => (format!("{:>3}  The quick brown fox jumps over the lazy dog on line {i}, which keeps scrolling smoothly with the wheel, arrows and PgUp/PgDn.", i + 1), th.text),
                     };
                     put(cbuf, carea.x, y, &text, carea.width, st(color, th.surface));
                     put(cbuf, carea.x, y, &format!("{:>3}", i + 1), 3, st(th.text_disabled, th.surface));
@@ -221,7 +221,7 @@ impl Page for LayoutPage {
                     ("^b", "Sidebar"),
                 ])
                 .right(if self.focus.is(Id::Footer) {
-                    "focused — click a key"
+                    "focused: click a key"
                 } else {
                     "Ready"
                 })

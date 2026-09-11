@@ -67,7 +67,6 @@ impl Default for AiComposePage {
 impl AiComposePage {
     /// Slash / mention popups, drawn last so they sit above everything.
     fn draw_popups(&mut self, area: Rect, composer_area: Rect, buf: &mut Buffer, th: &Theme) {
-        // slash menu
         if self.slash_menu.open {
             let commands = [
                 SlashCommand::new("help", "Show help").category("Info"),
@@ -91,7 +90,6 @@ impl AiComposePage {
                 .render(area, buf, &mut self.slash_menu);
         }
 
-        // mention picker
         if self.mention_picker.open {
             let items = [
                 MentionItem::new("src/widgets/ai_compose.rs", MentionKind::File)
@@ -236,7 +234,6 @@ impl Page for AiComposePage {
                 &mut self.suggestions,
             );
 
-        // attachments
         let attachments = [
             Attachment::new("shot.png", AttachmentKind::Image).size("1.2MB"),
             Attachment::new("README.md", AttachmentKind::File),
@@ -257,7 +254,6 @@ impl Page for AiComposePage {
                 &mut self.attachments_state,
             );
 
-        // composer
         let composer_area = Rect {
             x: area.x,
             y: composer_y,

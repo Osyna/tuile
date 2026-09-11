@@ -1,4 +1,4 @@
-//! Resizable split pane with divider — horizontal or vertical. Drag the divider to resize,
+//! Resizable split pane with a divider, horizontal or vertical. Drag the divider to resize,
 //! double-click to reset, or call `state.resize_by(delta)` from key handlers.
 //!
 //! ```no_run

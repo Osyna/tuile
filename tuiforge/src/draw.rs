@@ -10,7 +10,7 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::theme::Rgb;
 
-// ───────────────────────────── styles ─────────────────────────────
+// styles
 
 pub fn st(fg: Rgb, bg: Rgb) -> Style {
     Style::new().fg(fg.color()).bg(bg.color())
@@ -20,7 +20,7 @@ pub fn bold(s: Style) -> Style {
     s.add_modifier(Modifier::BOLD)
 }
 
-// ───────────────────────────── fills & text ─────────────────────────────
+// fills & text
 
 /// Paint `bg` over an area (symbols reset to spaces).
 pub fn fill(buf: &mut Buffer, area: Rect, bg: Rgb) {
@@ -132,11 +132,11 @@ pub fn blit(dst: &mut Buffer, at: Position, src: &Buffer, src_area: Rect) {
     }
 }
 
-// ───────────────────────────── block glyphs ─────────────────────────────
+// block glyphs
 
-/// `" ▏▎▍▌▋▊▉█"` — left-anchored eighths, index 0..=8.
+/// `" ▏▎▍▌▋▊▉█"`: left-anchored eighths, index 0..=8.
 pub const LEFT_BLOCKS: [&str; 9] = [" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"];
-/// `" ▁▂▃▄▅▆▇█"` — bottom-anchored eighths, index 0..=8.
+/// `" ▁▂▃▄▅▆▇█"`: bottom-anchored eighths, index 0..=8.
 pub const LOWER_BLOCKS: [&str; 9] = [" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
 
 /// Horizontal bar of `width` cells filled to fraction `f` with eighth-block precision.
@@ -168,7 +168,7 @@ pub fn vbar(buf: &mut Buffer, x: u16, y: u16, height: u16, f: f32, fg: Rgb, bg: 
     }
 }
 
-// ───────────────────────────── borders ─────────────────────────────
+// borders
 
 /// Every Textual border style. Glyph tables are `[top-left, top, top-right, left, right,
 /// bottom-left, bottom, bottom-right]`.
@@ -396,18 +396,18 @@ pub fn thick_border(buf: &mut Buffer, area: Rect, color: Rgb, bg: Rgb) {
     Border::Thick.draw(buf, area, color, bg);
 }
 
-// ───────────────────────────── edge bars & field shapes ─────────────────────────────
+// edge bars & field shapes
 
 /// Thickness of a vertical accent bar. `Full` paints the whole cell (Textual's `tall`
 /// border); the others draw an eighth-block glyph, so `Hair` is one pixel column in most fonts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Edge {
-    /// `▏` / `▕` - 1/8 cell.
+    /// `▏` / `▕`, 1/8 cell.
     Hair,
-    /// `▎` / `▕` - 2/8 cell (default for accent bars).
+    /// `▎` / `▕`, 2/8 cell (default for accent bars).
     #[default]
     Thin,
-    /// `▌` / `▐` - half cell.
+    /// `▌` / `▐`, half cell.
     Half,
     /// Whole cell, painted as background.
     Full,
@@ -605,7 +605,7 @@ pub fn shadow(buf: &mut Buffer, area: Rect, toward: Rgb, f: f32) {
     blend_area(buf, bottom, toward, f);
 }
 
-// ───────────────────────────── text ─────────────────────────────
+// text
 
 pub fn width(s: &str) -> usize {
     s.width()

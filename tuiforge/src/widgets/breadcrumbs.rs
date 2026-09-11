@@ -21,7 +21,7 @@ use crate::core::{Interactive, Outcome, mouse_pos};
 use crate::draw::{fill, put, st};
 use crate::theme::{self, Theme};
 
-// ───────────────────────────── breadcrumbs ─────────────────────────────
+// breadcrumbs
 
 /// Breadcrumb segments with collapsing and click handling.
 #[derive(Clone, Debug)]
@@ -172,18 +172,15 @@ impl StatefulWidget for Breadcrumbs {
             .map(|(i, s)| (i, s.as_str()))
             .collect();
         if total > area.width && self.segments.len() > 2 {
-            // keep first and last, collapse middle to "…"
-            let first_w = seg_widths[0];
-            let last_w = seg_widths[self.segments.len() - 1];
-            let needed = first_w + sep_w + 1 + sep_w + last_w; // "first › … › last"
+            // keep first and last, collapse the middle to "…"; the `len() > 2` guard makes
+            // index 0 and `last` in bounds
+            let last = self.segments.len() - 1;
+            let needed = seg_widths[0] + sep_w + 1 + sep_w + seg_widths[last]; // "first › … › last"
             if needed <= area.width {
                 visible = vec![
                     (0, self.segments[0].as_str()),
                     (usize::MAX, "…"),
-                    (
-                        self.segments.len() - 1,
-                        self.segments.last().unwrap().as_str(),
-                    ),
+                    (last, self.segments[last].as_str()),
                 ];
             }
         }
@@ -244,7 +241,7 @@ impl StatefulWidget for Breadcrumbs {
     }
 }
 
-// ───────────────────────────── paginator ─────────────────────────────
+// paginator
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PaginatorHit {

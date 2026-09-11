@@ -21,9 +21,7 @@ use crate::draw::{put, st, wrap as text_wrap};
 use crate::theme::{self, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Markdown state
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Markdown view state with scrolling.
 #[derive(Clone, Debug, Default)]
@@ -92,9 +90,7 @@ impl Interactive for MarkdownState {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Markdown widget
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Markdown renderer widget.
 #[derive(Clone, Debug)]
@@ -172,9 +168,7 @@ impl StatefulWidget for Markdown {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Markdown parser
-// ─────────────────────────────────────────────────────────────────────────────
 
 struct MdParser<'a> {
     src: &'a str,
@@ -204,7 +198,7 @@ impl<'a> MdParser<'a> {
             let line = raw_lines[i];
 
             // code fence
-            if line.starts_with("```") {
+            if let Some(rest) = line.strip_prefix("```") {
                 if self.in_code_block {
                     // close
                     self.in_code_block = false;
@@ -212,7 +206,7 @@ impl<'a> MdParser<'a> {
                 } else {
                     // open
                     self.in_code_block = true;
-                    self.code_lang = line.strip_prefix("```").unwrap().trim().to_string();
+                    self.code_lang = rest.trim().to_string();
                     if !self.code_lang.is_empty() {
                         // lang label at top-right
                         let label = format!(" {} ", self.code_lang);
@@ -289,8 +283,8 @@ impl<'a> MdParser<'a> {
             }
 
             // blockquote
-            if line.starts_with('>') {
-                let text = line.strip_prefix('>').unwrap().trim();
+            if let Some(rest) = line.strip_prefix('>') {
+                let text = rest.trim();
                 let spans = vec![
                     Span::styled("▌ ", st(self.th.secondary, self.th.surface)),
                     Span::styled(

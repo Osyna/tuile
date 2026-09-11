@@ -31,7 +31,6 @@ pub struct AiToolsPage {
 
 impl Default for AiToolsPage {
     fn default() -> Self {
-        // Build timeline steps
         let mut timeline = ToolTimelineState::default();
         timeline.steps = vec![
             ToolStep::new("read")
@@ -65,7 +64,6 @@ impl Default for AiToolsPage {
                 .depth(1),
         ];
 
-        // Build change set
         let changeset = ChangeSetState {
             files: vec![
                 FileChange::new("src/main.rs", ChangeKind::Modified)
@@ -90,7 +88,6 @@ impl Default for AiToolsPage {
             ..Default::default()
         };
 
-        // Build JSON tree
         let mut json = JsonTreeState::default();
         let json_text = r#"{
             "tool": "read",
@@ -213,7 +210,6 @@ impl Page for AiToolsPage {
             let rects =
                 tuiforge::layout::stack(area, &cards.iter().map(|c| c.1).collect::<Vec<_>>(), 1);
 
-            // Timeline
             if !rects.is_empty() {
                 let inner = card(buf, rects[0], th, cards[0].0);
                 ToolTimeline::new()
@@ -506,18 +502,11 @@ impl Page for AiToolsPage {
                 }
             }
             Event::Mouse(m) => {
-                // Forward to all widgets
+                // every widget checks its own cached rects, so all four see every event
                 out |= self.timeline.handle_mouse(*m);
                 out |= self.edit_preview.handle_mouse(*m);
                 out |= self.changeset.handle_mouse(*m);
                 out |= self.json.handle_mouse(*m);
-
-                // Update focus on press
-                if out.is_changed() {
-                    // Determine which widget was interacted with by checking hits
-                    // This is a simplified approach - in practice you'd check HitBox areas
-                    // For now, we'll just keep the current focus
-                }
             }
             _ => {}
         }
@@ -531,7 +520,6 @@ impl Page for AiToolsPage {
             return true;
         }
 
-        // Check if timeline is still running through steps
         if let Some(started) = self.timeline_started {
             let elapsed = (now - started).as_secs_f32();
             if elapsed < self.timeline.steps.len() as f32 * 1.5 + 3.0 {

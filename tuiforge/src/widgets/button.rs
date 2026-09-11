@@ -243,7 +243,7 @@ impl Button {
         put_centered(buf, mid, label, Self::focus_style(st(fg, bg), look));
     }
 
-    /// Focus cue: bold + underline on a lightened background — visible without looking like a
+    /// Focus cue: bold + underline on a lightened background, visible without looking like a
     /// text selection (Textual's `bold reverse` inverted the whole row).
     fn focus_style(base: Style, look: &Look) -> Style {
         let style = base.add_modifier(Modifier::BOLD);

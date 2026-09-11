@@ -19,9 +19,7 @@ use crate::layout::popup_below;
 use crate::runtime::{civil_from_days, days_from_civil, local_ymd};
 use crate::theme::{self, Theme, Variant};
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Calendar
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Day of week for `.week_start`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -213,7 +211,7 @@ impl Interactive for CalendarState {
     }
 }
 
-/// Calendar widget.
+/// Month grid with week start, adjacent months, week numbers, date bounds, and custom disabled/marked dates.
 #[derive(Clone, Debug)]
 pub struct Calendar {
     week_start: Weekday,
@@ -459,7 +457,6 @@ impl StatefulWidget for Calendar {
                 let day_str = day.to_string();
                 put_centered(buf, cell_rect, &day_str, st(fg, bg).add_modifier(style_mod));
             } else if self.show_adjacent {
-                // next month
                 let day = cell_idx - offset - days_in + 1;
                 put_centered(
                     buf,
@@ -505,9 +502,7 @@ fn month_name(m: u32) -> &'static str {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // DatePicker
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Date picker state with popup calendar.
 #[derive(Clone, Debug, Default)]

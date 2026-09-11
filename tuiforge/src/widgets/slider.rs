@@ -27,7 +27,7 @@ use crate::core::{
 use crate::draw::{FieldShape, fill, put, st};
 use crate::theme::{self, Theme, Variant};
 
-// ───────────────────────────── slider ─────────────────────────────
+// slider
 
 /// Single-value slider with track, thumb, and optional ticks/value display.
 #[derive(Clone, Debug)]
@@ -279,7 +279,7 @@ impl StatefulWidget for Slider {
     }
 }
 
-/// Slider state.
+/// Cursor value, drag state, cached track rect, and animation tween; the widget reads `value` every frame.
 #[derive(Clone, Debug)]
 pub struct SliderState {
     pub value: f32,
@@ -416,7 +416,7 @@ impl Interactive for SliderState {
     }
 }
 
-// ───────────────────────────── range slider ─────────────────────────────
+// range slider
 
 /// Two-thumb range slider.
 #[derive(Clone, Debug)]
@@ -526,7 +526,7 @@ impl StatefulWidget for RangeSlider {
             inner.bottom() - 1
         };
 
-        let label_text = format!("{:.0} – {:.0}", state.lo, state.hi);
+        let label_text = format!("{:.0}..{:.0}", state.lo, state.hi);
         let bound_w = format!("{:.0}", state.min)
             .width()
             .max(format!("{:.0}", state.max).width());
@@ -801,7 +801,7 @@ impl Interactive for RangeState {
     }
 }
 
-// ───────────────────────────── stepper ─────────────────────────────
+// stepper
 
 /// Numeric stepper with +/- buttons.
 #[derive(Clone, Debug)]
@@ -859,7 +859,7 @@ impl StatefulWidget for Stepper {
         };
         let bg = th.background;
 
-        // `[ - ]  42  [ + ]` — value column sized for the widest possible number
+        // `[ - ]  42  [ + ]`: value column sized for the widest possible number
         let value_text = format!("{}", state.value);
         let max_w = format!("{}", state.max)
             .width()
@@ -929,7 +929,7 @@ impl StatefulWidget for Stepper {
     }
 }
 
-/// Stepper state.
+/// Current value and bounds for +/- buttons; hit areas cached from the last render.
 #[derive(Clone, Debug, Default)]
 pub struct StepperState {
     pub value: i64,
@@ -1020,7 +1020,7 @@ impl Interactive for StepperState {
     }
 }
 
-// ───────────────────────────── rating ─────────────────────────────
+// rating
 
 /// Star rating widget.
 #[derive(Clone, Debug)]
@@ -1121,7 +1121,7 @@ impl StatefulWidget for Rating {
     }
 }
 
-/// Rating state.
+/// Selected star count (0-based), optional hover preview, and per-star hit areas from the last render.
 #[derive(Clone, Debug, Default)]
 pub struct RatingState {
     pub value: u8,

@@ -1,4 +1,4 @@
-//! Charts showcase: live animated dashboard with all chart widgets.
+//! Chart widgets: line, bar, scatter graphs with live animation.
 
 use std::time::Instant;
 
@@ -132,7 +132,7 @@ impl Page for ChartsPage {
         // Layout: 4 rows of content
         let rows = stack(area, &[8, 13, 11, 8], 1);
 
-        // ─── Row 1: Live sparklines ───
+        // Row 1: Live sparklines
         if let Some(&r1) = rows.first() {
             let inner = Border::Round.draw_titled_with(
                 buf,
@@ -205,7 +205,7 @@ impl Page for ChartsPage {
             }
         }
 
-        // ─── Row 2: Bar graph + Line graph ───
+        // Row 2: Bar graph + Line graph
         if let Some(&r2) = rows.get(1) {
             let [left, right] =
                 Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(r2);
@@ -294,7 +294,7 @@ impl Page for ChartsPage {
             }
         }
 
-        // ─── Row 3: Heatmap + Activity + Scatter ───
+        // Row 3: Heatmap + Activity + Scatter
         if let Some(&r3) = rows.get(2) {
             let cols = columns(r3, 3, 1);
 
@@ -385,7 +385,7 @@ impl Page for ChartsPage {
             }
         }
 
-        // ─── Row 4: Meters ───
+        // Row 4: Meters
         if let Some(&r4) = rows.get(3) {
             let inner = Border::Round.draw_titled_with(
                 buf,

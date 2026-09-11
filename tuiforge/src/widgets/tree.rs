@@ -27,7 +27,7 @@ use crate::layout::pad;
 use crate::theme::{self, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
-// ───────────────────────────── types ─────────────────────────────
+// types
 
 /// Unique tree node identifier.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -92,7 +92,7 @@ impl TreeNode {
     }
 }
 
-// ───────────────────────────── visible rows ─────────────────────────────
+// visible rows
 
 /// One visible row in the flattened tree.
 #[derive(Clone, Debug)]
@@ -135,9 +135,9 @@ pub fn visible_rows(roots: &[TreeNode], expanded: &HashSet<TreeId>) -> Vec<TreeR
     out
 }
 
-// ───────────────────────────── builder ─────────────────────────────
+// builder
 
-/// Tree view builder.
+/// Hierarchical tree with collapse/expand markers, guides, border, and title.
 #[derive(Clone, Debug)]
 pub struct TreeView {
     roots: Vec<TreeNode>,
@@ -207,7 +207,7 @@ impl TreeView {
     }
 }
 
-// ───────────────────────────── state ─────────────────────────────
+// state
 
 /// Tree view state: cursor (visible row index), expanded set, scroll, hover, activation.
 #[derive(Clone, Debug)]
@@ -461,7 +461,7 @@ impl Interactive for TreeViewState {
     }
 }
 
-// ───────────────────────────── render ─────────────────────────────
+// render
 
 impl StatefulWidget for TreeView {
     type State = TreeViewState;
@@ -535,12 +535,9 @@ impl StatefulWidget for TreeView {
             let is_cursor = vis_idx == state.cursor;
             let is_hover = state.hover == Some(vis_idx);
 
-            // find node
-            let node = find_node(&self.roots, row.id);
-            if node.is_none() {
+            let Some(node) = find_node(&self.roots, row.id) else {
                 continue;
-            }
-            let node = node.unwrap();
+            };
 
             let row_bg = if is_cursor && self.focused {
                 th.cursor_bg

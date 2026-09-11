@@ -1,4 +1,4 @@
-//! Showcase for navigation widgets: Tabs, List, Tree, Menu, Breadcrumbs, Paginator.
+//! Navigation widgets: Tabs, List, Tree, Menu, Breadcrumbs, Paginator.
 
 use std::time::Instant;
 
@@ -183,7 +183,6 @@ impl Page for NavigationPage {
             .theme(th)
             .render(menu_area, buf, &mut self.menu);
 
-        // breadcrumbs
         let breadcrumb_area = Rect::new(area.x, area.y + 1, area.width, 1);
         Breadcrumbs::new(vec![
             "Home".to_string(),

@@ -72,10 +72,10 @@ Rules:
 9. **Names.** `PascalCase` builder, `<Builder>State` state, enums for options
    (`TabStyle::Underline`). Do not reuse ratatui widget names (`Tabs`, `Table`, `List`,
    `Sparkline`, `Gauge`, `Chart`, `BarChart`, `Scrollbar`, `Paragraph`, `Block`, `ListItem`,
-   `Row`, `Cell`) — use `TabBar`, `DataTable`, `ListView`, `SparkChart`, `Meter`, `LineGraph`,
+   `Row`, `Cell`). Use `TabBar`, `DataTable`, `ListView`, `SparkChart`, `Meter`, `LineGraph`,
    `BarGraph`, `TableColumn`, `TableRow`, `TreeNode`, `MenuItem`, `ListEntry`…
 10. **Docs.** Every `pub` item gets a `///` doc line. The module starts with `//!` explaining what
-    it renders and a 3–6 line usage example.
+    it renders and a 3 to 6 line usage example.
 11. **Tests.** One `#[cfg(test)] mod tests` per module with behaviour tests that render into a
     `Buffer::empty(Rect)` and/or drive `handle_key`/`handle_mouse` and assert on state/cells.
     No snapshot dumps. Test the tricky logic (cursor math, scroll clamping, sort, wrap).
@@ -97,7 +97,7 @@ Rules:
 16. **Icons are width-1, non-emoji, and present in common monospace fonts.** Terminals size
     glyphs with their own tables: anything with the Unicode *Emoji* property (`▶ ◀ ▪ ▫ ⚠ ♥ ⚡ ☰
     ⚙ ✦ ℹ …`) is two cells for utf8proc-based terminals (tmux, foot, kitty) while `unicode-width`
-    says one, so every cell after it on that row shifts - the whole row skews. Use glyphs that
+    says one, so every cell after it on that row shifts and the whole row skews. Use glyphs that
     are 1 cell everywhere and exist in JetBrains Mono / DejaVu:
     `◈ ◉ ◔ ◌ ◆ ◇ ● ○ ■ □ ◧ ◫ ◊ ⊞ ⊡ ⊙ ⊛ ⊕ ⊗ ⌘ ⌂ ≡ ▸ ▹ ◂ ◃ ▴ ▾ ▲ ▼ • ◦ ✓ ✗ ✶ ¶ ⋮ ⋯ ❯`. Check a
     candidate with `unicode_width::UnicodeWidthStr::width` **and** a `tools/shot.py` screenshot

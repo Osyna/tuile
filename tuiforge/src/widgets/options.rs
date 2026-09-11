@@ -50,7 +50,7 @@ pub enum OptionValue {
 }
 
 impl OptionValue {
-    /// Display text.
+    /// Value as the string drawn in the right column; `Action` renders as empty.
     pub fn display(&self) -> String {
         match self {
             OptionValue::Bool(b) => b.to_string(),
@@ -92,7 +92,7 @@ impl OptionValue {
     }
 }
 
-/// One row.
+/// One settings row: stable `key`, visible `label`, the value the user cycles, and optional help.
 #[derive(Clone, Debug)]
 pub struct OptionItem {
     pub key: String,

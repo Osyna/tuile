@@ -1,4 +1,4 @@
-//! Checkbox, Switch, RadioGroup, CheckList, and Segmented controls — Textual-faithful toggles.
+//! Checkbox, Switch, RadioGroup, CheckList and Segmented: Textual-faithful toggles.
 //!
 //! ```no_run
 //! use tuiforge::prelude::*;
@@ -30,7 +30,7 @@ use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
 use std::time::Duration;
 
-// ───────────────────────────── check styles ─────────────────────────────
+// check styles
 
 /// Visual style for checkboxes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -49,7 +49,7 @@ pub enum CheckStyle {
     /// `□` `■` `▣` square symbols.
     Square,
 }
-// ───────────────────────────── checkbox ─────────────────────────────
+// checkbox
 
 /// Checkbox state: off/on/indeterminate.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -380,7 +380,7 @@ impl StatefulWidget for Checkbox {
     }
 }
 
-/// Checkbox state.
+/// Off/on/indeterminate value and cached hit area; `tri_state` enables three-state cycling.
 #[derive(Clone, Debug, Default)]
 pub struct CheckboxState {
     pub value: CheckState,
@@ -441,7 +441,7 @@ impl Interactive for CheckboxState {
     }
 }
 
-// ───────────────────────────── switch styles ─────────────────────────────
+// switch styles
 
 /// Visual style for switches.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -462,7 +462,7 @@ pub enum SwitchStyle {
 }
 
 const SWITCH_W: u16 = 14;
-// ───────────────────────────── switch ─────────────────────────────
+// switch
 
 pub struct Switch {
     label: Option<String>,
@@ -805,7 +805,7 @@ impl Interactive for SwitchState {
     }
 }
 
-// ───────────────────────────── radio styles ─────────────────────────────
+// radio styles
 
 /// Visual style for radio buttons.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -821,7 +821,7 @@ pub enum RadioStyle {
     Arrow,
 }
 
-// ───────────────────────────── radio group ─────────────────────────────
+// radio group
 
 pub struct RadioGroup {
     options: Vec<String>,
@@ -1185,7 +1185,7 @@ impl Interactive for RadioState {
     }
 }
 
-// ───────────────────────────── checklist ─────────────────────────────
+// checklist
 
 /// Scrollable multi-select checkbox list.
 #[derive(Clone, Debug)]
@@ -1427,7 +1427,8 @@ impl StatefulWidget for CheckList {
     }
 }
 
-/// CheckList state.
+/// One `checked` flag per option plus cursor, scroll offset and the row hits cached by `render`.
+/// `checked` is resized to the option count on the first render.
 #[derive(Clone, Debug, Default)]
 pub struct CheckListState {
     pub checked: Vec<bool>,
@@ -1524,7 +1525,7 @@ impl Interactive for CheckListState {
     }
 }
 
-// ───────────────────────────── segmented styles ─────────────────────────────
+// segmented styles
 
 /// Visual style for segmented controls.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -1539,7 +1540,7 @@ pub enum SegmentedStyle {
     /// Plain labels, selected in accent bold, separated by ` │ `.
     Text,
 }
-// ───────────────────────────── segmented ─────────────────────────────
+// segmented
 
 /// Textual-style segmented control: horizontal pill row.
 #[derive(Clone, Debug)]
@@ -1762,7 +1763,7 @@ impl StatefulWidget for Segmented {
     }
 }
 
-/// Segmented state.
+/// Selected segment index and per-segment hit areas from the last render.
 #[derive(Clone, Debug, Default)]
 pub struct SegmentedState {
     pub selected: usize,

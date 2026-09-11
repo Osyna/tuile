@@ -102,7 +102,7 @@ impl crate::core::Interactive for KeyFooterState {
     }
 }
 
-/// Key footer builder.
+/// Horizontal footer that renders key bindings as `[key] description` pairs; truncates by priority when the area is too narrow.
 #[derive(Clone, Debug)]
 pub struct KeyFooter {
     bindings: Vec<FooterBinding>,

@@ -83,7 +83,7 @@ impl crate::core::Interactive for AppHeaderState {
     }
 }
 
-/// App header builder.
+/// Fixed-height app header that renders a left icon+title+subtitle and right-aligned action labels plus an optional clock.
 #[derive(Clone, Debug)]
 pub struct AppHeader {
     title: String,
@@ -301,9 +301,8 @@ impl AppHeader {
                 state.icon_hit.set_area(Rect::default());
             }
 
-            // Title
-            let title_text = if let Some(ref sub) = self.subtitle {
-                format!("{} — {}", self.title, sub)
+            let title_text = if let Some(sub) = &self.subtitle {
+                format!("{} · {}", self.title, sub)
             } else {
                 self.title.clone()
             };

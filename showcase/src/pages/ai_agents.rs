@@ -215,7 +215,6 @@ impl AiAgentsPage {
     fn build_lanes(&self, t: f32) -> Vec<Lane> {
         let mut lanes = Vec::new();
 
-        // Main lane
         let main_lane = Lane::new("Main").span(LaneSpan::new(
             0.0,
             if t < 30.0 { None } else { Some(30.0) },
@@ -228,7 +227,6 @@ impl AiAgentsPage {
         ));
         lanes.push(main_lane);
 
-        // Scout
         if t >= 2.0 {
             let scout_lane = Lane::new("Scout").span(LaneSpan::new(
                 2.0,
@@ -243,11 +241,9 @@ impl AiAgentsPage {
             lanes.push(scout_lane);
         }
 
-        // Builder
         if t >= 3.0 {
             let mut builder = Lane::new("Builder");
 
-            // Running 3-12s
             if t > 3.0 {
                 builder = builder.span(LaneSpan::new(
                     3.0,
@@ -257,7 +253,6 @@ impl AiAgentsPage {
                 ));
             }
 
-            // Waiting 12-15s
             if t > 12.0 {
                 builder = builder.span(LaneSpan::new(
                     12.0,
@@ -267,7 +262,6 @@ impl AiAgentsPage {
                 ));
             }
 
-            // Running 15-22s
             if t > 15.0 {
                 builder = builder.span(LaneSpan::new(
                     15.0,
@@ -280,7 +274,6 @@ impl AiAgentsPage {
             lanes.push(builder);
         }
 
-        // Reviewer
         if t >= 4.0 {
             let reviewer_lane = Lane::new("Reviewer").span(LaneSpan::new(
                 4.0,
@@ -299,11 +292,13 @@ impl AiAgentsPage {
     }
 
     fn get_context_segments(&self, t: f32) -> Vec<ContextSegment> {
-        let compacted = self.compaction_trigger.is_some()
-            && self.compaction_trigger.unwrap().elapsed().as_secs_f32() > 6.0;
+        let compacted = if let Some(trigger) = self.compaction_trigger {
+            trigger.elapsed().as_secs_f32() > 6.0
+        } else {
+            false
+        };
 
         if compacted {
-            // After compaction
             let system = (4000.0 + t * 50.0) as u32;
             let tools = (6000.0 + t * 100.0) as u32;
             let files = (12000.0 + t * 200.0) as u32;
@@ -316,7 +311,6 @@ impl AiAgentsPage {
                 ContextSegment::new("history", history),
             ]
         } else {
-            // Before compaction (growing to 78%)
             let pct = if t < 26.0 {
                 (t / 26.0 * 78.0).min(78.0)
             } else {
@@ -364,7 +358,6 @@ impl Page for AiAgentsPage {
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
         let th = &ctx.theme;
 
-        // Initialize scenario
         if self.scenario_start.is_none() {
             self.scenario_start = Some(ctx.now);
         }
@@ -378,7 +371,6 @@ impl Page for AiAgentsPage {
             self.throughput_shift = 0;
         }
 
-        // Update scenario
         self.tree.root = Some(self.build_scenario(t));
         // Auto-expand tree on first render
         if self.tree.expanded.is_empty() && self.tree.root.is_some() {
@@ -525,20 +517,23 @@ impl Page for AiAgentsPage {
             }
         }
 
-        // Context
         {
             let inner = card(buf, right_rows[2], th, "Context");
 
-            let show_banner = self.compaction_trigger.is_some()
-                && self.compaction_trigger.unwrap().elapsed().as_secs_f32() < 6.0;
-
-            if show_banner {
-                CompactionBanner::new(78.0, 31.0, 94000)
-                    .started(self.compaction_trigger.unwrap())
-                    .summary("Removed 47 old tool results, 12 stale file reads")
-                    .now(ctx.now)
-                    .theme(th)
-                    .render(inner, buf);
+            if let Some(trigger) = self.compaction_trigger {
+                if trigger.elapsed().as_secs_f32() < 6.0 {
+                    CompactionBanner::new(78.0, 31.0, 94000)
+                        .started(trigger)
+                        .summary("Removed 47 old tool results, 12 stale file reads")
+                        .now(ctx.now)
+                        .theme(th)
+                        .render(inner, buf);
+                } else {
+                    let segments = self.get_context_segments(t);
+                    ContextMap::new(&segments, 200000)
+                        .theme(th)
+                        .render(inner, buf);
+                }
             } else {
                 let segments = self.get_context_segments(t);
                 ContextMap::new(&segments, 200000)
@@ -547,7 +542,6 @@ impl Page for AiAgentsPage {
             }
         }
 
-        // Throughput
         {
             let inner = card(buf, right_rows[3], th, "Throughput");
 
@@ -572,7 +566,6 @@ impl Page for AiAgentsPage {
             let cols = [Constraint::Percentage(50), Constraint::Percentage(50)];
             let [sessions_area, models_area] = Layout::horizontal(cols).areas(right_rows[4]);
 
-            // Sessions
             {
                 let inner = card(buf, sessions_area, th, "Sessions");
                 let focused = self.focus.is(Id::Sessions);
@@ -587,7 +580,6 @@ impl Page for AiAgentsPage {
                 }
             }
 
-            // Models
             {
                 let inner = card(buf, models_area, th, "Models");
                 let focused = self.focus.is(Id::Models);

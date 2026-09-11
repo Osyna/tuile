@@ -25,7 +25,7 @@ use crate::theme::{self, Theme};
 use crate::widgets::input::{Input, InputState};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
-// ───────────────────────────── types ─────────────────────────────
+// types
 
 #[derive(Clone, Debug)]
 pub struct SelectOption {
@@ -113,7 +113,7 @@ pub struct Combobox {
     theme: Option<Theme>,
 }
 
-/// State for a combobox.
+/// Input buffer, filtered options, selection, dropdown open/scroll state, and cached hit areas.
 #[derive(Clone, Debug)]
 pub struct ComboboxState {
     pub input: InputState,
@@ -143,7 +143,7 @@ pub struct MultiSelect {
     theme: Option<Theme>,
 }
 
-/// State for a multi-select.
+/// Options, per-option selection flags, dropdown open/scroll state, and cached hit areas.
 #[derive(Clone, Debug)]
 pub struct MultiSelectState {
     pub options: Vec<SelectOption>,
@@ -158,7 +158,7 @@ pub struct MultiSelectState {
     pub dropdown_width: DropdownWidth,
 }
 
-// ───────────────────────────── select builder ─────────────────────────────
+// select builder
 
 impl Select {
     pub fn new() -> Self {
@@ -228,7 +228,7 @@ impl Default for Select {
     }
 }
 
-// ───────────────────────────── select state ─────────────────────────────
+// select state
 
 impl SelectState {
     pub fn new(options: &[&str]) -> Self {
@@ -411,8 +411,7 @@ impl Interactive for SelectState {
                 }
             }
 
-            if wheel_delta(&m).is_some() && mouse_in(self.dropdown_area, &m) {
-                let delta = wheel_delta(&m).unwrap();
+            if let Some(delta) = wheel_delta(&m).filter(|_| mouse_in(self.dropdown_area, &m)) {
                 self.scroll = (self.scroll as i32 - delta).max(0) as usize;
                 return Outcome::Consumed;
             }
@@ -442,7 +441,7 @@ impl Interactive for SelectState {
     }
 }
 
-// ───────────────────────────── select render ─────────────────────────────
+// select render
 
 impl StatefulWidget for Select {
     type State = SelectState;
@@ -719,7 +718,7 @@ fn render_option_list(
     }
 }
 
-// ───────────────────────────── combobox ─────────────────────────────
+// combobox
 
 impl Combobox {
     pub fn new() -> Self {
@@ -1032,8 +1031,7 @@ impl Interactive for ComboboxState {
                 }
             }
 
-            if wheel_delta(&m).is_some() && mouse_in(self.dropdown_area, &m) {
-                let delta = wheel_delta(&m).unwrap();
+            if let Some(delta) = wheel_delta(&m).filter(|_| mouse_in(self.dropdown_area, &m)) {
                 self.scroll = (self.scroll as i32 - delta).max(0) as usize;
                 return Outcome::Consumed;
             }
@@ -1068,7 +1066,7 @@ impl StatefulWidget for Combobox {
     }
 }
 
-// ───────────────────────────── multiselect ─────────────────────────────
+// multiselect
 
 impl MultiSelect {
     pub fn new() -> Self {
@@ -1356,8 +1354,7 @@ impl Interactive for MultiSelectState {
                 }
             }
 
-            if wheel_delta(&m).is_some() && mouse_in(self.dropdown_area, &m) {
-                let delta = wheel_delta(&m).unwrap();
+            if let Some(delta) = wheel_delta(&m).filter(|_| mouse_in(self.dropdown_area, &m)) {
                 self.scroll = (self.scroll as i32 - delta).max(0) as usize;
                 return Outcome::Consumed;
             }

@@ -28,7 +28,7 @@ use crate::draw::{Border, fill, hline, put, put_centered, st};
 use crate::layout::pad;
 use crate::theme::{self, Theme};
 
-// ───────────────────────────── items ─────────────────────────────
+// items
 
 /// One tab item: label, optional icon/badge, closable/disabled flags.
 #[derive(Clone, Debug)]
@@ -74,7 +74,7 @@ impl From<&str> for TabItem {
     }
 }
 
-// ───────────────────────────── style ─────────────────────────────
+// style
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TabStyle {
@@ -86,7 +86,7 @@ pub enum TabStyle {
     Minimal,
 }
 
-// ───────────────────────────── builder ─────────────────────────────
+// builder
 
 /// Tab bar builder: multiple styles, closable tabs, focus ring, animated underline.
 #[derive(Clone, Debug)]
@@ -171,7 +171,7 @@ impl<T: Into<Vec<TabItem>>> From<T> for TabBar {
     }
 }
 
-// ───────────────────────────── state ─────────────────────────────
+// state
 
 /// Tab bar state: active index, hover, sliding underline tweens, scroll, hit boxes, closed tab.
 #[derive(Clone, Debug)]
@@ -318,7 +318,7 @@ impl Interactive for TabBarState {
     }
 }
 
-// ───────────────────────────── render ─────────────────────────────
+// render
 
 impl StatefulWidget for TabBar {
     type State = TabBarState;
@@ -361,7 +361,7 @@ impl StatefulWidget for TabBar {
     }
 }
 
-// ───────────────────────────── underline style ─────────────────────────────
+// underline style
 
 fn render_underline(
     builder: TabBar,
@@ -488,7 +488,7 @@ fn render_underline(
     }
 }
 
-// ───────────────────────────── boxed style ─────────────────────────────
+// boxed style
 
 fn render_boxed(
     builder: TabBar,
@@ -518,7 +518,7 @@ fn render_boxed(
         let is_active = i == state.active;
         let is_hover = state.hover == Some(i);
 
-        // `│ [icon ]label [× ]│` — two side columns, one cell of padding each side
+        // `│ [icon ]label [× ]│`: two side columns, one cell of padding each side
         let mut content = String::from(" ");
         if let Some(icon) = &item.icon {
             content.push_str(icon);
@@ -546,7 +546,7 @@ fn render_boxed(
 
         let label_y = area.y + 1;
         if is_active {
-            // ╭────╮ / │ … │ / ╯    ╰  — the frame opens into the content below
+            // ╭────╮ / │ … │ / ╯    ╰ : the frame opens into the content below
             put(buf, x, area.y, "╭", 1, line);
             hline(buf, x + 1, area.y, w - 2, "─", line);
             put(buf, x + w - 1, area.y, "╮", 1, line);
@@ -579,7 +579,7 @@ fn render_boxed(
     }
 }
 
-// ───────────────────────────── pills style ─────────────────────────────
+// pills style
 
 fn render_pills(
     builder: TabBar,
@@ -642,7 +642,7 @@ fn render_pills(
     }
 }
 
-// ───────────────────────────── segmented style ─────────────────────────────
+// segmented style
 
 fn render_segmented(
     builder: TabBar,
@@ -707,7 +707,7 @@ fn render_segmented(
     }
 }
 
-// ───────────────────────────── minimal style ─────────────────────────────
+// minimal style
 
 fn render_minimal(
     builder: TabBar,
@@ -765,7 +765,7 @@ fn render_minimal(
     }
 }
 
-// ───────────────────────────── TabbedContent ─────────────────────────────
+// TabbedContent
 
 /// Helper: tab bar + bordered content area.
 #[derive(Clone, Debug)]

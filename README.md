@@ -2,9 +2,9 @@
 
 # tuiforge
 
-**Textual-grade components for [ratatui](https://ratatui.rs).** A reusable widget library plus
-design system that makes building rich, animated, mouse-aware terminal UIs in Rust take a
-fraction of the code — and a `showcase` app that exercises all of it.
+**Textual-grade components for [ratatui](https://ratatui.rs).** A widget library and design
+system for animated, mouse-aware terminal UIs in Rust, plus a `showcase` app that exercises
+all of it.
 
 ```toml
 [dependencies]
@@ -24,12 +24,12 @@ ratatui types you need (`Rect`, `Buffer`, `Frame`, key/mouse events). `tuiforge:
 
 ratatui gives you a buffer and a handful of widgets. Every app then re-implements focus
 handling, hover, scrolling, dropdowns, dialogs, toasts, colour palettes and animation.
-tuiforge ports the parts of [Textual](https://textual.textualize.io) that make it pleasant —
-its colour system, its widget looks and its keyboard/mouse conventions — into plain ratatui
+tuiforge ports the parts of [Textual](https://textual.textualize.io) that make it pleasant,
+its colour system, its widget looks and its keyboard/mouse conventions, into plain ratatui
 code with no runtime, no CSS engine and only two extra dependencies (`unicode-width`,
 `unicode-segmentation`).
 
-## The model — three things to learn
+## The model: three things to learn
 
 ```rust
 use tuiforge::prelude::*;
@@ -166,14 +166,14 @@ Regenerate the spinner catalog from `tools/spinners.json` with `python tools/gen
 `showcase/` is a 22-page gallery: Welcome, Dashboard (everything composed on one screen),
 Monitor (btop-style: LED meters, dot-field graphs, mirrored net graph, process tree, big-font
 menu on `m`), Controls, Inputs, Navigation, Big menus (4 fonts, `Horizontal` strip, 10 vertical
-styles; `s`/`f`/`g`), Tables, Charts, Feedback, Notifications (`1`–`9`/`0` fire every toast
+styles; `s`/`f`/`g`), Tables, Charts, Feedback, Notifications (`1` to `9` and `0` fire every toast
 style, `p`/`a` position and animation, inbox, banners, inline alerts), Loading (all 20 loader
 styles, scenes, skeletons, overlay; space pauses, `+`/`-` speed), Spinners (the whole
-catalog, filterable, with the one-liner for each), the AI harness section - AI (a replayed
+catalog, filterable, with the one-liner for each), then the AI harness pages: AI (a replayed
 turn: thinking, markdown, inline tool calls, streaming, approvals), AI Tools (tool timeline,
 shell/code blocks, edit preview, change set, JSON tree), AI Agents (agent tree and lanes,
 tokens, cost, context map, compaction, sessions, models), AI Composer (slash commands,
-mentions, attachments, mode, status line, questions, plan, queue) - Layout, Content, Settings
+mentions, attachments, mode, status line, questions, plan, queue). Then Layout, Content, Settings
 (a complete preferences form in ~300 lines), Options (omp-style settings screen: icon tabs +
 group sidebar + `OptionList`, with a live composer-shape / status-line preview), Themes (live
 primary-hue override).
@@ -183,7 +183,7 @@ Keys: `]`/`[` pages, `alt+1..9` jump, `^p` palette, `^t` theme, `^b` sidebar, `F
 
 Headless screenshots for review/CI: `python tools/shot.py -s 130x42 -k "Tab Enter" -o out.png -- ./target/release/showcase --page inputs`.
 
-| Dashboard | Controls |
+| **Dashboard** | **Controls** |
 |---|---|
 | ![dashboard](docs/screenshots/dashboard.png) | ![controls](docs/screenshots/controls.png) |
 | **Inputs** | **Charts** |
@@ -211,11 +211,12 @@ Headless screenshots for review/CI: `python tools/shot.py -s 130x42 -k "Tab Ente
 
 ## Writing a widget
 
-See [`docs/WIDGET_CONTRACT.md`](docs/WIDGET_CONTRACT.md) — the rules every widget in this repo
+See [`docs/WIDGET_CONTRACT.md`](docs/WIDGET_CONTRACT.md) for the rules every widget in this repo
 follows (builder + state, `Interactive`, cached rects, theme fallback, no panics at any size,
 tests per module). `tuiforge/src/widgets/scrollbar.rs` is the reference implementation.
 
 ## Status
 
-Early but complete: 80+ widgets, 102 spinners, 170+ tests, zero `unsafe`, MSRV 1.88
-(edition 2024). Not affiliated with Textualize; the design language is theirs, the code is not.
+108 widget types across 41 modules, 102 spinners, 12 palettes, 253 tests, zero `unsafe`,
+MSRV 1.88 (edition 2024). Not affiliated with Textualize; the design language is theirs,
+the code is not.

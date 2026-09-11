@@ -8,7 +8,7 @@ use std::sync::RwLock;
 
 use ratatui::style::Color;
 
-// ───────────────────────────── colour ─────────────────────────────
+// colour
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Rgb(pub u8, pub u8, pub u8);
@@ -241,7 +241,7 @@ pub fn gradient(stops: &[Rgb], t: f32) -> Rgb {
     }
 }
 
-// ───────────────────────────── palette specs ─────────────────────────────
+// palette specs
 
 /// Raw palette, as authored in `textual/theme.py`. Build custom ones with [`ThemeSpec::new`].
 #[derive(Clone, Copy, Debug)]
@@ -502,7 +502,7 @@ pub fn builtin(name: &str) -> Option<Theme> {
         .map(|t| Theme::resolve(t, None))
 }
 
-// ───────────────────────────── resolved theme ─────────────────────────────
+// resolved theme
 
 /// Semantic colour role, Textual's button/toast/label variants.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -675,7 +675,7 @@ impl Default for Theme {
     }
 }
 
-// ───────────────────────────── current theme ─────────────────────────────
+// current theme
 
 static CURRENT: RwLock<Option<Theme>> = RwLock::new(None);
 

@@ -29,7 +29,7 @@ use crate::layout::pad;
 use crate::theme::{self, Theme, Variant};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
-// ───────────────────────────── entry ─────────────────────────────
+// entry
 
 /// One list entry: label, optional detail/icon, disabled/separator flags, variant.
 #[derive(Clone, Debug)]
@@ -86,7 +86,7 @@ impl From<&str> for ListEntry {
     }
 }
 
-// ───────────────────────────── enums ─────────────────────────────
+// enums
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ListDetail {
@@ -104,9 +104,9 @@ pub enum ListHighlight {
     Underline,
 }
 
-// ───────────────────────────── builder ─────────────────────────────
+// builder
 
-/// List view builder.
+/// Vertical list with entries, border, title, multi-select, details column, filter, and highlight style.
 #[derive(Clone, Debug)]
 pub struct ListView {
     entries: Vec<ListEntry>,
@@ -197,7 +197,7 @@ impl ListView {
     }
 }
 
-// ───────────────────────────── state ─────────────────────────────
+// state
 
 /// List view state: cursor, selection set, scroll, hover, activation, type-ahead.
 #[derive(Clone, Debug)]
@@ -359,7 +359,7 @@ impl Interactive for ListViewState {
     }
 }
 
-// ───────────────────────────── helpers ─────────────────────────────
+// helpers
 
 /// Returns indices of entries matching the filter (fuzzy).
 pub fn visible_indices(entries: &[ListEntry], filter: &str) -> Vec<usize> {
@@ -372,7 +372,7 @@ pub fn visible_indices(entries: &[ListEntry], filter: &str) -> Vec<usize> {
         .collect()
 }
 
-// ───────────────────────────── render ─────────────────────────────
+// render
 
 impl StatefulWidget for ListView {
     type State = ListViewState;

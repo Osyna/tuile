@@ -587,7 +587,7 @@ impl<'a> BigMenuItem<'a> {
     }
 }
 
-/// Menu style.
+/// Rendering variant for BigMenu: selection markers, animations, and item layout.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum BigMenuStyle {
     /// Selected in accent/gradient, others muted (current look).
@@ -1003,7 +1003,7 @@ impl StatefulWidget for BigMenu<'_> {
         };
         let max_label_w = area.width.saturating_sub(pad_l + pad_r);
 
-        // per-item geometry (text x/width, item y) – recomputed on demand, no allocation
+        // per-item geometry (text x/width, item y), recomputed on demand, no allocation
         let geom = |i: usize| -> (Rect, &str, u16) {
             let (label, sp) = Self::fit(self.label(i), self.font, max_label_w);
             let w = BigText::width_of(label, self.font, sp);

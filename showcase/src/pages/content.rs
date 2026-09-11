@@ -1,4 +1,4 @@
-//! Content widgets showcase: text, markdown, log, calendar, color, steps.
+//! Content widgets: text, markdown, log, calendar, color, steps.
 
 use std::time::Instant;
 
@@ -297,7 +297,6 @@ impl ContentPage {
             self.draw_text_gallery(*text_area, buf, ctx);
         }
 
-        // Rule
         if let Some(rule_area) = sections.get(2) {
             Rule::horizontal()
                 .style(RuleStyle::Solid)
@@ -315,7 +314,6 @@ impl ContentPage {
     fn draw_right(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
         let sections = stack(area, &[10, 10, 12, 4, 6], 0);
 
-        // Log
         if let Some(log_area) = sections.first() {
             self.draw_log(*log_area, buf, ctx);
         }
@@ -330,7 +328,6 @@ impl ContentPage {
             self.draw_color_section(*color_area, buf, ctx);
         }
 
-        // Steps horizontal
         if let Some(steps_area) = sections.get(3) {
             let inner = Border::Round.draw_titled_with(
                 buf,
@@ -347,7 +344,6 @@ impl ContentPage {
                 .render(inner, buf, &mut self.steps);
         }
 
-        // Timeline
         if let Some(timeline_area) = sections.get(4) {
             self.draw_timeline(*timeline_area, buf, ctx);
         }
@@ -579,7 +575,6 @@ fn main() {
     fn draw_calendar_section(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
         let cols = tuiforge::layout::columns(area, 2, 1);
 
-        // Calendar
         if let Some(cal_area) = cols.first() {
             let inner = Border::Round.draw_titled_with(
                 buf,

@@ -24,7 +24,7 @@ use crate::draw::{Border, fill, put, st};
 use crate::layout::popup_below;
 use crate::theme::{self, Theme};
 
-// ───────────────────────────── menu items ─────────────────────────────
+// menu items
 
 /// One menu item: action, separator, or submenu.
 #[derive(Clone, Debug)]
@@ -94,7 +94,7 @@ pub struct MenuDef {
     pub items: Vec<MenuItem>,
 }
 
-// ───────────────────────────── MenuBar ─────────────────────────────
+// MenuBar
 
 /// Menu bar widget with dropdowns and submenus.
 #[derive(Clone, Debug)]
@@ -131,7 +131,7 @@ impl MenuBar {
     }
 }
 
-// ───────────────────────────── MenuBarState ─────────────────────────────
+// MenuBarState
 
 /// Menu bar state: open menu, highlighted items, action, hit boxes.
 #[derive(Clone, Debug, Default)]
@@ -558,7 +558,7 @@ fn render_dropdown(
     }
 }
 
-// ───────────────────────────── ContextMenu ─────────────────────────────
+// ContextMenu
 
 /// Context menu widget (right-click menu).
 #[derive(Clone, Debug)]

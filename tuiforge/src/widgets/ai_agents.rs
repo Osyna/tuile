@@ -28,7 +28,7 @@ use crate::widgets::charts::{SparkChart, SparkStyle};
 use crate::widgets::spinner::spinners;
 use crate::widgets::{Scrollbar, ScrollbarState};
 
-// ───────────────────────────── Duration formatting ─────────────────────────────
+// Duration formatting
 
 /// Format duration for UI: `850ms`, `1.2s`, `12.4s`, `1m 03s`, `2h 05m`.
 pub fn fmt_duration(d: Duration) -> String {
@@ -60,7 +60,7 @@ pub fn fmt_usd(v: f32) -> String {
     }
 }
 
-// ───────────────────────────── ElapsedTimer ─────────────────────────────
+// ElapsedTimer
 
 /// Elapsed time display with pulsing dot when running: `● 1m 23s`.
 pub struct ElapsedTimer {
@@ -158,7 +158,7 @@ impl Widget for ElapsedTimer {
     }
 }
 
-// ───────────────────────────── AgentStatus ─────────────────────────────
+// AgentStatus
 
 /// Agent execution status.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -196,7 +196,7 @@ impl AgentStatus {
     }
 }
 
-// ───────────────────────────── AgentNode ─────────────────────────────
+// AgentNode
 
 /// One node in the agent tree.
 #[derive(Clone, Debug)]
@@ -249,7 +249,7 @@ impl AgentNode {
     }
 }
 
-// ───────────────────────────── AgentTreeState ─────────────────────────────
+// AgentTreeState
 
 /// Flattened tree row for rendering.
 #[derive(Clone, Debug)]
@@ -341,15 +341,9 @@ impl AgentTreeState {
 
     fn expand_all(&mut self) {
         self.expanded.clear();
-        if self.root.is_none() {
-            return;
-        }
-        let paths = {
-            let root = self.root.as_ref().unwrap();
-            let mut paths = Vec::new();
-            Self::collect_paths_recursive(root, &Vec::new(), &mut paths);
-            paths
-        };
+        let Some(root) = &self.root else { return };
+        let mut paths = Vec::new();
+        Self::collect_paths_recursive(root, &Vec::new(), &mut paths);
         self.expanded = paths;
     }
 
@@ -453,7 +447,7 @@ impl Interactive for AgentTreeState {
     }
 }
 
-// ───────────────────────────── AgentTree ─────────────────────────────
+// AgentTree
 
 /// Agent tree widget with expansion, cursor, tasks.
 pub struct AgentTree {
@@ -668,7 +662,7 @@ impl StatefulWidget for AgentTree {
     }
 }
 
-// ───────────────────────────── AgentLanes ─────────────────────────────
+// AgentLanes
 
 /// One span in a gantt lane.
 #[derive(Clone, Debug)]
@@ -913,7 +907,7 @@ impl Widget for AgentLanes<'_> {
     }
 }
 
-// ───────────────────────────── TokenBreakdown & TokenMeter ─────────────────────────────
+// TokenBreakdown & TokenMeter
 
 /// Token usage breakdown.
 #[derive(Clone, Copy, Debug, Default)]
@@ -989,7 +983,6 @@ impl Widget for TokenMeter {
         let mut cells = [0u16; 4];
         let _remaining = bar_width;
 
-        // First pass: proportional
         for (i, &(count, _, _)) in segments.iter().enumerate() {
             if count > 0 {
                 let frac = count as f32 / total as f32;
@@ -1001,7 +994,6 @@ impl Widget for TokenMeter {
         // Adjust to exactly bar_width
         let sum: u16 = cells.iter().sum();
         if sum > bar_width {
-            // Shrink largest
             for _ in 0..(sum - bar_width) {
                 if let Some((idx, _)) = cells.iter().enumerate().max_by_key(|&(_, c)| c)
                     && cells[idx] > 1
@@ -1010,7 +1002,6 @@ impl Widget for TokenMeter {
                 }
             }
         } else if sum < bar_width {
-            // Grow largest
             for _ in 0..(bar_width - sum) {
                 if let Some((idx, _)) = cells.iter().enumerate().max_by_key(|&(_, c)| c) {
                     cells[idx] += 1;
@@ -1076,7 +1067,7 @@ impl Widget for TokenMeter {
     }
 }
 
-// ───────────────────────────── CostMeter ─────────────────────────────
+// CostMeter
 
 /// Cost meter state with animated spending.
 #[derive(Clone, Debug)]
@@ -1242,7 +1233,7 @@ impl StatefulWidget for CostMeter {
     }
 }
 
-// ───────────────────────────── ContextMap ─────────────────────────────
+// ContextMap
 
 /// One segment in the context map.
 #[derive(Clone, Debug)]
@@ -1406,7 +1397,7 @@ impl Widget for ContextMap<'_> {
     }
 }
 
-// ───────────────────────────── CompactionBanner ─────────────────────────────
+// CompactionBanner
 
 /// Context compaction result banner.
 pub struct CompactionBanner {
@@ -1525,7 +1516,7 @@ impl Widget for CompactionBanner {
     }
 }
 
-// ───────────────────────────── TurnStats ─────────────────────────────
+// TurnStats
 
 /// Turn statistics KPI cells.
 pub struct TurnStats {
@@ -1656,7 +1647,7 @@ impl Widget for TurnStats {
     }
 }
 
-// ───────────────────────────── RateGraph ─────────────────────────────
+// RateGraph
 
 /// Throughput rate graph.
 pub struct RateGraph<'a> {
@@ -1730,7 +1721,7 @@ impl Widget for RateGraph<'_> {
     }
 }
 
-// ───────────────────────────── SessionList ─────────────────────────────
+// SessionList
 
 /// One session entry.
 #[derive(Clone, Debug)]
@@ -1776,7 +1767,7 @@ impl SessionEntry {
     }
 }
 
-/// Session list state.
+/// Session list state: entries, cursor, scroll, hit boxes, and activation slot.
 #[derive(Clone, Debug, Default)]
 pub struct SessionListState {
     pub entries: Vec<SessionEntry>,
@@ -1878,7 +1869,7 @@ impl Interactive for SessionListState {
     }
 }
 
-/// Session list widget.
+/// Session list widget rendering entries with time, model, and a detail line.
 pub struct SessionList {
     title: Option<String>,
     two_line: bool,
@@ -2049,7 +2040,7 @@ impl StatefulWidget for SessionList {
     }
 }
 
-// ───────────────────────────── ModelPicker ─────────────────────────────
+// ModelPicker
 
 /// Model capability.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -2089,7 +2080,7 @@ impl Capability {
     }
 }
 
-/// Model info.
+/// Model metadata: id, name, provider, context window, capabilities, and pricing.
 #[derive(Clone, Debug)]
 pub struct ModelInfo {
     pub id: String,
@@ -2134,7 +2125,7 @@ impl ModelInfo {
     }
 }
 
-/// Model picker state.
+/// Model picker state: model list, cursor, scroll, and selected model slot.
 #[derive(Clone, Debug, Default)]
 pub struct ModelPickerState {
     pub models: Vec<ModelInfo>,
@@ -2202,7 +2193,7 @@ impl Interactive for ModelPickerState {
     }
 }
 
-/// Model picker widget.
+/// Model picker widget rendering models with capability badges and pricing.
 pub struct ModelPicker {
     theme: Option<Theme>,
 }

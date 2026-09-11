@@ -23,9 +23,7 @@ use crate::runtime::local_hms;
 use crate::theme::{self, Theme, Variant};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
 
-// ─────────────────────────────────────────────────────────────────────────────
 // LogView
-// ─────────────────────────────────────────────────────────────────────────────
 
 /// Log level for entries.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

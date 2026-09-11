@@ -1,11 +1,11 @@
-//! Spinner catalog: every spinner in `tuiforge::widgets::spinners`, filterable, with a live
+//! Spinner catalog: every spinner in `tuile::widgets::spinners`, filterable, with a live
 //! preview and the one-liner to use it.
 
 use std::time::Instant;
 
-use tuiforge::draw::{fill, put, put_right, st, truncate};
-use tuiforge::prelude::*;
-use tuiforge::widgets::spinners;
+use tuile::draw::{fill, put, put_right, st, truncate};
+use tuile::prelude::*;
+use tuile::widgets::spinners;
 
 use super::{Ctx, Page, card};
 
@@ -67,7 +67,7 @@ impl SpinnersPage {
                 .collect()
         };
         [
-            ("tuiforge originals", pick(spinners::ORIGINALS)),
+            ("tuile originals", pick(spinners::ORIGINALS)),
             ("yaspin / cli-spinners", pick(spinners::YASPIN)),
         ]
     }
@@ -138,7 +138,7 @@ impl Page for SpinnersPage {
         "Spinners"
     }
     fn subtitle(&self) -> &'static str {
-        "102 spinners: the full yaspin / cli-spinners set plus tuiforge originals"
+        "102 spinners: the full yaspin / cli-spinners set plus tuile originals"
     }
     fn icon(&self) -> &'static str {
         "◌"

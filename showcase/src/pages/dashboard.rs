@@ -2,9 +2,9 @@
 //! line/bar graphs, a live data table, meters, a deploy button driving a progress bar,
 //! a switch, and an event log. Everything updates from a deterministic simulation.
 
-use tuiforge::draw::{fill, put, put_right, st};
-use tuiforge::prelude::*;
-use tuiforge::widgets::{BarGroup, LegendPos, LineSeries, LineStyle, MeterStyle};
+use tuile::draw::{fill, put, put_right, st};
+use tuile::prelude::*;
+use tuile::widgets::{BarGroup, LegendPos, LineSeries, LineStyle, MeterStyle};
 
 use super::{Ctx, Page, card};
 

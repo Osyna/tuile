@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assert tuiforge's internal module layering.
+"""Assert tuile's internal module layering.
 
 Rust permits module cycles inside a crate and cargo only guarantees the *crate*
 graph is acyclic, so nothing in the toolchain checks the shape this library
@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 FOUNDATION = {"theme", "draw", "core", "anim", "layout", "fuzzy", "runtime"}
-SRC = Path(__file__).resolve().parent.parent / "tuiforge" / "src"
+SRC = Path(__file__).resolve().parent.parent / "tuile" / "src"
 
 USE_CRATE = re.compile(r"(?:^|\s)(?:pub\s+)?use\s+crate::([A-Za-z0-9_:]+)", re.M)
 USE_SUPER = re.compile(r"^\s*(?:pub\s+)?use\s+super::([A-Za-z0-9_]+)", re.M)

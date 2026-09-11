@@ -2,9 +2,9 @@
 
 use std::time::{Duration, Instant};
 
-use tuiforge::draw::Border;
-use tuiforge::layout::{pad, stack};
-use tuiforge::prelude::*;
+use tuile::draw::Border;
+use tuile::layout::{pad, stack};
+use tuile::prelude::*;
 
 use super::{Ctx, Page, card};
 

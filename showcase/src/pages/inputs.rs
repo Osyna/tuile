@@ -2,10 +2,10 @@
 
 use std::time::Instant;
 
-use tuiforge::draw::{Border, fill, put, st};
-use tuiforge::prelude::*;
-use tuiforge::widgets::input::{Input, InputRestrict, InputState};
-use tuiforge::widgets::textarea::{CursorStyle, TextArea, TextAreaState};
+use tuile::draw::{Border, fill, put, st};
+use tuile::prelude::*;
+use tuile::widgets::input::{Input, InputRestrict, InputState};
+use tuile::widgets::textarea::{CursorStyle, TextArea, TextAreaState};
 
 use super::{Ctx, Page};
 
@@ -312,7 +312,7 @@ impl InputsPage {
         // Name
         if let Some(r) = rows.first() {
             let [label, field] =
-                tuiforge::layout::cols(*r, [Constraint::Length(12), Constraint::Length(44)]);
+                tuile::layout::cols(*r, [Constraint::Length(12), Constraint::Length(44)]);
             put(
                 buf,
                 label.x,
@@ -333,7 +333,7 @@ impl InputsPage {
         // Email with validation error (4 rows: label + field + error line)
         if let Some(r) = rows.get(1) {
             let [label, field] =
-                tuiforge::layout::cols(*r, [Constraint::Length(12), Constraint::Length(44)]);
+                tuile::layout::cols(*r, [Constraint::Length(12), Constraint::Length(44)]);
             put(
                 buf,
                 label.x,
@@ -368,7 +368,7 @@ impl InputsPage {
         // Password with strength hint
         if let Some(r) = rows.get(2) {
             let [label, field] =
-                tuiforge::layout::cols(*r, [Constraint::Length(12), Constraint::Length(44)]);
+                tuile::layout::cols(*r, [Constraint::Length(12), Constraint::Length(44)]);
             put(
                 buf,
                 label.x,
@@ -405,7 +405,7 @@ impl InputsPage {
         // Amount with prefix/suffix
         if let Some(r) = rows.get(3) {
             let [label, field] =
-                tuiforge::layout::cols(*r, [Constraint::Length(12), Constraint::Length(20)]);
+                tuile::layout::cols(*r, [Constraint::Length(12), Constraint::Length(20)]);
             put(
                 buf,
                 label.x,
@@ -428,7 +428,7 @@ impl InputsPage {
         // Search with suggester (ghost text)
         if let Some(r) = rows.get(4) {
             let [label, field] =
-                tuiforge::layout::cols(*r, [Constraint::Length(12), Constraint::Length(44)]);
+                tuile::layout::cols(*r, [Constraint::Length(12), Constraint::Length(44)]);
             put(
                 buf,
                 label.x,
@@ -471,7 +471,7 @@ impl InputsPage {
         // Country select
         if let Some(r) = rows.first() {
             let [label, field] =
-                tuiforge::layout::cols(*r, [Constraint::Length(10), Constraint::Fill(1)]);
+                tuile::layout::cols(*r, [Constraint::Length(10), Constraint::Fill(1)]);
             put(
                 buf,
                 label.x,
@@ -491,7 +491,7 @@ impl InputsPage {
         // Language combobox
         if let Some(r) = rows.get(1) {
             let [label, field] =
-                tuiforge::layout::cols(*r, [Constraint::Length(10), Constraint::Fill(1)]);
+                tuile::layout::cols(*r, [Constraint::Length(10), Constraint::Fill(1)]);
             put(
                 buf,
                 label.x,
@@ -511,7 +511,7 @@ impl InputsPage {
         // Tags multiselect
         if let Some(r) = rows.get(2) {
             let [label, field] =
-                tuiforge::layout::cols(*r, [Constraint::Length(10), Constraint::Fill(1)]);
+                tuile::layout::cols(*r, [Constraint::Length(10), Constraint::Fill(1)]);
             put(
                 buf,
                 label.x,
@@ -530,7 +530,7 @@ impl InputsPage {
         // Compact input (1 row, label on same row)
         if let Some(r) = rows.get(3) {
             let [label, field] =
-                tuiforge::layout::cols(*r, [Constraint::Length(10), Constraint::Fill(1)]);
+                tuile::layout::cols(*r, [Constraint::Length(10), Constraint::Fill(1)]);
             put(
                 buf,
                 label.x,
@@ -550,7 +550,7 @@ impl InputsPage {
         // Disabled input
         if let Some(r) = rows.get(5) {
             let [label, field] =
-                tuiforge::layout::cols(*r, [Constraint::Length(10), Constraint::Fill(1)]);
+                tuile::layout::cols(*r, [Constraint::Length(10), Constraint::Fill(1)]);
             put(
                 buf,
                 label.x,
@@ -670,7 +670,7 @@ fn password_strength(s: &str) -> usize {
 }
 
 fn suggest_search(query: &str) -> Option<String> {
-    let suggestions = ["hello", "world", "rust", "ratatui", "tuiforge"];
+    let suggestions = ["hello", "world", "rust", "ratatui", "tuile"];
     for sug in suggestions {
         if sug.starts_with(query) && sug.len() > query.len() {
             return Some(sug[query.len()..].to_string());

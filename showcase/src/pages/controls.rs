@@ -1,8 +1,8 @@
 //! Controls: buttons, toggles, radios, segmented controls, sliders, steppers and ratings.
 //! Every variant and style side by side, all focusable and mouse-driven.
 
-use tuiforge::draw::{fill, put, st};
-use tuiforge::prelude::*;
+use tuile::draw::{fill, put, st};
+use tuile::prelude::*;
 
 use super::{Ctx, Page, card};
 

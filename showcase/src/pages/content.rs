@@ -2,12 +2,12 @@
 
 use std::time::Instant;
 
-use tuiforge::draw::{Border, fill, put, st};
+use tuile::draw::{Border, fill, put, st};
 
-use tuiforge::anim::elapsed;
-use tuiforge::layout::stack;
-use tuiforge::prelude::*;
-use tuiforge::runtime::local_ymd;
+use tuile::anim::elapsed;
+use tuile::layout::stack;
+use tuile::prelude::*;
+use tuile::runtime::local_ymd;
 
 use crate::pages::{Ctx, Page};
 
@@ -503,7 +503,7 @@ fn main() {
     }
 
     fn draw_stats(&self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
-        let cols = tuiforge::layout::columns(area, 3, 1);
+        let cols = tuile::layout::columns(area, 3, 1);
 
         if let Some(c) = cols.first() {
             StatCard::new("1.2k", "Users")
@@ -573,7 +573,7 @@ fn main() {
     }
 
     fn draw_calendar_section(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
-        let cols = tuiforge::layout::columns(area, 2, 1);
+        let cols = tuile::layout::columns(area, 2, 1);
 
         if let Some(cal_area) = cols.first() {
             let inner = Border::Round.draw_titled_with(

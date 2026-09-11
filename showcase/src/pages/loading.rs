@@ -3,8 +3,8 @@
 
 use std::time::Instant;
 
-use tuiforge::draw::{put, put_right, st};
-use tuiforge::prelude::*;
+use tuile::draw::{put, put_right, st};
+use tuile::prelude::*;
 
 use super::{Ctx, Page, card};
 

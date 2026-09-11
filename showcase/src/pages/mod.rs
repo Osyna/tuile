@@ -3,7 +3,7 @@
 
 use std::time::Instant;
 
-use tuiforge::prelude::*;
+use tuile::prelude::*;
 
 pub mod ai;
 pub mod ai_agents;

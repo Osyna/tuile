@@ -2,8 +2,8 @@
 
 use std::time::Instant;
 
-use tuiforge::draw::bold;
-use tuiforge::prelude::*;
+use tuile::draw::bold;
+use tuile::prelude::*;
 
 use super::{Ctx, Page};
 

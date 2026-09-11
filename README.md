@@ -1,14 +1,17 @@
-![tuiforge welcome](docs/screenshots/welcome.png)
+![tuile welcome](docs/screenshots/welcome.png)
 
-# tuiforge
+# tuile
 
 **Textual-grade components for [ratatui](https://ratatui.rs).** A widget library and design
 system for animated, mouse-aware terminal UIs in Rust, plus a `showcase` app that exercises
 all of it.
 
+*tuile* (tweel) is French for tile, and the thin curved wafer you drape over a mould while it
+is still warm. Both fit: the library tiles a terminal, and it is shaped over ratatui.
+
 ```toml
 [dependencies]
-tuiforge = { git = "https://github.com/irvin/tuiforge" }   # re-exports ratatui + crossterm
+tuile = { git = "https://github.com/irvin/tuile" }   # re-exports ratatui + crossterm
 ```
 
 ```
@@ -16,15 +19,15 @@ cargo run --release -p showcase            # the gallery
 cargo run --release -p showcase -- --page charts --theme nord
 ```
 
-`use tuiforge::prelude::*;` brings in every widget, the theme, layout and draw helpers plus the
-ratatui types you need (`Rect`, `Buffer`, `Frame`, key/mouse events). `tuiforge::ratatui` and
-`tuiforge::crossterm` are re-exported so your app does not need its own pinned versions.
+`use tuile::prelude::*;` brings in every widget, the theme, layout and draw helpers plus the
+ratatui types you need (`Rect`, `Buffer`, `Frame`, key/mouse events). `tuile::ratatui` and
+`tuile::crossterm` are re-exported so your app does not need its own pinned versions.
 
 ## Why
 
 ratatui gives you a buffer and a handful of widgets. Every app then re-implements focus
 handling, hover, scrolling, dropdowns, dialogs, toasts, colour palettes and animation.
-tuiforge ports the parts of [Textual](https://textual.textualize.io) that make it pleasant,
+tuile ports the parts of [Textual](https://textual.textualize.io) that make it pleasant,
 its colour system, its widget looks and its keyboard/mouse conventions, into plain ratatui
 code with no runtime, no CSS engine and only two extra dependencies (`unicode-width`,
 `unicode-segmentation`).
@@ -32,7 +35,7 @@ code with no runtime, no CSS engine and only two extra dependencies (`unicode-wi
 ## The model: three things to learn
 
 ```rust
-use tuiforge::prelude::*;
+use tuile::prelude::*;
 
 struct Demo { dark: SwitchState, name: InputState, focus: Focus<Id> }
 #[derive(Clone, Copy, PartialEq)] enum Id { Dark, Name }
@@ -87,7 +90,7 @@ Overlays (dropdowns, menus, tooltips, dialogs, palettes, toasts) render last via
 Every widget follows the same four knobs, so once you know one you know them all:
 
 ```rust
-use tuiforge::prelude::*;
+use tuile::prelude::*;
 
 // theme: process-wide by name / spec, or per widget
 theme::set_by_name("catppuccin-mocha");
@@ -157,7 +160,7 @@ Foundation modules: `core` (Outcome, Look, Focus, HitBox, key helpers), `draw` (
 grids, flow, popup placement, overlay queue), `anim` (tweens, easings, pulses, blinks, shared
 epoch), `fuzzy`, `runtime` (app loop, local clock, civil dates).
 
-Examples: `cargo run -p tuiforge --example minimal` (switch + input + button) and
+Examples: `cargo run -p tuile --example minimal` (switch + input + button) and
 `--example custom` (own `ThemeSpec`, own `SpinnerDef`, chat + composer + context gauge).
 Regenerate the spinner catalog from `tools/spinners.json` with `python tools/gen_spinners.py`.
 
@@ -213,7 +216,7 @@ Headless screenshots for review/CI: `python tools/shot.py -s 130x42 -k "Tab Ente
 
 See [`docs/WIDGET_CONTRACT.md`](docs/WIDGET_CONTRACT.md) for the rules every widget in this repo
 follows (builder + state, `Interactive`, cached rects, theme fallback, no panics at any size,
-tests per module). `tuiforge/src/widgets/scrollbar.rs` is the reference implementation.
+tests per module). `tuile/src/widgets/scrollbar.rs` is the reference implementation.
 
 ## Status
 

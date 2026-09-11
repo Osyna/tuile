@@ -1,10 +1,10 @@
 //! AI Composer gallery.
 
 use std::time::Instant;
-use tuiforge::prelude::*;
+use tuile::prelude::*;
 
 use super::{Ctx, Page, card};
-use tuiforge::widgets::ai::{ComposerState, PromptComposer};
+use tuile::widgets::ai::{ComposerState, PromptComposer};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Id {
@@ -426,7 +426,7 @@ impl Page for AiComposePage {
         ];
 
         PlanView::new()
-            .title("Build tuiforge")
+            .title("Build tuile")
             .phases(&phases)
             .now(ctx.now)
             .theme(th)

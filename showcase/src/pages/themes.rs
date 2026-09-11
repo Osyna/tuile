@@ -1,9 +1,9 @@
 //! Themes page: browse the built-in palettes, see every derived role, and override the
 //! primary hue live to watch the whole design system re-derive itself.
 
-use tuiforge::draw::{Border, fill, hbar, put, put_right, st};
-use tuiforge::prelude::*;
-use tuiforge::theme::BUILTIN;
+use tuile::draw::{Border, fill, hbar, put, put_right, st};
+use tuile::prelude::*;
+use tuile::theme::BUILTIN;
 
 use super::{Ctx, Page, card};
 

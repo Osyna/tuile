@@ -2,9 +2,9 @@
 //! Selects, switches, sliders, steppers, radios, segmented controls, swatches, validated
 //! inputs, dependent fields, a confirm dialog and toasts.
 
-use tuiforge::draw::{fill, put, st};
-use tuiforge::prelude::*;
-use tuiforge::theme::BUILTIN;
+use tuile::draw::{fill, put, st};
+use tuile::prelude::*;
+use tuile::theme::BUILTIN;
 
 use super::{Ctx, Page, card};
 

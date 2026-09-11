@@ -4,8 +4,8 @@
 
 use std::time::Instant;
 
-use tuiforge::draw::{blend_area, hline, put, put_right, st};
-use tuiforge::prelude::*;
+use tuile::draw::{blend_area, hline, put, put_right, st};
+use tuile::prelude::*;
 
 use super::{Ctx, Page};
 
@@ -626,7 +626,7 @@ impl Page for MonitorPage {
         if self.menu_open {
             blend_area(buf, area, th.background, 0.6);
             let fire = [th.error, th.warning];
-            let title = BigText::new("TUIFORGE").gradient(&fire);
+            let title = BigText::new("TUILE").gradient(&fire);
             let items = ["OPTIONS", "HELP", "QUIT"];
             let menu = BigMenu::new(&items)
                 .focused(true)

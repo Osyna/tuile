@@ -1,4 +1,4 @@
-//! tuiforge showcase: a gallery app where every page exercises one widget family.
+//! tuile showcase: a gallery app where every page exercises one widget family.
 //!
 //! `showcase --page charts --theme nord` opens directly on a page with a theme.
 
@@ -6,9 +6,9 @@ mod pages;
 
 use std::time::Instant;
 
-use tuiforge::draw::{fill, put, put_centered, put_right, st};
-use tuiforge::prelude::*;
-use tuiforge::runtime::local_hms;
+use tuile::draw::{fill, put, put_centered, put_right, st};
+use tuile::prelude::*;
+use tuile::runtime::local_hms;
 
 use pages::{Ctx, Page};
 
@@ -167,7 +167,7 @@ impl Shell {
         let th = &self.ctx.theme;
         fill(buf, area, th.panel);
         let page = &self.pages[self.current];
-        let title = format!(" ⚒ tuiforge showcase  ›  {}", page.title());
+        let title = format!(" ⚒ tuile showcase  ›  {}", page.title());
         put(
             buf,
             area.x,

@@ -1167,7 +1167,7 @@ name = "showcase"
 version = "0.1.0"
 dependencies = [
  "ratatui",
- "tuiforge",
+ "tuile",
  "unicode-width",
 ]
 
@@ -1424,7 +1424,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e1c906769ad99c88eaa54e728060edef082f8e358ff32030cb7c7d315e81109"
 
 [[package]]
-name = "tuiforge"
+name = "tuile"
 version = "0.1.0"
 dependencies = [
  "ratatui",

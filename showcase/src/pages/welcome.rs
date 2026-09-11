@@ -1,8 +1,8 @@
 //! Welcome page: hero banner, what the library is, how to navigate the gallery.
 
-use tuiforge::draw::{Border, fill, put, put_centered, st};
-use tuiforge::prelude::*;
-use tuiforge::theme::gradient;
+use tuile::draw::{Border, fill, put, put_centered, st};
+use tuile::prelude::*;
+use tuile::theme::gradient;
 
 use super::{Ctx, Page};
 
@@ -114,7 +114,7 @@ impl Page for WelcomePage {
                     height: 1,
                     ..inner
                 },
-                "tuiforge",
+                "tuile",
                 st(th.primary, th.background).add_modifier(Modifier::BOLD),
             );
             y += 2;

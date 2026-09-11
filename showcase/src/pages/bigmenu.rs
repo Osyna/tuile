@@ -4,8 +4,8 @@
 
 use std::time::Instant;
 
-use tuiforge::draw::{put, st};
-use tuiforge::prelude::*;
+use tuile::draw::{put, st};
+use tuile::prelude::*;
 
 use super::{Ctx, Page, card};
 
@@ -113,7 +113,7 @@ impl Page for BigMenuPage {
         if area.width < 90 || area.height < 30 {
             let [top, rest] =
                 Layout::vertical([Constraint::Length(4), Constraint::Fill(1)]).areas(area);
-            let mut title = BigTitle::new("TUIFORGE")
+            let mut title = BigTitle::new("TUILE")
                 .font(BigFont::Half3)
                 .subtitle("big menus");
             if let Some(g) = grad {
@@ -143,7 +143,7 @@ impl Page for BigMenuPage {
         .areas(area);
 
         // -- title --
-        let mut title = BigTitle::new("TUIFORGE")
+        let mut title = BigTitle::new("TUILE")
             .font(BigFont::Block5)
             .subtitle("big text · big menus · four fonts");
         if let Some(g) = grad {

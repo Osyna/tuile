@@ -1,6 +1,6 @@
-# Codebase Audit — tuiforge
+# Codebase Audit — tuile
 
-Rust workspace (tuiforge library + showcase binary) on ratatui 0.30 · 53,387 code lines across 87 files · 18 commits · 1 contributor · audited 2026-09-11
+Rust workspace (tuile library + showcase binary) on ratatui 0.30 · 53,387 code lines across 87 files · 18 commits · 1 contributor · audited 2026-09-11
 Archetype: **library** (v0.1.0, unpublished, repository and keywords set for crates.io)
 
 ## Verdict
@@ -57,16 +57,16 @@ Files ranked by `churn × complexity`. Two files are in the top decile for both.
 
 | Rank | File | Commits | LOC | Complexity | Authors | Score |
 |------|------|---------|-----|------------|---------|-------|
-| 1 ★ | `tuiforge/src/widgets/charts.rs` | 9 | 1681 | 222.7 | 1 | 2004.3 |
-| 2 ★ | `tuiforge/src/widgets/toggle.rs` | 8 | 1765 | 238.6 | 1 | 1908.8 |
-| 3 | `tuiforge/src/widgets/textarea.rs` | 9 | 1116 | 204.8 | 1 | 1843.2 |
+| 1 ★ | `tuile/src/widgets/charts.rs` | 9 | 1681 | 222.7 | 1 | 2004.3 |
+| 2 ★ | `tuile/src/widgets/toggle.rs` | 8 | 1765 | 238.6 | 1 | 1908.8 |
+| 3 | `tuile/src/widgets/textarea.rs` | 9 | 1116 | 204.8 | 1 | 1843.2 |
 | 4 | `showcase/src/pages/navigation.rs` | 7 | 679 | 241.3 | 1 | 1689.1 |
-| 5 | `tuiforge/src/widgets/ai.rs` | 7 | 2676 | 227.1 | 1 | 1589.7 |
+| 5 | `tuile/src/widgets/ai.rs` | 7 | 2676 | 227.1 | 1 | 1589.7 |
 | 6 | `showcase/src/pages/charts.rs` | 6 | 471 | 263.0 | 1 | 1578.0 |
 | 7 | `showcase/src/pages/controls.rs` | 7 | 814 | 223.7 | 1 | 1565.9 |
-| 8 | `tuiforge/src/widgets/select.rs` | 9 | 1260 | 171.8 | 1 | 1546.2 |
-| 9 | `tuiforge/src/widgets/slider.rs` | 9 | 1100 | 170.1 | 1 | 1530.9 |
-| 10 | `tuiforge/src/draw.rs` | 9 | 678 | 151.6 | 1 | 1364.4 |
+| 8 | `tuile/src/widgets/select.rs` | 9 | 1260 | 171.8 | 1 | 1546.2 |
+| 9 | `tuile/src/widgets/slider.rs` | 9 | 1100 | 170.1 | 1 | 1530.9 |
+| 10 | `tuile/src/draw.rs` | 9 | 678 | 151.6 | 1 | 1364.4 |
 
 ★ = top decile for both churn and complexity.
 
@@ -95,7 +95,7 @@ The repo is clippy-clean with 253 passing tests, but nothing enforces that on a 
 ### F-03 — `word_boundary` states one rule in two hotspot files
 **Severity:** medium
 **Evidence:** [contested — see the DRY ruling below]
-**Where:** `tuiforge/src/widgets/input.rs:398-425`, `tuiforge/src/widgets/textarea.rs:450-477`
+**Where:** `tuile/src/widgets/input.rs:398-425`, `tuile/src/widgets/textarea.rs:450-477`
 **Measured:** `duplication.py` flagged a 21-line drifted block; diffing the two functions with the parameter renamed shows the bodies are **byte-identical**
 
 Ctrl+Left / Ctrl+Right word navigation is implemented twice, in the two text-entry widgets, in files ranked #3 and #12 by hotspot score. The rule (skip non-alphanumerics, then skip alphanumerics, saturating at the ends) is the same thing a user perceives in both widgets, so the copies must not diverge — and nothing stops them. This is the duplication class worth extracting: not shape-similar code, but one piece of knowledge with two homes.
@@ -103,7 +103,7 @@ Ctrl+Left / Ctrl+Right word navigation is implemented twice, in the two text-ent
 ### F-04 — One large crate, layering unenforced
 **Severity:** medium
 **Evidence:** [emerging]
-**Where:** `tuiforge/src/` — 51 modules, 43 of them widgets
+**Where:** `tuile/src/` — 51 modules, 43 of them widgets
 **Measured:** custom import graph: 0 cycles, 0 foundation→widget edges, fan-in `theme` 43, `draw` 42, `core` 36
 
 The layering is currently correct: widgets depend on `theme`/`draw`/`core`/`anim`/`layout`, and no foundation module imports a widget. Rust does not check this — module cycles inside a crate are legal and invisible, and cargo only guarantees the *crate* graph is acyclic. So the property that makes this codebase navigable is held up by nothing but discipline. That is exactly the condition under which AI-assisted commits reintroduce boundary violations faster than review catches them.
@@ -111,7 +111,7 @@ The layering is currently correct: widgets depend on `theme`/`draw`/`core`/`anim
 ### F-05 — Crate-wide clippy suppression
 **Severity:** low
 **Evidence:** [expert opinion]
-**Where:** `tuiforge/src/lib.rs:65`
+**Where:** `tuile/src/lib.rs:65`
 **Measured:** `#![allow(clippy::too_many_arguments, clippy::type_complexity)]`; removing it produces 16 warnings across 10 files
 
 The allow is documented with a reason and was measured to be load-bearing, which is better than most. It is still a blanket crate-level waiver: any *new* nine-argument function or nested generic type is now silently accepted. Narrowing it to the specific items keeps the warning live for new code.
@@ -119,8 +119,8 @@ The allow is documented with a reason and was measured to be load-bearing, which
 ### F-06 — No integration tests against the public API
 **Severity:** low
 **Evidence:** [moderate]
-**Where:** `tuiforge/tests/` does not exist
-**Measured:** 208 unit tests, all inside `#[cfg(test)] mod tests`; 3 examples in `tuiforge/examples/`
+**Where:** `tuile/tests/` does not exist
+**Measured:** 208 unit tests, all inside `#[cfg(test)] mod tests`; 3 examples in `tuile/examples/`
 
 Unit tests inside the crate can reach private items, so they do not exercise the surface a consumer sees. For a library about to be published, a `tests/` directory is the cheapest form of API review: anything awkward to write there is awkward for a user. The three examples partly cover this, but they are not assertions.
 
@@ -142,7 +142,7 @@ Builder methods return `Self` and are trivially misused by discarding the result
 
 | File / area | Why it looks bad | Why to leave it |
 |---|---|---|
-| `tuiforge/src/widgets/spinner/spinners.rs` (1,437 lines) | Largest non-`ai` file in the crate | It is a data table of 102 spinner frame sets. Complexity is near zero and it has not changed since it was written. |
+| `tuile/src/widgets/spinner/spinners.rs` (1,437 lines) | Largest non-`ai` file in the crate | It is a data table of 102 spinner frame sets. Complexity is near zero and it has not changed since it was written. |
 | 34 exact clone groups across widget builders | `duplication.py` flags them as identical | They are the per-widget `theme()` / `focused()` / `new()` setters that the widget contract requires. Collapsing them into a macro or trait would hurt rustdoc output and readability for a gain of nothing. |
 | `ai_agents.rs:156-178` ↔ `ai_compose.rs:1100-1122` (largest drifted group) | 23 lines, flagged first by the tool | Two unrelated enums (`AgentStatus`, `HarnessMode`) that each happen to have a `glyph`/`label` match arm. Same shape, different rules — the textbook case for leaving duplication alone. |
 | `ai.rs`, `ai_compose.rs`, `ai_agents.rs`, `ai_tools.rs` (2,400-3,200 lines each) | Large files | Each is one cohesive widget family with a narrow public interface. No independent change schedule has appeared to split along. |
@@ -160,7 +160,7 @@ All P0 and P1 items were executed on 2026-09-11, one concern per commit, each ve
 | `ab17d59` | P0-3 | `#![forbid(unsafe_code)]` | Workspace builds; 253 tests pass |
 | `1ce17ec` | P1-1 | `core::word_boundary` replaces the two copies | New direct test; inverting the rule fails it |
 | `c7da3c6` | P1-2 | `tools/check_layers.py` in CI | Fails on an injected foundation→widget import and on an injected cycle; passes clean |
-| `a90fff7` | P1-3 | `tuiforge/tests/public_api.rs`, 6 tests | Breaking tab selection and the checkbox toggle each fail one |
+| `a90fff7` | P1-3 | `tuile/tests/public_api.rs`, 6 tests | Breaking tab selection and the checkbox toggle each fail one |
 | `d01d86e` | P1-4 | 16 targeted clippy allows replace the crate-wide one | A new eight-argument function in `draw.rs` is now rejected |
 
 Three things worth recording for the next run.
@@ -169,7 +169,7 @@ Three things worth recording for the next run.
 
 **The public-API tests found two API gaps immediately**, which is the argument for having them: there is no `Theme::by_name` (the function is `theme::builtin`), and `CheckboxState` exposes `.value`, not `.checked`. Both were discovered by writing a consumer-shaped test, and neither was visible from inside the crate.
 
-**`showcase` already carries `publish = false`**, answering half of open question 1. Its path dependency on `tuiforge` needed an explicit version: a bare path dependency is a wildcard requirement, which `cargo-deny`'s bans check rejects.
+**`showcase` already carries `publish = false`**, answering half of open question 1. Its path dependency on `tuile` needed an explicit version: a bare path dependency is a wildcard requirement, which `cargo-deny`'s bans check rejects.
 
 Findings F-01, F-02, F-03, F-04, F-05 and F-06 are resolved. F-07 (`#[must_use]` / `#[non_exhaustive]`) remains open and is the first P2 item.
 
@@ -199,7 +199,7 @@ Prioritised by `impact × (1 / effort)`, hotspots first. **P0 and P1 are done** 
 
 #### P0-3 `#![forbid(unsafe_code)]`
 - **Why** The crate contains zero `unsafe` today (measured). Forbidding it is compiler-enforced, costs nothing, and is a meaningful signal on a published TUI crate [expert opinion, but the enforcement is free]
-- **Where** `tuiforge/src/lib.rs`, top of file
+- **Where** `tuile/src/lib.rs`, top of file
 - **How** Add the attribute
 - **Effort** S (~2 min)
 - **Risk** low — it either compiles or names the exception
@@ -210,16 +210,16 @@ Prioritised by `impact × (1 / effort)`, hotspots first. **P0 and P1 are done** 
 
 #### P1-1 Extract `word_boundary` to one home
 - **Why** One user-visible rule with two identical implementations in two hotspot files (F-03) [contested in general, but this case is knowledge duplication under the standing ruling]
-- **Where** `tuiforge/src/widgets/input.rs`, `tuiforge/src/widgets/textarea.rs`; new free function in `tuiforge/src/core.rs` or a small `text_nav` module
+- **Where** `tuile/src/widgets/input.rs`, `tuile/src/widgets/textarea.rs`; new free function in `tuile/src/core.rs` or a small `text_nav` module
 - **How** `pub(crate) fn word_boundary(graphemes: &[&str], pos: usize, forward: bool) -> usize`; both widgets call it with their own grapheme slice. The signatures differ only by how the slice is obtained, so the extraction is mechanical.
 - **Effort** S (~30 min)
 - **Risk** low — pure function, both call sites covered by existing tests
-- **Verify** `cargo test -p tuiforge --lib input:: textarea::`
+- **Verify** `cargo test -p tuile --lib input:: textarea::`
 - **Rollback** single commit
 
 #### P1-2 Declare and enforce the module layering
 - **Why** The layering is correct today and held up by nothing (F-04). Fitness functions are the recommended counterweight when structural drift outpaces review [emerging, low risk]
-- **Where** `tuiforge/src/`
+- **Where** `tuile/src/`
 - **How** Two options, in order of preference: (a) `cargo install layered-crate --locked`, declare `foundation = [theme, draw, core, anim, layout, fuzzy]` below `widgets`, run it in CI; (b) if that proves awkward, keep the custom import-graph check from this audit as a small script in CI asserting zero foundation→widget edges and zero module cycles.
 - **Effort** M (~2 h including the CI wiring)
 - **Risk** low — reports only
@@ -228,16 +228,16 @@ Prioritised by `impact × (1 / effort)`, hotspots first. **P0 and P1 are done** 
 
 #### P1-3 Add integration tests against the public API
 - **Why** Nothing currently exercises the crate the way a consumer does; for a pre-publication library this doubles as API review (F-06) [moderate]
-- **Where** new `tuiforge/tests/public_api.rs`
-- **How** Build and render half a dozen representative widgets using only `tuiforge::prelude::*`, asserting on buffer contents. Anything that needs a private item is an API gap worth knowing about before 0.1.0 ships.
+- **Where** new `tuile/tests/public_api.rs`
+- **How** Build and render half a dozen representative widgets using only `tuile::prelude::*`, asserting on buffer contents. Anything that needs a private item is an API gap worth knowing about before 0.1.0 ships.
 - **Effort** M (~half a day)
 - **Risk** low
-- **Verify** `cargo test -p tuiforge --test public_api`
+- **Verify** `cargo test -p tuile --test public_api`
 - **Rollback** delete the file
 
 #### P1-4 Narrow the crate-wide clippy allow
 - **Why** A blanket waiver silently accepts new violations (F-05) [expert opinion]
-- **Where** `tuiforge/src/lib.rs:65` and the 15 files that need it
+- **Where** `tuile/src/lib.rs:65` and the 15 files that need it
 - **How** Remove the crate attribute; add `#[allow(clippy::too_many_arguments)]` on the specific render helpers that need it. Move the policy into `[workspace.lints]` in the root `Cargo.toml` so it is versioned once.
 - **Effort** M (~1-2 h for 16 sites)
 - **Risk** low — compiler-checked
@@ -268,7 +268,7 @@ Not installed, and deliberately: a duplication ratchet. The current figure is 3.
 
 ## Open questions
 
-1. Should the AI harness family (`ai.rs`, `ai_compose.rs`, `ai_agents.rs`, `ai_tools.rs` — 11,000 lines, a third of the library) stay in the core crate or become a `tuiforge-ai` crate? A workspace split would make the layering compiler-enforced instead of textually checked, and would parallelise compilation. It is the one structural change with a concrete argument behind it.
+1. Should the AI harness family (`ai.rs`, `ai_compose.rs`, `ai_agents.rs`, `ai_tools.rs` — 11,000 lines, a third of the library) stay in the core crate or become a `tuile-ai` crate? A workspace split would make the layering compiler-enforced instead of textually checked, and would parallelise compilation. It is the one structural change with a concrete argument behind it.
 2. Is the 2,000-line-plus file size in the `ai*` modules and `toggle.rs` comfortable to work in? The co-change data says their parts move together, so there is no evidence-backed split line — but the person editing them has better information than the tool does.
 
 ## Methodology and caveats

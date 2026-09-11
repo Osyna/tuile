@@ -2,8 +2,8 @@
 
 use std::time::Instant;
 
-use tuiforge::draw::{Border, fill, put};
-use tuiforge::prelude::*;
+use tuile::draw::{Border, fill, put};
+use tuile::prelude::*;
 
 use super::{Ctx, Page};
 
@@ -195,7 +195,7 @@ impl Page for NavigationPage {
         Breadcrumbs::new(vec![
             "Home".to_string(),
             "Projects".to_string(),
-            "tuiforge".to_string(),
+            "tuile".to_string(),
             "showcase".to_string(),
             "pages".to_string(),
             "navigation.rs".to_string(),
@@ -246,7 +246,7 @@ impl Page for NavigationPage {
             th.background,
             "Tab styles",
             Alignment::Left,
-            tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD),
+            tuile::draw::st(th.text, th.background).add_modifier(Modifier::BOLD),
         );
         let mut tab_y = left_inner.y;
 
@@ -341,7 +341,7 @@ impl Page for NavigationPage {
             th.background,
             "TreeView & Navigation",
             Alignment::Left,
-            tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD),
+            tuile::draw::st(th.text, th.background).add_modifier(Modifier::BOLD),
         );
         let tree_h = (lower_inner.height * 2) / 3;
         let tree_area = Rect::new(lower_inner.x, lower_inner.y, lower_inner.width, tree_h);
@@ -406,7 +406,7 @@ impl Page for NavigationPage {
             th.background,
             "Tabbed Content",
             Alignment::Left,
-            tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD),
+            tuile::draw::st(th.text, th.background).add_modifier(Modifier::BOLD),
         );
         if menu_h > 0 {
             let inner = Border::Round.draw_titled_with(
@@ -416,7 +416,7 @@ impl Page for NavigationPage {
                 th.background,
                 "Big menu (BigMenu · btop style, also on Monitor: m)",
                 Alignment::Left,
-                tuiforge::draw::st(th.text, th.background).add_modifier(Modifier::BOLD),
+                tuile::draw::st(th.text, th.background).add_modifier(Modifier::BOLD),
             );
             let items = ["OPTIONS", "HELP", "QUIT"];
             BigMenu::new(&items)
@@ -450,7 +450,7 @@ impl Page for NavigationPage {
                             filter_y,
                             &format!("Filter: /{}", self.list_filter),
                             list_area.width,
-                            tuiforge::draw::st(th.text_muted, th.surface),
+                            tuile::draw::st(th.text_muted, th.surface),
                         );
                         list_area = Rect::new(
                             list_area.x,
@@ -717,7 +717,7 @@ impl Page for NavigationPage {
         if let Some(action) = self.menu.take_action() {
             ctx.notify(
                 format!("Menu action: {}", action),
-                tuiforge::theme::Variant::Primary,
+                tuile::theme::Variant::Primary,
             );
             out = Outcome::Changed;
         }
@@ -725,7 +725,7 @@ impl Page for NavigationPage {
         if let Some(action) = self.context_menu.take_action() {
             ctx.notify(
                 format!("Context action: {}", action),
-                tuiforge::theme::Variant::Primary,
+                tuile::theme::Variant::Primary,
             );
             out = Outcome::Changed;
         }
@@ -733,7 +733,7 @@ impl Page for NavigationPage {
         if let Some(seg) = self.breadcrumbs.take_clicked() {
             ctx.notify(
                 format!("Breadcrumb: {}", seg),
-                tuiforge::theme::Variant::Primary,
+                tuile::theme::Variant::Primary,
             );
             out = Outcome::Changed;
         }
@@ -741,7 +741,7 @@ impl Page for NavigationPage {
         if let Some(activated) = self.list.take_activated() {
             ctx.notify(
                 format!("List activated: {}", activated),
-                tuiforge::theme::Variant::Primary,
+                tuile::theme::Variant::Primary,
             );
             out = Outcome::Changed;
         }
@@ -749,7 +749,7 @@ impl Page for NavigationPage {
         if let Some(activated) = self.tree.take_activated() {
             ctx.notify(
                 format!("Tree activated: {:?}", activated),
-                tuiforge::theme::Variant::Primary,
+                tuile::theme::Variant::Primary,
             );
             out = Outcome::Changed;
         }

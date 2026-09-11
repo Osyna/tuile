@@ -1,12 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["tuiforge", "showcase"]
+members = ["tuile", "showcase"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/irvin/tuiforge"
+repository = "https://github.com/irvin/tuile"
 
 [workspace.dependencies]
 ratatui = "0.30"

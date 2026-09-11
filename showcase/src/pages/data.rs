@@ -5,8 +5,8 @@ use std::time::Instant;
 use ratatui::crossterm::event::{Event, KeyCode, KeyEvent};
 use ratatui::layout::{Alignment, Constraint};
 use ratatui::style::Modifier;
-use tuiforge::prelude::*;
-use tuiforge::widgets::{
+use tuile::prelude::*;
+use tuile::widgets::{
     DataTable, DataTableState, Digits, KeyValueList, TableCell, TableColumn, TableCursor, TableRow,
 };
 
@@ -88,7 +88,7 @@ impl Page for DataPage {
             .get_or_insert_with(|| Focus::new([Id::MainTable, Id::CellTable, Id::Counter]));
 
         let th = &ctx.theme;
-        let rows = tuiforge::layout::stack(area, &[area.height.saturating_sub(11), 10], 1);
+        let rows = tuile::layout::stack(area, &[area.height.saturating_sub(11), 10], 1);
         if rows.len() < 2 {
             return;
         }
@@ -210,7 +210,7 @@ impl Page for DataPage {
 
         // bottom row: cell table + kvlist + digits
         let bottom_area = rows[1];
-        let bottom_cols = tuiforge::layout::cols(
+        let bottom_cols = tuile::layout::cols(
             bottom_area,
             [
                 Constraint::Percentage(35),
@@ -270,7 +270,7 @@ impl Page for DataPage {
 
         DataTable::new(cell_cols, cell_rows)
             .cursor(TableCursor::Cell)
-            .borders(tuiforge::widgets::TableBorders::All)
+            .borders(tuile::widgets::TableBorders::All)
             .cell_style(heatmap_style)
             .focused(focus.is(Id::CellTable))
             .theme(th)
@@ -309,7 +309,7 @@ impl Page for DataPage {
         );
 
         if digits_inner.height >= 3 {
-            let (h, m, s) = tuiforge::runtime::local_hms();
+            let (h, m, s) = tuile::runtime::local_hms();
             let time_str = format!("{:02}:{:02}:{:02}", h, m, s);
             let time_rect = Rect {
                 x: digits_inner.x,

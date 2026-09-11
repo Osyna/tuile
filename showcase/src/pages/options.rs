@@ -4,8 +4,8 @@
 
 use std::time::Instant;
 
-use tuiforge::draw::{hline, put, st};
-use tuiforge::prelude::*;
+use tuile::draw::{hline, put, st};
+use tuile::prelude::*;
 
 use super::{Ctx, Page};
 

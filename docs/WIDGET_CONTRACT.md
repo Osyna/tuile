@@ -1,8 +1,8 @@
-# tuiforge widget contract
+# tuile widget contract
 
-Every widget in `tuiforge/src/widgets/` follows these rules so that apps can compose them
-without reading their source. Read `tuiforge/src/{core,theme,anim,draw,layout}.rs` and
-`tuiforge/src/widgets/scrollbar.rs` (the reference implementation) before writing one.
+Every widget in `tuile/src/widgets/` follows these rules so that apps can compose them
+without reading their source. Read `tuile/src/{core,theme,anim,draw,layout}.rs` and
+`tuile/src/widgets/scrollbar.rs` (the reference implementation) before writing one.
 
 ## Shape
 

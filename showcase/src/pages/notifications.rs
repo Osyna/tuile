@@ -2,13 +2,13 @@
 
 use super::{Ctx, Page, card};
 use std::time::Instant;
-use tuiforge::draw::{Edge, fill, put, st};
-use tuiforge::prelude::*;
-use tuiforge::widgets::notify::{
+use tuile::draw::{Edge, fill, put, st};
+use tuile::prelude::*;
+use tuile::widgets::notify::{
     Banner, BannerState, BannerStyle, InlineAlert, Notification, NotificationCenter,
     NotificationCenterState,
 };
-use tuiforge::widgets::{
+use tuile::widgets::{
     Callout, CalloutBorder, CalloutState, Toast, ToastAnim, ToastPosition, ToastStack, ToastStyle,
     Toaster,
 };
@@ -388,7 +388,7 @@ impl NotificationsPage {
         .areas(area);
         let banner_card = card(buf, banners_area, &th, "Banners (R to restore)");
         let heights = vec![2_u16, 2, 2];
-        let banner_rows = tuiforge::layout::stack(banner_card, &heights, 1);
+        let banner_rows = tuile::layout::stack(banner_card, &heights, 1);
         if banner_rows.len() >= 3 {
             Banner::new("System maintenance tonight 23:00 UTC")
                 .variant(Variant::Warning)
@@ -411,7 +411,7 @@ impl NotificationsPage {
         }
         let alert_card = card(buf, alerts_area, &th, "Inline Alerts");
         let alert_heights = vec![5_u16, 5, 1, 5];
-        let alert_rows = tuiforge::layout::stack(alert_card, &alert_heights, 1);
+        let alert_rows = tuile::layout::stack(alert_card, &alert_heights, 1);
         if alert_rows.len() >= 4 {
             InlineAlert::new("Success", "Your changes saved")
                 .variant(Variant::Success)
@@ -434,7 +434,7 @@ impl NotificationsPage {
         if callouts_area.height >= 12 {
             let callout_card = card(buf, callouts_area, &th, "Callouts");
             let callout_heights = vec![4_u16, 4, 4];
-            let callout_rows = tuiforge::layout::stack(callout_card, &callout_heights, 0);
+            let callout_rows = tuile::layout::stack(callout_card, &callout_heights, 0);
             let mut callout_states = [
                 CalloutState::new(),
                 CalloutState::new(),

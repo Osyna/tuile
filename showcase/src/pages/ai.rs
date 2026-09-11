@@ -1,8 +1,8 @@
 //! AI: one harness turn replayed - thinking, markdown, inline tool calls, streaming, approvals.
 
 use std::time::{Duration, Instant};
-use tuiforge::prelude::*;
-use tuiforge::widgets::ai::{
+use tuile::prelude::*;
+use tuile::widgets::ai::{
     Approval, ApprovalChoice, ApprovalState, ApprovalStyle, ChatBlock, ChatMessage, ChatState,
     ChatView, ComposerState, ContextGauge, PromptComposer, Role, StreamCursor, StreamText,
     Thinking, TokenHeat, TokenUsage, ToolStatus, TypingIndicator,
@@ -529,7 +529,7 @@ impl Page for AiPage {
             .theme(&th)
             .render(rows[0], buf);
         Thinking::new("Reading files")
-            .spinner(&tuiforge::widgets::spinners::LINE)
+            .spinner(&tuile::widgets::spinners::LINE)
             .detail("3 modules")
             .elapsed(2.3 + (self.clock(now) % 4.0))
             .elapsed_label(true)

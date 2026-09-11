@@ -1,9 +1,9 @@
 //! AI Tools gallery: tool timeline, shell/code blocks, edit previews, change sets, JSON trees, retry notices.
 
 use std::time::{Duration, Instant};
-use tuiforge::layout::columns;
-use tuiforge::prelude::*;
-use tuiforge::widgets::ai::DiffLine;
+use tuile::layout::columns;
+use tuile::prelude::*;
+use tuile::widgets::ai::DiffLine;
 
 use super::{Ctx, Page, card};
 
@@ -208,7 +208,7 @@ impl Page for AiToolsPage {
         if area.width < 90 || area.height < 30 {
             let cards = [("Tool timeline", 8u16), ("Edit preview", 0u16)];
             let rects =
-                tuiforge::layout::stack(area, &cards.iter().map(|c| c.1).collect::<Vec<_>>(), 1);
+                tuile::layout::stack(area, &cards.iter().map(|c| c.1).collect::<Vec<_>>(), 1);
 
             if !rects.is_empty() {
                 let inner = card(buf, rects[0], th, cards[0].0);
@@ -224,19 +224,19 @@ impl Page for AiToolsPage {
                 let inner = card(buf, rects[1], th, cards[1].0);
                 let diff_lines = vec![
                     DiffLine {
-                        kind: tuiforge::widgets::ai::DiffKind::Ctx,
+                        kind: tuile::widgets::ai::DiffKind::Ctx,
                         text: "fn main() {".into(),
                     },
                     DiffLine {
-                        kind: tuiforge::widgets::ai::DiffKind::Del,
+                        kind: tuile::widgets::ai::DiffKind::Del,
                         text: "    println!(\"Hello\");".into(),
                     },
                     DiffLine {
-                        kind: tuiforge::widgets::ai::DiffKind::Add,
+                        kind: tuile::widgets::ai::DiffKind::Add,
                         text: "    println!(\"Hello, world!\");".into(),
                     },
                     DiffLine {
-                        kind: tuiforge::widgets::ai::DiffKind::Ctx,
+                        kind: tuile::widgets::ai::DiffKind::Ctx,
                         text: "}".into(),
                     },
                 ];
@@ -260,7 +260,7 @@ impl Page for AiToolsPage {
         // Left column
         let left_cards = [("Tool timeline", 18u16), ("Shell", 0u16)];
         let left_rects =
-            tuiforge::layout::stack(left, &left_cards.iter().map(|c| c.1).collect::<Vec<_>>(), 1);
+            tuile::layout::stack(left, &left_cards.iter().map(|c| c.1).collect::<Vec<_>>(), 1);
 
         // Timeline card
         if !left_rects.is_empty() {
@@ -278,7 +278,7 @@ impl Page for AiToolsPage {
             let inner = card(buf, left_rects[1], th, left_cards[1].0);
             let output = if self.shell_failed {
                 vec![
-                    (false, "   Compiling tuiforge v0.1.0".into()),
+                    (false, "   Compiling tuile v0.1.0".into()),
                     (true, "error[E0308]: mismatched types".into()),
                     (true, " --> src/main.rs:42:10".into()),
                     (false, "   |".into()),
@@ -288,11 +288,11 @@ impl Page for AiToolsPage {
                         "   |                  ^^^^^^^ expected `u32`, found `&str`".into(),
                     ),
                     (false, "".into()),
-                    (true, "error: could not compile `tuiforge`".into()),
+                    (true, "error: could not compile `tuile`".into()),
                 ]
             } else {
                 vec![
-                    (false, "   Compiling tuiforge v0.1.0".into()),
+                    (false, "   Compiling tuile v0.1.0".into()),
                     (
                         false,
                         "    Finished `test` profile [optimized] in 2.3s".into(),
@@ -342,31 +342,31 @@ impl Page for AiToolsPage {
             let inner = card(buf, right_rects[0], th, "Edit preview");
             let diff_lines = vec![
                 DiffLine {
-                    kind: tuiforge::widgets::ai::DiffKind::Ctx,
+                    kind: tuile::widgets::ai::DiffKind::Ctx,
                     text: "pub fn execute(&self) -> Result<(), Error> {".into(),
                 },
                 DiffLine {
-                    kind: tuiforge::widgets::ai::DiffKind::Del,
+                    kind: tuile::widgets::ai::DiffKind::Del,
                     text: "    let config = Config::default();".into(),
                 },
                 DiffLine {
-                    kind: tuiforge::widgets::ai::DiffKind::Add,
+                    kind: tuile::widgets::ai::DiffKind::Add,
                     text: "    let config = self.load_config()?;".into(),
                 },
                 DiffLine {
-                    kind: tuiforge::widgets::ai::DiffKind::Ctx,
+                    kind: tuile::widgets::ai::DiffKind::Ctx,
                     text: "    config.validate()?;".into(),
                 },
                 DiffLine {
-                    kind: tuiforge::widgets::ai::DiffKind::Del,
+                    kind: tuile::widgets::ai::DiffKind::Del,
                     text: "    self.run()".into(),
                 },
                 DiffLine {
-                    kind: tuiforge::widgets::ai::DiffKind::Add,
+                    kind: tuile::widgets::ai::DiffKind::Add,
                     text: "    self.run(&config)".into(),
                 },
                 DiffLine {
-                    kind: tuiforge::widgets::ai::DiffKind::Ctx,
+                    kind: tuile::widgets::ai::DiffKind::Ctx,
                     text: "}".into(),
                 },
             ];
@@ -384,7 +384,7 @@ impl Page for AiToolsPage {
             if let Some(decision) = self.edit_preview.take_decision() {
                 ctx.notify(
                     format!("Edit {:?}", decision),
-                    tuiforge::theme::Variant::Default,
+                    tuile::theme::Variant::Default,
                 );
                 // Reset animation
                 self.edit_started = Some(
@@ -404,7 +404,7 @@ impl Page for AiToolsPage {
                 .render(inner, buf, &mut self.changeset);
 
             if self.changeset.take_activated().is_some() {
-                ctx.notify("File activated", tuiforge::theme::Variant::Default);
+                ctx.notify("File activated", tuile::theme::Variant::Default);
             }
         }
 
@@ -469,7 +469,7 @@ impl Page for AiToolsPage {
         let mut out = Outcome::Ignored;
 
         match ev {
-            Event::Key(k) if tuiforge::core::is_press(k) => {
+            Event::Key(k) if tuile::core::is_press(k) => {
                 match k.code {
                     KeyCode::Char('r') => {
                         self.restart_timeline(ctx.now);

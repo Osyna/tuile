@@ -1,9 +1,9 @@
 //! Feedback: progress bars, every spinner, loading states, toasts (with corners), callouts,
 //! dialogs and tooltips, all live.
 
-use tuiforge::draw::{fill, put, st};
-use tuiforge::prelude::*;
-use tuiforge::widgets::{CalloutBorder, SkeletonShape, ToastCorner, spinners};
+use tuile::draw::{fill, put, st};
+use tuile::prelude::*;
+use tuile::widgets::{CalloutBorder, SkeletonShape, ToastCorner, spinners};
 
 use super::{Ctx, Page, card};
 
@@ -102,7 +102,7 @@ impl FeedbackPage {
             ]),
             1 => Modal::alert(
                 "Update available",
-                "tuiforge 0.2.0 adds a DataGrid and virtual lists. Restart to apply.",
+                "tuile 0.2.0 adds a DataGrid and virtual lists. Restart to apply.",
             )
             .icon("↑"),
             2 => Modal::prompt("Rename branch", "New name for `feature/toasts`:"),
@@ -378,7 +378,7 @@ impl Page for FeedbackPage {
             l3.width,
             st(th.text_muted, th.background),
         );
-        Marquee::new("tuiforge ships 70+ widgets  •  press 1-4 for toasts  •  m for a dialog  •  ")
+        Marquee::new("tuile ships 70+ widgets  •  press 1-4 for toasts  •  m for a dialog  •  ")
             .speed(12.0)
             .elapsed(ctx.elapsed())
             .theme(&th)
@@ -702,7 +702,7 @@ impl Page for FeedbackPage {
     }
 }
 
-/// A cross-section of the catalog: classics, wide ones, emoji, and tuiforge originals.
+/// A cross-section of the catalog: classics, wide ones, emoji, and tuile originals.
 const SAMPLE: &[&SpinnerDef] = &[
     &spinners::DOTS,
     &spinners::LINE,

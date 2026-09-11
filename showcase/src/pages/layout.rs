@@ -1,9 +1,9 @@
 //! Layout: draggable split panes, a scroll view with both scrollbars, panels in every
 //! border style, an accordion, header/footer chrome and placeholders.
 
-use tuiforge::draw::{Border, fill, put, st};
-use tuiforge::prelude::*;
-use tuiforge::widgets::{
+use tuile::draw::{Border, fill, put, st};
+use tuile::prelude::*;
+use tuile::widgets::{
     CollapsibleHeader, PanelBg, PlaceholderVariant, ScrollBars, SplitDivider, SplitSize,
 };
 

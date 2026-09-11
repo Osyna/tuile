@@ -11,6 +11,6 @@ name = "showcase"
 path = "src/main.rs"
 
 [dependencies]
-tuiforge = { path = "../tuiforge" }
+tuiforge = { path = "../tuiforge", version = "0.1.0" }
 ratatui = { workspace = true }
 unicode-width = { workspace = true }

@@ -250,6 +250,8 @@ impl<'a> StatefulWidget for SlashMenu<'a> {
         }
 
         // group by category
+        // A local (index, score, positions) grouping; a named type would not make it clearer.
+        #[allow(clippy::type_complexity)]
         let mut sections: Vec<(Option<String>, Vec<(usize, i32, Vec<usize>)>)> = Vec::new();
         for (idx, score, positions) in &state.ranked {
             let cmd = &self.commands[*idx];
@@ -696,6 +698,8 @@ impl<'a> StatefulWidget for MentionPicker<'a> {
         }
 
         let has_recent = !recent.is_empty();
+        // A local (index, score, positions) grouping; a named type would not make it clearer.
+        #[allow(clippy::type_complexity)]
         let sections: Vec<(Option<&str>, Vec<(usize, i32, Vec<usize>)>)> = if has_recent {
             vec![(Some("RECENT"), recent), (Some("ALL"), all)]
         } else {

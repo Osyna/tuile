@@ -52,6 +52,8 @@ pub struct TextArea {
     max_lines: Option<usize>,
     placeholder: String,
     shape: FieldShape,
+    // A `fn` pointer hook the caller must match exactly; an alias would hide the signature.
+    #[allow(clippy::type_complexity)]
     highlighter: Option<fn(&str) -> Vec<(usize, usize, Style)>>,
     cursor_style: CursorStyle,
     cursor_blink: bool,

@@ -429,6 +429,8 @@ pub struct DataTable {
     footer: Vec<String>,
     multi_select: bool,
     fixed_columns: usize,
+    // A `fn` pointer hook the caller must match exactly; an alias would hide the signature.
+    #[allow(clippy::type_complexity)]
     cell_style: Option<fn(usize, usize, &TableCell, &Theme) -> Option<Style>>,
     focused: bool,
     enabled: bool,

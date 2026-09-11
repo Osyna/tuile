@@ -968,6 +968,9 @@ impl StatefulWidget for RadioGroup {
 }
 
 impl RadioGroup {
+    // The render path takes buffer, position, size and style separately: bundling them into a
+    // struct would cost an allocation per call.
+    #[allow(clippy::too_many_arguments)]
     fn render_option(
         &self,
         buf: &mut Buffer,

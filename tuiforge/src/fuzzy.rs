@@ -17,6 +17,8 @@ pub fn fuzzy(query: &str, text: &str) -> Option<(i32, Vec<usize>)> {
         .collect();
     // memo[(qi, start)] = best match of q[qi..] inside hay[start..]; adjacency bonus applies when
     // the match lands exactly at `start` (the previous char matched at start - 1).
+    // Outer Option is "not computed yet", inner is "no match"; a named type would hide that.
+    #[allow(clippy::type_complexity)]
     let mut memo: Vec<Option<Option<(i32, Vec<usize>)>>> =
         vec![None; (q.len() + 1) * (hay.len() + 1)];
     type Memo = [Option<Option<(i32, Vec<usize>)>>];

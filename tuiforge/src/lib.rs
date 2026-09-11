@@ -57,12 +57,6 @@
 //!
 //! [ratatui]: https://ratatui.rs
 
-// The drawing primitives take a buffer, a position, a size and a style as separate arguments
-// (`put_aligned`, `draw_titled_with`, `pills`): bundling them into a struct would cost an
-// allocation per call on the render path. The complex types are `fn` pointer hooks
-// (`validator`, `suggester`, `highlighter`) and cached `(Rect, usize, usize)` hit lists, both
-// of which read better inline than behind an alias.
-#![allow(clippy::too_many_arguments, clippy::type_complexity)]
 // A terminal widget library has no reason to reach for unsafe; the crate contains none.
 #![forbid(unsafe_code)]
 

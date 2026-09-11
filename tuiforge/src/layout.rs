@@ -163,6 +163,8 @@ pub fn popup_below(anchor: Rect, w: u16, h: u16, bounds: Rect) -> Rect {
 /// (dropdown lists, tooltips, menus). Drain it at the end of the frame.
 #[derive(Default)]
 pub struct Overlay<'a> {
+    // Boxed draw closures; the type is the documentation.
+    #[allow(clippy::type_complexity)]
     layers: Vec<Box<dyn FnOnce(&mut Buffer) + 'a>>,
 }
 

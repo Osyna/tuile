@@ -745,6 +745,8 @@ pub struct CodeBlock<'a> {
     wrap: bool,
     caret: bool,
     now: Option<Instant>,
+    // A `fn` pointer hook the caller must match exactly; an alias would hide the signature.
+    #[allow(clippy::type_complexity)]
     highlighter: Option<fn(&str) -> Vec<(usize, usize, ratatui::style::Style)>>,
 }
 

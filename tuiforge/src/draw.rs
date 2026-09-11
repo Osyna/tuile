@@ -353,6 +353,9 @@ impl Border {
 
     /// Like [`Border::draw_titled`] with an explicit title style (e.g. a dim border with a
     /// bright title, the usual "card" look).
+    // The render path takes buffer, position, size and style separately: bundling them into a
+    // struct would cost an allocation per call.
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_titled_with(
         self,
         buf: &mut Buffer,
@@ -415,6 +418,9 @@ pub enum Edge {
 
 impl Edge {
     /// Draw `height` rows of bar at `x`; `right` anchors the glyph to the cell's right side.
+    // The render path takes buffer, position, size and style separately: bundling them into a
+    // struct would cost an allocation per call.
+    #[allow(clippy::too_many_arguments)]
     pub fn draw(
         self,
         buf: &mut Buffer,

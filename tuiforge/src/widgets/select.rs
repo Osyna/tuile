@@ -526,6 +526,9 @@ impl SelectState {
     }
 }
 
+// The render path takes buffer, position, size and style separately: bundling them into a
+// struct would cost an allocation per call.
+#[allow(clippy::too_many_arguments)]
 fn render_select_compact(
     area: Rect,
     buf: &mut Buffer,
@@ -574,6 +577,9 @@ fn render_select_compact(
 }
 
 /// The field shared by Select and MultiSelect: label or placeholder, arrow, framed per `shape`.
+// The render path takes buffer, position, size and style separately: bundling them into a
+// struct would cost an allocation per call.
+#[allow(clippy::too_many_arguments)]
 fn render_field(
     area: Rect,
     buf: &mut Buffer,
@@ -644,6 +650,9 @@ fn render_field(
     );
 }
 
+// The render path takes buffer, position, size and style separately: bundling them into a
+// struct would cost an allocation per call.
+#[allow(clippy::too_many_arguments)]
 fn render_option_list(
     buf: &mut Buffer,
     area: Rect,

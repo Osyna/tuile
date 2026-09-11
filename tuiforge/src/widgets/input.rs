@@ -45,6 +45,8 @@ pub struct Input {
     password: bool,
     max_len: Option<usize>,
     restrict: InputRestrict,
+    // A `fn` pointer hook the caller must match exactly; an alias would hide the signature.
+    #[allow(clippy::type_complexity)]
     validator: Option<fn(&str) -> Result<(), String>>,
     suggester: Option<fn(&str) -> Option<String>>,
     prefix: String,
@@ -74,6 +76,8 @@ pub struct InputState {
     clipboard: String,
     last_edit: Instant,
     pub error: Option<String>,
+    // A `fn` pointer hook the caller must match exactly; an alias would hide the signature.
+    #[allow(clippy::type_complexity)]
     validator: Option<fn(&str) -> Result<(), String>>,
     suggester: Option<fn(&str) -> Option<String>>,
     last_click: Option<Instant>,
@@ -849,6 +853,9 @@ impl StatefulWidget for Input {
     }
 }
 
+// The render path takes buffer, position, size and style separately: bundling them into a
+// struct would cost an allocation per call.
+#[allow(clippy::too_many_arguments)]
 fn render_text(
     buf: &mut Buffer,
     x: u16,

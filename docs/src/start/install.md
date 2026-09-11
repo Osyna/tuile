@@ -1,6 +1,11 @@
 # Installation
 
-tuile is not on crates.io yet. Depend on the repository:
+```toml
+[dependencies]
+tuile = "0.1"
+```
+
+To track main instead of a release, depend on the repository:
 
 ```toml
 [dependencies]

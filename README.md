@@ -25,6 +25,8 @@
 </h6>
 
 <div align="center">
+  <a href="https://crates.io/crates/tuile"><img src="https://img.shields.io/crates/v/tuile.svg" alt="crates.io"/></a>
+  <a href="https://docs.rs/tuile"><img src="https://img.shields.io/docsrs/tuile" alt="docs.rs"/></a>
   <a href="https://github.com/Osyna/tuile/actions/workflows/ci.yml"><img src="https://github.com/Osyna/tuile/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://github.com/Osyna/tuile/actions/workflows/docs.yml"><img src="https://github.com/Osyna/tuile/actions/workflows/docs.yml/badge.svg" alt="docs"/></a>
   <img src="https://img.shields.io/badge/rust-1.88%2B-orange.svg" alt="Rust 1.88+"/>
@@ -64,14 +66,14 @@ is still warm. Both fit: the library tiles a terminal, and it is shaped over rat
 
 ## ⚡ Install
 
-As a library:
+As a library, from [crates.io](https://crates.io/crates/tuile):
 
 ```toml
 [dependencies]
 tuile = "0.1"                                        # re-exports ratatui + crossterm
 ```
 
-Before the first crates.io release lands, or to track main:
+Or track main:
 
 ```toml
 tuile = { git = "https://github.com/Osyna/tuile" }

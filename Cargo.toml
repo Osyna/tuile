@@ -6,7 +6,7 @@ members = ["tuile", "showcase"]
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/irvin/tuile"
+repository = "https://github.com/Osyna/tuile"
 
 [workspace.dependencies]
 ratatui = "0.30"

@@ -1,38 +1,72 @@
-![tuile welcome](docs/screenshots/welcome.png)
+<div align="center">
+  <img src="docs/screenshots/dashboard.png" width="265"/>
+  <img src="docs/screenshots/monitor.png" width="265"/>
+  <img src="docs/screenshots/ai.png" width="265"/>
+</div>
 
-# tuile
+<div align="center">
+  <img src="docs/screenshots/controls.png" width="265"/>
+  <img src="docs/screenshots/charts.png" width="265"/>
+  <img src="docs/screenshots/bigmenus.png" width="265"/>
+</div>
 
-**Textual-grade components for [ratatui](https://ratatui.rs).** A widget library and design
-system for animated, mouse-aware terminal UIs in Rust, plus a `showcase` app that exercises
-all of it.
+<h1 align="center">tuile</h1>
+
+<h6 align="center">
+    <a href="#-widget-catalogue">Catalogue</a>
+    ·
+    <a href="#-showcase">Showcase</a>
+    ·
+    <a href="docs/WIDGET_CONTRACT.md">Widget contract</a>
+    ·
+    <a href="AUDIT.md">Code audit</a>
+    ·
+    <a href="#-faq">FAQ</a>
+</h6>
+
+<div align="center">
+  <a href="https://github.com/Osyna/tuile/actions/workflows/ci.yml"><img src="https://github.com/Osyna/tuile/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+  <img src="https://img.shields.io/badge/rust-1.88%2B-orange.svg" alt="Rust 1.88+"/>
+  <img src="https://img.shields.io/badge/ratatui-0.30-blue.svg" alt="ratatui 0.30"/>
+  <img src="https://img.shields.io/badge/unsafe-forbidden-success.svg" alt="unsafe forbidden"/>
+  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"/>
+</div>
+
+<br/>
+
+**Textual-grade components for [ratatui](https://ratatui.rs).** tuile is a widget library and
+design system for animated, mouse-aware terminal UIs in Rust: 108 widget types, a colour
+system that expands ten colours into thirty semantic roles, tweened animation, overlays, and
+a 22-page `showcase` app that exercises every one of them. It ports the parts of
+[Textual](https://textual.textualize.io) that make building a TUI pleasant into plain ratatui
+code, with no runtime, no CSS engine, and two extra dependencies.
 
 *tuile* (tweel) is French for tile, and the thin curved wafer you drape over a mould while it
 is still warm. Both fit: the library tiles a terminal, and it is shaped over ratatui.
 
+## 🚀 Features
+
+- **108 widgets across 15 families**: controls, text entry, navigation, tables, nine chart
+  types, feedback, notifications, loaders, layout, menus, content, and a full AI chat harness
+- **Focus, hover and mouse hit-testing built in.** Every state caches the rects it drew, so
+  clicks resolve without recomputing layout
+- **12 built-in palettes** (`textual-dark`, `nord`, `gruvbox`, `catppuccin-mocha`, `dracula`,
+  `tokyo-night`, `monokai`, `flexoki`, `rose-pine`…) plus your own from a single accent colour
+- **Animation that costs nothing when idle**: tweens, easings, pulses and blinks over a shared
+  epoch; the runtime redraws at 60 fps only while something is moving
+- **102 spinners**: the 90 from [cli-spinners](https://github.com/sindresorhus/cli-spinners)
+  and yaspin, 12 originals, and your own from a `&[&str]`
+- **Overlays that land on top**: dropdowns, menus, tooltips, modals, command palette, toasts
+- **Eight chrome shapes per text field**, from Textual's tall border to a padded `›` band,
+  with side bars in four thicknesses
+- **Zero `unsafe`** (compiler-enforced), no panics at any terminal size, 260 tests
+
+## ⚡ Quick start
+
 ```toml
 [dependencies]
-tuile = { git = "https://github.com/irvin/tuile" }   # re-exports ratatui + crossterm
+tuile = { git = "https://github.com/Osyna/tuile" }   # re-exports ratatui + crossterm
 ```
-
-```
-cargo run --release -p showcase            # the gallery
-cargo run --release -p showcase -- --page charts --theme nord
-```
-
-`use tuile::prelude::*;` brings in every widget, the theme, layout and draw helpers plus the
-ratatui types you need (`Rect`, `Buffer`, `Frame`, key/mouse events). `tuile::ratatui` and
-`tuile::crossterm` are re-exported so your app does not need its own pinned versions.
-
-## Why
-
-ratatui gives you a buffer and a handful of widgets. Every app then re-implements focus
-handling, hover, scrolling, dropdowns, dialogs, toasts, colour palettes and animation.
-tuile ports the parts of [Textual](https://textual.textualize.io) that make it pleasant,
-its colour system, its widget looks and its keyboard/mouse conventions, into plain ratatui
-code with no runtime, no CSS engine and only two extra dependencies (`unicode-width`,
-`unicode-segmentation`).
-
-## The model: three things to learn
 
 ```rust
 use tuile::prelude::*;
@@ -42,14 +76,15 @@ struct Demo { dark: SwitchState, name: InputState, focus: Focus<Id> }
 
 impl App for Demo {
     fn draw(&mut self, frame: &mut Frame, now: Instant) {
+        let [a, b] = Layout::vertical([Constraint::Length(3); 2]).areas(center(frame.area(), 40, 7));
         let buf = frame.buffer_mut();
-        let [a, b] = Layout::vertical([Constraint::Length(3), Constraint::Length(3)]).areas(center(frame.area(), 40, 7));
         // 1. a builder configures one frame …
         Switch::new().label("Dark mode").focused(self.focus.is(Id::Dark)).now(now)
-            .render(a, buf, &mut self.dark);          // 2. … into a State that lives between frames
+            .render(a, buf, &mut self.dark);        // 2. … into a State that lives between frames
         Input::new().placeholder("Your name").focused(self.focus.is(Id::Name)).now(now)
             .render(b, buf, &mut self.name);
     }
+
     fn event(&mut self, ev: Event, _now: Instant) -> Flow {
         if let Event::Key(k) = &ev {
             if ctrl(k, 'c') { return Flow::Quit; }
@@ -61,98 +96,85 @@ impl App for Demo {
             Some(Id::Name) => self.name.handle(&ev),
             None => Outcome::Ignored,
         };
-        if out.is_changed() { /* value changed: react */ }
+        if out.is_changed() { /* the value changed: react */ }
         Flow::Continue
     }
+
     fn animating(&self, now: Instant) -> bool { self.dark.animating(now) }
 }
 
 fn main() -> std::io::Result<()> {
     theme::set_by_name("nord");
-    run(&mut Demo { dark: SwitchState::new(true), name: InputState::new(), focus: Focus::new([Id::Dark, Id::Name]) })
+    run(&mut Demo {
+        dark: SwitchState::new(true),
+        name: InputState::new(),
+        focus: Focus::new([Id::Dark, Id::Name]),
+    })
 }
 ```
 
-* **Builder + State.** `Widget::new().option(..).render(area, buf, &mut state)`. Builders are
-  cheap per-frame values; states own values, hover/press tracking, tweens and scroll offsets.
-* **`Interactive` → `Outcome`.** `state.handle(&event)` (or `handle_key` / `handle_mouse`) returns
-  `Ignored`, `Consumed` (redraw) or `Changed` (the value changed). Mouse hit-testing uses the
-  rects cached during `render`, so you never compute layout twice.
-* **`App` + `run`.** The runtime sets up the terminal (mouse capture, panic-safe restore) and
-  redraws at 60 fps only while `animating()` is true.
+Then run the gallery to see everything else:
 
-Focus is owned by the app through `Focus<Id>`; hover is tracked by each state's `HitBox`.
-Overlays (dropdowns, menus, tooltips, dialogs, palettes, toasts) render last via
-`render_overlay(..)` / dedicated stack widgets.
-
-## Reuse & customize
-
-Every widget follows the same four knobs, so once you know one you know them all:
-
-```rust
-use tuile::prelude::*;
-
-// theme: process-wide by name / spec, or per widget
-theme::set_by_name("catppuccin-mocha");
-let mine = Theme::resolve(&ThemeSpec::new("mine", true, Rgb::hex(0x7c3aed)), None);
-Button::new("Save").theme(&mine).render(area, buf, &mut state);
-
-// time: pass the frame instant; looping animations phase from a shared epoch
-Spinner::new(&spinners::DOTS).now(now).render(area, buf);
-Spinner::new(&spinners::SPARKLE).elapsed(1.25).render(area, buf);     // deterministic (tests)
-
-// look: focus is yours, hover is the widget's, variants are semantic
-Button::new("Delete").variant(Variant::Error).style(ButtonStyle::Outline).focused(is_focused);
-
-// chrome thickness: every text field takes a shape; accent bars take an Edge
-Input::new().shape(FieldShape::Bars(Edge::Hair));          // omp-style thin side bars
-PromptComposer::new().shape(FieldShape::Band);              // Claude Code's padded › band
-TextArea::new().shape(FieldShape::Rule);                    // a line above and below
-ChatView::new().bar(Edge::Thin);                            // role bar: Hair / Thin / Half / Full
-
-// your own content: borrow slices, nothing is copied until it is drawn
-const PULSE: SpinnerDef = SpinnerDef::new("pulse", 120, &["·", "•", "●", "•"]);
-Spinner::new(&PULSE);
-Spinner::frames(&frames_from_config, 90);
+```
+cargo run --release -p showcase
+cargo run --release -p showcase -- --page charts --theme nord
 ```
 
-* **Drawing primitives are public.** `draw::{Border, put, fill, hbar, wrap, truncate, st}` and
-  `layout::{stack, columns, center, popup_below}` are the same functions the widgets use, so a
-  custom widget looks native. `docs/WIDGET_CONTRACT.md` is the checklist.
-* **State is plain data.** `<Name>State` structs are `Clone + Debug` with public fields; persist
-  them, diff them, build them in tests. `Theme` is `Copy`.
-* **No hidden globals except two:** `theme::current()` (overridable per widget) and
-  `anim::EPOCH` (overridable with `.elapsed(secs)`).
+## 🧠 The model: three things to learn
 
-## Design system
+| | |
+|---|---|
+| **Builder + State** | `Widget::new().option(..).render(area, buf, &mut state)`. Builders are cheap per-frame values. States own the value, hover and press tracking, tweens and scroll offsets. |
+| **`Interactive` → `Outcome`** | `state.handle(&event)` returns `Ignored`, `Consumed` (redraw) or `Changed` (the value moved). Mouse hit-testing uses the rects cached during `render`, so layout is never computed twice. |
+| **`App` + `run`** | The runtime sets up the terminal with mouse capture and panic-safe restore, and redraws at 60 fps only while `animating()` is true. |
 
-`theme.rs` is a port of Textual's `ColorSystem`: a palette of ~10 colours expands into 30+
-semantic roles (`text`, `text-muted`, `text-disabled`, `panel`, `boost`, `border`,
-`border-blurred`, `cursor`, `hover`, `selection`, `scrollbar`, `footer-key`…) using CIE-Lab
-lightness steps and contrast-aware `auto N%` text. Twelve palettes ship (`textual-dark`,
-`textual-light`, `nord`, `gruvbox`, `catppuccin-mocha`, `catppuccin-latte`, `dracula`,
-`tokyo-night`, `monokai`, `flexoki`, `solarized-light`, `rose-pine`); build your own with
-`ThemeSpec::new(..)`. `theme::set(..)` switches every widget at once; any builder can still
-take an explicit `.theme(&Theme)`.
+Focus belongs to your app through `Focus<Id>`; hover belongs to each state's `HitBox`. Overlays
+render last through `render_overlay(..)` or a dedicated stack widget.
 
-## Widget catalogue
+`use tuile::prelude::*;` brings in every widget, the theme, layout and draw helpers, and the
+ratatui types you need (`Rect`, `Buffer`, `Frame`, key and mouse events). `tuile::ratatui` and
+`tuile::crossterm` are re-exported, so your app does not pin its own versions.
+
+## 🎨 Theming
+
+`theme.rs` is a port of Textual's `ColorSystem`. A palette of about ten colours expands into
+thirty semantic roles (`text`, `text-muted`, `panel`, `boost`, `border`, `cursor`, `hover`,
+`selection`, `scrollbar`, `footer-key`…) using CIE-Lab lightness steps and contrast-aware
+`auto N%` text.
+
+```rust
+theme::set_by_name("catppuccin-mocha");                                   // every widget, at once
+let mine = Theme::resolve(&ThemeSpec::new("mine", true, Rgb::hex(0x7c3aed)), None);
+Button::new("Save").theme(&mine).render(area, buf, &mut state);           // or just this one
+```
+
+Twelve palettes ship: `textual-dark`, `textual-light`, `nord`, `gruvbox`, `catppuccin-mocha`,
+`catppuccin-latte`, `dracula`, `tokyo-night`, `monokai`, `flexoki`, `solarized-light`,
+`rose-pine`.
+
+## 🧩 Widget catalogue
+
+<details>
+<summary><b>108 widget types across 42 modules. Click to expand.</b></summary>
+
+<br/>
 
 | Family | Widgets |
 |---|---|
-| Controls | `Button` (3D / flat / outline / ghost, compact, icon), `Checkbox` + `CheckList` (tri-state; `CheckStyle`: pill / `[x]` / `☑` / `●` / `✓` / `■`), `Switch` (animated; `SwitchStyle`: pill / slim / line / round / `ON`·`OFF` / `✓`·`✗`), `RadioGroup` (`RadioStyle`: dot / `(•)` / `✓` / `❯`), `Segmented` (`SegmentedStyle`: filled / outline / underline / text), `Slider` + `RangeSlider` (frameless by default, `.shape(..)` for a focus frame), `Stepper`, `Rating` |
-| Text entry | `Input` (selection, validation, restrict, suggester, password, prefix/suffix), `TextArea` (line numbers, undo/redo, highlighter hook, `CursorStyle` block / bar / underline / outline, blink, cursor kept visible when unfocused, `Ln, Col` indicator, click-to-position, wheel), `Select`, `Combobox` (fuzzy), `MultiSelect` (`DropdownWidth::Auto / Field / Fixed`) - all with `.shape(FieldShape)`: Textual `Tall`, thin side `Bars`/`Bar` of any `Edge` thickness, `Rule`, `Round`, `Prompt`, `Band` (Claude Code's padded `›` band), `None` |
+| Controls | `Button` (3D / flat / outline / ghost, compact, icon), `Checkbox` + `CheckList` (tri-state; `CheckStyle`: pill / `[x]` / `☑` / `●` / `✓` / `■`), `Switch` (animated; `SwitchStyle`: pill / slim / line / round / `ON`·`OFF` / `✓`·`✗`), `RadioGroup` (`RadioStyle`: dot / `(•)` / `✓` / `❯`), `Segmented` (filled / outline / underline / text), `Slider` + `RangeSlider`, `Stepper`, `Rating` |
+| Text entry | `Input` (selection, validation, restrict, suggester, password, prefix/suffix), `TextArea` (line numbers, undo/redo, highlighter hook, `CursorStyle` block / bar / underline / outline, blink, `Ln, Col`, click-to-position, wheel), `Select`, `Combobox` (fuzzy), `MultiSelect` (`DropdownWidth::Auto / Field / Fixed`), all with `.shape(FieldShape)`: Textual `Tall`, thin side `Bars`/`Bar` of any `Edge` thickness, `Rule`, `Round`, `Prompt`, `Band`, `None` |
 | Navigation | `TabBar` (underline / boxed / pills / segmented / minimal, closable, animated), `TabbedContent`, `ListView` (filter, multi-select, details), `TreeView` (guides, expand/collapse), `MenuBar` + `ContextMenu` (submenus, shortcuts), `Breadcrumbs`, `Paginator` |
 | Data | `DataTable` (sortable, zebra, row/cell cursor, multi-select, column resize, filter), `KeyValueList`, `Digits` (Textual big numerals) |
-| Charts | `SparkChart` (bars, braille line/area, btop dot `Field`, `mirrored`), `BarGraph` (grouped, horizontal), `LineGraph` (braille, area, grid, legend), `ScatterPlot`, `Heatmap`, `ActivityGraph`, `Meter` (line / block / segments / LED `Blocks` / `Dots`, gradient, suffix), `RadialGauge`, `BrailleCanvas` |
-| Feedback | `ProgressBar` (tweened, ETA, indeterminate), `StepProgress`, `Spinner` + `spinners::*` (all 90 [yaspin](https://github.com/pavdmyt/yaspin) / cli-spinners + 12 originals: `SPARKLE`, `RING`, `WAVE`, `EQUALIZER`, `SCANNER`, `SHIMMER`, `DNA`, `MATRIX`…), `LoadingIndicator`, `Marquee`, `Blinker`, `Callout` (`LeftBar` / `Bar(Edge)` / `Round`), `Modal` (confirm / alert / prompt), `CommandPalette` (fuzzy), `Tooltip` |
-| Notifications | `Toaster`/`ToastStack` × 10 `ToastStyle`s (`Card`, `Flat`, `Minimal`, `Pill`, `Outline`, `Banner`, `Glass`, `Progress` with a live value, `Action` with inline buttons + `take_action()`, `Grouped` `+N more`), 6 `ToastPosition`s, `ToastAnim` slide / fade / pop, pause-on-hover, `dismiss(id)`; `NotificationCenter` (grouped inbox, unread dots, mark read / dismiss / clear all, filter, scroll), `Banner` (`Solid` / `Tinted` / `Outline`, action + close), `InlineAlert` (framed or `compact` one-row), `count_badge` |
-| Loading | `Loader` × 20 `LoaderStyle`s - bars: `Scanner`, `Comet`, `Sweep`, `FillDrain`, `Pulse`, `Stripes`, `Rainbow`, `Snake`, `Chase`, `Blocks`, `Wave`, `Bounce`, `Ping`, `Heartbeat`; text: `Ellipsis`, `Shimmer`, `Typewriter`; scenes: `Equalizer`, `Rain`, `Radar` (`.label`, `.color/.color2`, `.speed`); `Skeleton` (`Text` / `Card` / `Avatar` / `List` / `Table` / `Chart`, painted bars, smooth diagonal sweep); `LoadingOverlay` (dim any area, centred loader + message) |
-| AI chat | `ChatView` (bubbles, timestamps, hover, compact, `▾ N new` pill) over `ChatMessage`s made of `ChatBlock`s: `Text` (inline markdown: `**bold**`, `` `code` ``, bullets, headings), `Code` (painted language chip), `Thinking` (collapsible `▸ Thought for 3.1s`, shimmer while streaming, click to toggle), `ToolCall` (status glyph / spinner, duration), `Divider`; `ChatState::begin_stream` / `stream_tick` reveal text at N cps; `TypingIndicator`; `StreamText` (`StreamCursor` block / bar / underline, `fade`, `word_mode`); `Thinking` (any catalog spinner, elapsed label); `Approval` × `ApprovalStyle` `Card` / `Inline` (one row) / `Banner`, `.command` preview, `.danger` (pulsing red, no *Always*); `ContextGauge` (any `MeterStyle` + gradient), `TokenHeat`, `DiffView`, `PromptComposer` (any `FieldShape`) |
-| AI tools | `ToolTimeline` (nested steps with guides, live elapsed, expandable output), `ShellBlock` (command + cwd, streaming stdout/stderr, exit pill, collapse), `CodeBlock` (gutter, highlighter hook, caret), `EditPreview` (animated diff reveal, side-by-side, accept / reject / edit), `ChangeSet` (A/M/D/R badges, +/− bars, footer), `JsonTree` + `Json::parse` (collapsible, typed colours), `RetryNotice` (countdown bar) |
-| AI agents | `AgentTree` (status glyphs, model chips, tokens · elapsed, tasks, collapse), `AgentLanes` (gantt with painted spans, live marker, auto-scroll, axis), `TokenMeter` (stacked input / output / cache), `CostMeter` (tweened spend vs budget, rate, time left), `ContextMap` (proportional segments + legend), `CompactionBanner` (eased 78% → 31%), `TurnStats` (KPI cells), `RateGraph` (tok/s + sparkline), `SessionList` (fuzzy filter), `ModelPicker` (provider, context, prices, capability chips), `ElapsedTimer`, `fmt_duration`, `fmt_usd` |
-| AI composer | `SlashMenu` + `MentionPicker` (anchored popups, fuzzy ranking with highlighted matches, categories / RECENT, keyboard + mouse), `AttachmentChips` (× to remove, overflow `+N`), `ModeBadge` (`HarnessMode` Plan / Act / Ask / Auto, animated colour swap), `HarnessStatus` (one-row status that drops segments by priority), `QuestionCard` (single / multi, digits, recommended chip), `PlanView` (phases with progress bars, task states), `MessageQueue`, `Suggestions` chips |
-| Layout & chrome | `SplitPane` (draggable), `ScrollView` (offscreen buffer, smooth), `Scrollbar`, `Panel` (title, right title, footer keys, badge) / card / section, `Collapsible` + `Accordion`, `AppHeader`, `KeyFooter`, `StatusLine` (segments + separators), `Placeholder` |
-| Menus & settings | `OptionList` (grouped `label  value` rows, cursor, in-place bool/choice/int cycling, group index for a sidebar), `BigText` × 4 `BigFont`s (`Box3` heavy strokes, `Thin3` rounded, `Block5` painted 5×5 pixels, `Half3` half-block) + `BigTitle`, `BigMenu` × 10 `BigMenuStyle`s (`Plain`, `Arrows`, `Boxed`, `Underline` (sliding), `Glow` (sweep), `Shadow`, `Bracket`, `Horizontal`, `Cards` + descriptions, `Retro` blink), `CommandPalette`, `MenuBar` |
+| Charts | `SparkChart` (bars, braille line/area, btop dot `Field`, `mirrored`), `BarGraph` (grouped, horizontal), `LineGraph` (braille, area, grid, legend), `ScatterPlot`, `Heatmap`, `ActivityGraph`, `Meter` (line / block / segments / LED / dots, gradient, suffix), `RadialGauge`, `BrailleCanvas` |
+| Feedback | `ProgressBar` (tweened, ETA, indeterminate), `StepProgress`, `Spinner` + `spinners::*`, `LoadingIndicator`, `Marquee`, `Blinker`, `Callout` (`LeftBar` / `Bar(Edge)` / `Round`), `Modal` (confirm / alert / prompt), `CommandPalette` (fuzzy), `Tooltip` |
+| Notifications | `Toaster` / `ToastStack` × 10 styles (`Card`, `Flat`, `Minimal`, `Pill`, `Outline`, `Banner`, `Glass`, `Progress` with a live value, `Action` with inline buttons, `Grouped` `+N more`), 6 positions, slide / fade / pop, pause-on-hover; `NotificationCenter` (grouped inbox, unread dots, filter, scroll), `Banner`, `InlineAlert`, `count_badge` |
+| Loading | `Loader` × 20 styles, bars: `Scanner`, `Comet`, `Sweep`, `FillDrain`, `Pulse`, `Stripes`, `Rainbow`, `Snake`, `Chase`, `Blocks`, `Wave`, `Bounce`, `Ping`, `Heartbeat`; text: `Ellipsis`, `Shimmer`, `Typewriter`; scenes: `Equalizer`, `Rain`, `Radar`; `Skeleton` (text / card / avatar / list / table / chart with a diagonal sweep); `LoadingOverlay` |
+| AI chat | `ChatView` (bubbles, timestamps, hover, compact, `▾ N new` pill) over `ChatMessage`s of `ChatBlock`s: `Text` (inline markdown), `Code` (language chip), `Thinking` (collapsible, shimmer while streaming), `ToolCall` (status glyph, duration), `Divider`; `begin_stream` / `stream_tick` reveal text at N cps; `TypingIndicator`, `StreamText`, `Approval` (card / inline / banner, `.command` preview, `.danger`), `ContextGauge`, `TokenHeat`, `DiffStat` |
+| AI tools | `ToolTimeline` (nested steps, live elapsed, expandable output), `ShellBlock` (streaming stdout/stderr, exit pill), `CodeBlock` (gutter, highlighter hook, caret), `EditPreview` (animated diff reveal, side-by-side, accept / reject), `ChangeSet` (A/M/D/R badges, +/− bars), `JsonTree` + `Json::parse`, `RetryNotice` |
+| AI agents | `AgentTree` (status glyphs, model chips, tokens · elapsed), `AgentLanes` (gantt with live marker, auto-scroll), `TokenMeter` (stacked input / output / cache), `CostMeter` (spend vs budget, rate, time left), `ContextMap`, `CompactionBanner`, `TurnStats`, `RateGraph`, `SessionList`, `ModelPicker`, `ElapsedTimer` |
+| AI composer | `SlashMenu` + `MentionPicker` (anchored popups, fuzzy ranking with highlighted matches), `AttachmentChips`, `ModeBadge` (Plan / Act / Ask / Auto), `HarnessStatus` (drops segments by priority), `QuestionCard`, `PlanView`, `MessageQueue`, `Suggestions` |
+| Layout & chrome | `SplitPane` (draggable), `ScrollView` (offscreen buffer, smooth), `Scrollbar`, `Panel` (title, right title, footer keys, badge), `Collapsible` + `Accordion`, `AppHeader`, `KeyFooter`, `StatusLine`, `Placeholder` |
+| Menus & settings | `OptionList` (grouped rows, in-place bool/choice/int cycling), `BigText` × 4 fonts + `BigTitle`, `BigMenu` × 10 styles, `CommandPalette`, `MenuBar` |
 | Content | `Label`, `Rule`, `Badge`, `Pill`, `KeyCap`, `Link`, `StatCard`, `Markup` (Rich-style `[b]…[/b]`), `Markdown`, `LogView`, `Calendar` + `DatePicker`, `Swatches`, `ColorPicker`, `GradientBar`, `ThemePalette`, `Steps`, `Timeline` |
 
 Foundation modules: `core` (Outcome, Look, Focus, HitBox, key helpers), `draw` (clipped text,
@@ -160,38 +182,28 @@ Foundation modules: `core` (Outcome, Look, Focus, HitBox, key helpers), `draw` (
 grids, flow, popup placement, overlay queue), `anim` (tweens, easings, pulses, blinks, shared
 epoch), `fuzzy`, `runtime` (app loop, local clock, civil dates).
 
-Examples: `cargo run -p tuile --example minimal` (switch + input + button) and
-`--example custom` (own `ThemeSpec`, own `SpinnerDef`, chat + composer + context gauge).
-Regenerate the spinner catalog from `tools/spinners.json` with `python tools/gen_spinners.py`.
+</details>
 
-## Showcase
+## 🖼️ Showcase
 
-`showcase/` is a 22-page gallery: Welcome, Dashboard (everything composed on one screen),
-Monitor (btop-style: LED meters, dot-field graphs, mirrored net graph, process tree, big-font
-menu on `m`), Controls, Inputs, Navigation, Big menus (4 fonts, `Horizontal` strip, 10 vertical
-styles; `s`/`f`/`g`), Tables, Charts, Feedback, Notifications (`1` to `9` and `0` fire every toast
-style, `p`/`a` position and animation, inbox, banners, inline alerts), Loading (all 20 loader
-styles, scenes, skeletons, overlay; space pauses, `+`/`-` speed), Spinners (the whole
-catalog, filterable, with the one-liner for each), then the AI harness pages: AI (a replayed
-turn: thinking, markdown, inline tool calls, streaming, approvals), AI Tools (tool timeline,
-shell/code blocks, edit preview, change set, JSON tree), AI Agents (agent tree and lanes,
-tokens, cost, context map, compaction, sessions, models), AI Composer (slash commands,
-mentions, attachments, mode, status line, questions, plan, queue). Then Layout, Content, Settings
-(a complete preferences form in ~300 lines), Options (omp-style settings screen: icon tabs +
-group sidebar + `OptionList`, with a live composer-shape / status-line preview), Themes (live
-primary-hue override).
-
-Keys: `]`/`[` pages, `alt+1..9` jump, `^p` palette, `^t` theme, `^b` sidebar, `F1` help,
-`F3` reduce motion, `Tab` focus, mouse everywhere.
-
-Headless screenshots for review/CI: `python tools/shot.py -s 130x42 -k "Tab Enter" -o out.png -- ./target/release/showcase --page inputs`.
+`showcase/` is a 22-page gallery. Keys: `]` `[` pages, `alt+1..9` jump, `^p` palette, `^t`
+theme, `^b` sidebar, `F1` help, `F3` reduce motion, `Tab` focus, mouse everywhere.
 
 | **Dashboard** | **Controls** |
 |---|---|
 | ![dashboard](docs/screenshots/dashboard.png) | ![controls](docs/screenshots/controls.png) |
 | **Inputs** | **Charts** |
 | ![inputs](docs/screenshots/inputs.png) | ![charts](docs/screenshots/charts.png) |
+| **AI** (a replayed harness turn) | **Monitor** (btop-style) |
+| ![ai](docs/screenshots/ai.png) | ![monitor](docs/screenshots/monitor.png) |
+
+<details>
+<summary><b>The other sixteen pages.</b></summary>
+
+<br/>
+
 | **Feedback** (toasts, nord) | **Settings** |
+|---|---|
 | ![toasts](docs/screenshots/toasts-nord.png) | ![settings](docs/screenshots/settings.png) |
 | **Navigation** | **Tables** |
 | ![navigation](docs/screenshots/navigation.png) | ![tables](docs/screenshots/tables.png) |
@@ -199,27 +211,130 @@ Headless screenshots for review/CI: `python tools/shot.py -s 130x42 -k "Tab Ente
 | ![layout](docs/screenshots/layout.png) | ![content](docs/screenshots/content.png) |
 | **Themes** | **Command palette** (nord) |
 | ![themes](docs/screenshots/themes.png) | ![palette](docs/screenshots/palette.png) |
-| **AI** (a replayed harness turn: thinking, markdown, tool calls, approval) | **Spinners** (102-entry catalog) |
-| ![ai](docs/screenshots/ai.png) | ![spinners](docs/screenshots/spinners.png) |
-| **Monitor** (btop-style) | **Options** (omp-style settings) |
-| ![monitor](docs/screenshots/monitor.png) | ![options](docs/screenshots/options.png) |
-| **Loading** (20 loader styles, skeletons, overlay) | **Welcome** |
-| ![loading](docs/screenshots/loading.png) | ![welcome](docs/screenshots/welcome.png) |
-| **Big menus** (4 fonts, 10 styles) | **Notifications** (toast styles, inbox, banners, alerts) |
+| **Spinners** (102-entry catalog) | **Loading** (20 styles, skeletons, overlay) |
+| ![spinners](docs/screenshots/spinners.png) | ![loading](docs/screenshots/loading.png) |
+| **Big menus** (4 fonts, 10 styles) | **Notifications** |
 | ![bigmenus](docs/screenshots/bigmenus.png) | ![notifications](docs/screenshots/notifications.png) |
+| **Options** (omp-style settings) | **Welcome** |
+| ![options](docs/screenshots/options.png) | ![welcome](docs/screenshots/welcome.png) |
 | **AI Tools** | **AI Agents** |
 | ![ai-tools](docs/screenshots/ai-tools.png) | ![ai-agents](docs/screenshots/ai-agents.png) |
 | **AI Composer** | |
 | ![ai-composer](docs/screenshots/ai-composer.png) | |
 
-## Writing a widget
+</details>
 
-See [`docs/WIDGET_CONTRACT.md`](docs/WIDGET_CONTRACT.md) for the rules every widget in this repo
-follows (builder + state, `Interactive`, cached rects, theme fallback, no panics at any size,
-tests per module). `tuile/src/widgets/scrollbar.rs` is the reference implementation.
+Screenshots are captured headlessly for review and CI:
 
-## Status
+```
+python tools/shot.py -s 130x42 -k "Tab Enter" -o out.png -- ./target/release/showcase --page inputs
+```
 
-108 widget types across 41 modules, 102 spinners, 12 palettes, 253 tests, zero `unsafe`,
-MSRV 1.88 (edition 2024). Not affiliated with Textualize; the design language is theirs,
-the code is not.
+## ⚙️ What you get over plain ratatui
+
+| | Plain ratatui | tuile |
+|---|---|---|
+| Focus | Track the focused widget yourself, wire Tab and Shift-Tab | `Focus<Id>`, wrapping and reorderable |
+| Mouse | Compare event coordinates against layout you recompute | Each state caches its rects; `handle_mouse` resolves hover, press and drag |
+| Colour | Pick every colour by hand, per widget | Ten colours expand into thirty roles, twelve palettes, per-widget override |
+| Animation | Drive your own clock and redraw loop | Tweens and easings on a shared epoch; redraws only while animating |
+| Overlays | Draw last and clip by hand | `render_overlay(..)` queue, popup placement helpers |
+| Dependencies | ratatui | ratatui plus `unicode-width` and `unicode-segmentation` |
+
+## 🔧 Writing your own widget
+
+The drawing primitives are public and are the same ones every built-in widget uses, so a
+custom widget looks native: `draw::{Border, put, fill, hbar, wrap, truncate, st}` and
+`layout::{stack, columns, center, popup_below}`.
+
+[`docs/WIDGET_CONTRACT.md`](docs/WIDGET_CONTRACT.md) is the checklist every widget in this repo
+follows: builder plus state, `Interactive`, cached rects, theme fallback, no panics at any
+size, tests per module. `tuile/src/widgets/scrollbar.rs` is the reference implementation.
+
+Two examples are worth reading next:
+
+```
+cargo run -p tuile --example minimal    # switch + input + button
+cargo run -p tuile --example custom     # own ThemeSpec, own SpinnerDef, chat + composer
+```
+
+## 💬 FAQ
+
+<details>
+<summary><b>Why not just use ratatui?</b></summary>
+
+You still are. tuile is a widget library on top of ratatui, not a replacement, and it
+re-exports ratatui and crossterm so your own `Rect` and `Buffer` code keeps working. What it
+adds is the layer every app otherwise rebuilds: focus, hover, scrolling, dropdowns, dialogs,
+toasts, a colour system and animation.
+
+</details>
+
+<details>
+<summary><b>Is this affiliated with Textualize?</b></summary>
+
+No. The design language is theirs and the port is deliberate; the code is not theirs. tuile
+borrows Textual's colour system, widget looks and keyboard conventions, and implements them in
+Rust with no runtime and no CSS engine.
+
+</details>
+
+<details>
+<summary><b>Does it need a runtime or an async executor?</b></summary>
+
+No. `run(&mut app)` is a plain loop over crossterm events. It redraws at 60 fps only while
+`animating()` returns true, and blocks on input otherwise. You can also skip the runtime and
+call `render` yourself from whatever loop you already have.
+
+</details>
+
+<details>
+<summary><b>Can I use one widget without adopting the rest?</b></summary>
+
+Yes. Every widget falls back to `theme::current()` and takes an explicit `.theme(&Theme)`, so
+a single `Button` or `DataTable` drops into an existing ratatui app. States are plain
+`Clone + Debug` structs with public fields.
+
+</details>
+
+<details>
+<summary><b>How are animations tested if they depend on wall time?</b></summary>
+
+Every animated builder takes either `.now(Instant)` or `.elapsed(secs)`. Passing `elapsed`
+makes rendering deterministic, which is how the test suite and the screenshot tool both work.
+
+</details>
+
+<details>
+<summary><b>What about very small terminals?</b></summary>
+
+Every page is fuzzed at 60×16, 90×28, 130×42 and 200×55 with random keys and mouse input, and
+every buffer write is clipped through `area.intersection`. The contract requires no panic up
+to 250×70. Widgets that cannot fit draw nothing rather than panicking.
+
+</details>
+
+## ✅ Quality
+
+| | |
+|---|---|
+| Tests | 260 (209 unit, 45 doc, 6 public-API integration), all deterministic, full suite under a second |
+| Unsafe | `#![forbid(unsafe_code)]`, compiler-enforced |
+| Lint | `clippy -D warnings` clean at `--all-targets`, with 16 justified local allows and no crate-wide waiver |
+| Architecture | 51 modules, no cycles, one-way foundation layer, checked in CI by `tools/check_layers.py` |
+| Dependencies | `cargo-deny` in CI for advisories, licences, sources and wildcards |
+| Audit | [`AUDIT.md`](AUDIT.md), a measured health report scored against published research, re-run after every structural change |
+
+58,853 lines of Rust, 42 widget modules, MSRV 1.88 (edition 2024).
+
+## 🤝 Contributing
+
+Issues and pull requests are welcome. Before opening a PR:
+
+1. Read [`docs/WIDGET_CONTRACT.md`](docs/WIDGET_CONTRACT.md) if you are adding or changing a widget.
+2. Run what CI runs: `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `python3 tools/check_layers.py`.
+3. A new widget needs a showcase page entry and tests that assert what a consumer observes, not how the widget is wired internally.
+
+## 📄 License
+
+MIT. See [LICENSE](LICENSE).

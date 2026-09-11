@@ -63,6 +63,8 @@
 // (`validator`, `suggester`, `highlighter`) and cached `(Rect, usize, usize)` hit lists, both
 // of which read better inline than behind an alias.
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
+// A terminal widget library has no reason to reach for unsafe; the crate contains none.
+#![forbid(unsafe_code)]
 
 pub mod anim;
 pub mod core;

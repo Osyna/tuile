@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["tuile", "showcase"]
+exclude = ["xtask"]
 
 [workspace.package]
 version = "0.1.0"

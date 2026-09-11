@@ -1,0 +1,19 @@
+[workspace]
+
+[package]
+name = "xtask"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Development tooling only. Kept out of the main workspace so these dependencies
+# never reach the library's graph or the dependency policy in deny.toml.
+[dependencies]
+ab_glyph = "0.2"
+image = { version = "0.25", default-features = false, features = ["png"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+unicode-width = "0.2"
+
+[[bin]]
+name = "xtask"
+path = "src/main.rs"

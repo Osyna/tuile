@@ -21,8 +21,6 @@
     ·
     <a href="https://osyna.github.io/tuile/reference/widget-contract.html">Widget contract</a>
     ·
-    <a href="AUDIT.md">Code audit</a>
-    ·
     <a href="https://osyna.github.io/tuile/reference/faq.html">FAQ</a>
 </h6>
 
@@ -230,7 +228,7 @@ theme, `^b` sidebar, `F1` help, `F3` reduce motion, `Tab` focus, mouse everywher
 Screenshots are captured headlessly for review and CI:
 
 ```
-python tools/shot.py -s 130x42 -k "Tab Enter" -o out.png -- ./target/release/showcase --page inputs
+cargo xtask shot -s 130x42 -k "Tab Enter" -o out.png -- ./target/release/showcase --page inputs
 ```
 
 ## ⚙️ What you get over plain ratatui
@@ -324,9 +322,8 @@ to 250×70. Widgets that cannot fit draw nothing rather than panicking.
 | Tests | 260 (209 unit, 45 doc, 6 public-API integration), all deterministic, full suite under a second |
 | Unsafe | `#![forbid(unsafe_code)]`, compiler-enforced |
 | Lint | `clippy -D warnings` clean at `--all-targets`, with 16 justified local allows and no crate-wide waiver |
-| Architecture | 51 modules, no cycles, one-way foundation layer, checked in CI by `tools/check_layers.py` |
+| Architecture | 51 modules, no cycles, one-way foundation layer, checked in CI by `cargo xtask layers` |
 | Dependencies | `cargo-deny` in CI for advisories, licences, sources and wildcards |
-| Audit | [`AUDIT.md`](AUDIT.md), a measured health report scored against published research, re-run after every structural change |
 
 58,853 lines of Rust, 42 widget modules, MSRV 1.88 (edition 2024).
 
@@ -335,7 +332,7 @@ to 250×70. Widgets that cannot fit draw nothing rather than panicking.
 Issues and pull requests are welcome. Before opening a PR:
 
 1. Read [`docs/src/reference/widget-contract.md`](docs/src/reference/widget-contract.md) if you are adding or changing a widget.
-2. Run what CI runs: `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `python3 tools/check_layers.py`.
+2. Run what CI runs: `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo xtask layers`.
 3. A new widget needs a showcase page entry and tests that assert what a consumer observes, not how the widget is wired internally.
 
 ## 📄 License

@@ -112,13 +112,13 @@ For tweens, construct the state, call `go(target, now, dur)` with a fixed `now`,
 ## Screenshots of the real binary
 
 Unit tests cannot tell you that two panels overlap or that a border is one cell short.
-`tools/shot.py` runs the actual binary in a private tmux server at an exact size, sends
+`cargo xtask shot` runs the actual binary in a private tmux server at an exact size, sends
 input, and rasterises the result:
 
 ```text
-python tools/shot.py -s 130x42 -o out.png -- ./target/release/showcase --page charts
-python tools/shot.py -s 90x28 -k "Tab Tab Enter" -o out.png -- ./target/release/showcase --page inputs
-python tools/shot.py -s 60x16 --text -- ./target/release/showcase --page tables
+cargo xtask shot -s 130x42 -o out.png -- ./target/release/showcase --page charts
+cargo xtask shot -s 90x28 -k "Tab Tab Enter" -o out.png -- ./target/release/showcase --page inputs
+cargo xtask shot -s 60x16 --text -- ./target/release/showcase --page tables
 ```
 
 | Flag | Effect |
@@ -145,7 +145,7 @@ Every widget in this library is expected to render without panicking from 60x16 
 
 ```text
 for size in 60x16 90x28 130x42 200x55; do
-  python tools/shot.py -s $size --text -- ./target/release/myapp > /dev/null || echo "FAILED at $size"
+  cargo xtask shot -s $size --text -- ./target/release/myapp > /dev/null || echo "FAILED at $size"
 done
 ```
 

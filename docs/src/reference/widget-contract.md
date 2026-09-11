@@ -100,7 +100,7 @@ Rules:
     says one, so every cell after it on that row shifts and the whole row skews. Use glyphs that
     are 1 cell everywhere and exist in JetBrains Mono / DejaVu:
     `◈ ◉ ◔ ◌ ◆ ◇ ● ○ ■ □ ◧ ◫ ◊ ⊞ ⊡ ⊙ ⊛ ⊕ ⊗ ⌘ ⌂ ≡ ▸ ▹ ◂ ◃ ▴ ▾ ▲ ▼ • ◦ ✓ ✗ ✶ ¶ ⋮ ⋯ ❯`. Check a
-    candidate with `unicode_width::UnicodeWidthStr::width` **and** a `tools/shot.py` screenshot
+    candidate with `unicode_width::UnicodeWidthStr::width` **and** a `cargo xtask shot` screenshot
     before using it.
 
 ## Showcase page contract (`showcase/src/pages/<name>.rs`)
@@ -130,4 +130,4 @@ impl Page for XxxPage {
 * Use `ctx.now` for `.now(..)`, `ctx.dur(ms)` for tween durations (respects reduce-motion), and
   `ctx.elapsed()` for looping animations.
 * Must render without panic from 60×16 up to 250×70. Verify with
-  `python tools/shot.py -s 60x16 --text -- ./target/debug/showcase --page <title>`.
+  `cargo xtask shot -s 60x16 --text -- ./target/debug/showcase --page <title>`.

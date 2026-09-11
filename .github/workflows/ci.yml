@@ -20,7 +20,7 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
-      - run: python3 tools/check_layers.py
+      - run: cargo xtask layers
 
   deny:
     runs-on: ubuntu-latest

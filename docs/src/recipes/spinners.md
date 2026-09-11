@@ -123,8 +123,8 @@ which is what you want when reserving space in a status line.
 The catalog is generated, not hand-written:
 
 ```text
-python tools/gen_spinners.py     # reads tools/spinners.json, writes spinner/spinners.rs
+cargo xtask spinners     # reads xtask/spinners.json, writes spinner/spinners.rs
 ```
 
-Add an entry to `tools/spinners.json` and re-run it to add a spinner to the shipped set.
+Add an entry to `xtask/spinners.json` and re-run it to add a spinner to the shipped set.
 Editing `spinners.rs` by hand works until the next regeneration overwrites it.

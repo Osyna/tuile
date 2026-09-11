@@ -90,8 +90,8 @@ the answer.
 The screenshots in this book are captured by a script, not by hand:
 
 ```text
-python tools/shot.py -s 130x42 -o out.png -- ./target/release/showcase --page charts
-python tools/shot.py -s 90x28 -k "Tab Tab Enter" -o out.png -- ./target/release/showcase --page inputs
+cargo xtask shot -s 130x42 -o out.png -- ./target/release/showcase --page charts
+cargo xtask shot -s 90x28 -k "Tab Tab Enter" -o out.png -- ./target/release/showcase --page inputs
 ```
 
 It runs the binary in a private tmux server at an exact size, sends the keys you list, and

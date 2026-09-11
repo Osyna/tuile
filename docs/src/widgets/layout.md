@@ -10,7 +10,7 @@ Structural widgets: split panes, scroll views, scrollbars, panels, collapsible s
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::SplitSize;
 
@@ -32,7 +32,7 @@ let (left, right) = SplitPane::new()
 
 **Keys and mouse:** Drag the divider to resize. Double-click the divider to reset to `initial`. Call `state.resize_by(delta)` from your key handler to resize by `delta` cells. `state.collapse_first()`, `state.collapse_second()`, and `state.restore()` hide and show panes.
 
-**When not to use:** Single fixed split with no interaction: use `ratatui::layout` directly. Three-way split: nest two `SplitPane` calls or use `layout::stack`.
+**When not to use:** Single fixed split with no interaction: use `ratatui_core::layout` directly. Three-way split: nest two `SplitPane` calls or use `layout::stack`.
 
 ## ScrollView
 
@@ -40,7 +40,7 @@ let (left, right) = SplitPane::new()
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::draw::put;
 
@@ -66,7 +66,7 @@ ScrollView::new()
 
 **When you need it:** Content larger than the viewport (a 200-line log in a 20-row area, a wide table). When you want smooth animated scrolling. When you need scrollbars.
 
-**When you do not:** The content fits. You are already paginating in your data model (a TUI table with a virtual scroll). Rendering into a temporary buffer costs allocation; if you can clip with `ratatui::layout` instead, do.
+**When you do not:** The content fits. You are already paginating in your data model (a TUI table with a virtual scroll). Rendering into a temporary buffer costs allocation; if you can clip with `ratatui_core::layout` instead, do.
 
 ## Scrollbar
 
@@ -74,7 +74,7 @@ ScrollView::new()
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -104,7 +104,7 @@ Scrollbar::vertical(total_rows, visible_rows)
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::draw::Border;
 
@@ -145,7 +145,7 @@ let inner = Panel::new()
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -164,7 +164,7 @@ Placeholder::new()
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::draw::put;
 
@@ -197,7 +197,7 @@ let used = Collapsible::new()
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::draw::put;
 
@@ -220,7 +220,7 @@ Fixed-height application header with icon, title, subtitle, clock, and clickable
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -258,7 +258,7 @@ Horizontal footer that renders key bindings as `[key] description` pairs. Trunca
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -283,7 +283,7 @@ One-row status strip of separated segments with optional right-aligned text. Eac
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::{StatusSegment, StatusSep};
 use tuile::theme::Rgb;
@@ -317,7 +317,7 @@ Horizontal or vertical step indicator for process flows. Shows step labels, stat
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -339,15 +339,15 @@ Steps::new(&["Start", "Build", "Deploy"])
 
 ## Layout helpers
 
-The `tuile::layout` module provides small helpers on top of `ratatui::layout`.
+The `tuile::layout` module provides small helpers on top of `ratatui_core::layout`.
 
 **Centring:**
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::layout::{center, center_h};
-use ratatui::layout::Rect;
+use tuile::ratatui_core::layout::Rect;
 
 # fn demo(area: Rect) {
 let popup = center(area, 60, 20);
@@ -362,9 +362,9 @@ let banner = center_h(area, 80);
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::layout::{pad, pad_trbl};
-use ratatui::layout::Rect;
+use tuile::ratatui_core::layout::Rect;
 
 # fn demo(area: Rect) {
 let inner = pad(area, 2, 1);
@@ -379,9 +379,9 @@ let inner2 = pad_trbl(area, 1, 2, 1, 2);
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::layout::{stack, columns};
-use ratatui::layout::Rect;
+use tuile::ratatui_core::layout::Rect;
 
 # fn demo(area: Rect) {
 let rows = stack(area, &[3, 1, 5], 1);
@@ -396,9 +396,9 @@ let cols = columns(area, 3, 2);
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::layout::popup_below;
-use ratatui::layout::Rect;
+use tuile::ratatui_core::layout::Rect;
 
 # fn demo(anchor: Rect, bounds: Rect) {
 let popup = popup_below(anchor, 40, 10, bounds);

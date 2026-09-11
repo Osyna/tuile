@@ -33,7 +33,7 @@ Two calls. One in `event` to move the ring, one per widget in `draw` to report t
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # #[derive(Clone, Copy, PartialEq)] enum Id { Name, Save }
 # struct Page { name: InputState, save: ButtonState, focus: Focus<Id> }
@@ -109,7 +109,7 @@ because the widget cannot know its own id. Do it where you dispatch the mouse ev
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # #[derive(Clone, Copy, PartialEq)] enum Id { Name, Save }
 # struct Page { name: InputState, save: ButtonState, focus: Focus<Id> }

@@ -11,11 +11,11 @@
 
 use std::time::Instant;
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyEvent, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::{Modifier, Style};
+use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::{Hit, HitBox, Interactive, Look, Outcome, is_activate, is_press};
@@ -453,8 +453,8 @@ impl ButtonGroup {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::buffer::Buffer;
-    use ratatui::layout::Rect;
+    use ratatui_core::buffer::Buffer;
+    use ratatui_core::layout::Rect;
 
     #[test]
     fn button_renders_at_minimum_size() {
@@ -473,7 +473,7 @@ mod tests {
     #[test]
     fn button_handles_enter_and_space() {
         let mut state = ButtonState::default();
-        let key = KeyEvent::from(ratatui::crossterm::event::KeyCode::Enter);
+        let key = KeyEvent::from(crossterm::event::KeyCode::Enter);
         assert!(state.handle_key(key).is_changed());
     }
 

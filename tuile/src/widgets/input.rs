@@ -12,10 +12,10 @@
 
 use std::time::Instant;
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
-use ratatui::layout::{Alignment, Rect};
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Alignment, Rect};
+use ratatui_core::widgets::StatefulWidget;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 

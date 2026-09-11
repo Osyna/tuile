@@ -19,11 +19,11 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::{Alignment, Constraint, Rect};
-use ratatui::style::Style;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Alignment, Constraint, Rect};
+use ratatui_core::style::Style;
+use ratatui_core::widgets::StatefulWidget;
 
 use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, mouse_in, mouse_pos, wheel_delta};
 use crate::draw::{fill, put, put_aligned, put_centered, st, truncate};
@@ -338,7 +338,7 @@ impl Interactive for DataTableState {
 
         if self.col_resize.is_some() {
             match m.kind {
-                ratatui::crossterm::event::MouseEventKind::Drag(_) => {
+                crossterm::event::MouseEventKind::Drag(_) => {
                     if let Some((col, start_x, start_w)) = self.col_resize {
                         let delta = (m.column as i32) - (start_x as i32);
                         let new_w = (start_w as i32 + delta).max(3) as u16;
@@ -346,7 +346,7 @@ impl Interactive for DataTableState {
                         return Outcome::Consumed;
                     }
                 }
-                ratatui::crossterm::event::MouseEventKind::Up(_) => {
+                crossterm::event::MouseEventKind::Up(_) => {
                     self.col_resize = None;
                     return Outcome::Consumed;
                 }
@@ -626,7 +626,7 @@ impl StatefulWidget for DataTable {
                 {
                     title.push_str(if asc { " ▲" } else { " ▼" });
                 }
-                let title_s = st(th.text, bg).add_modifier(ratatui::style::Modifier::BOLD);
+                let title_s = st(th.text, bg).add_modifier(ratatui_core::style::Modifier::BOLD);
                 put(
                     buf,
                     x,
@@ -722,7 +722,7 @@ impl StatefulWidget for DataTable {
                     && vis_idx == state.cursor_row
                     && col_i == state.cursor_col;
                 let final_style = if is_cell_cursor {
-                    cell_style.add_modifier(ratatui::style::Modifier::REVERSED)
+                    cell_style.add_modifier(ratatui_core::style::Modifier::REVERSED)
                 } else {
                     cell_style
                 };
@@ -811,7 +811,7 @@ impl KeyValueList {
     }
 }
 
-impl ratatui::widgets::Widget for KeyValueList {
+impl ratatui_core::widgets::Widget for KeyValueList {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let th = self.theme.unwrap_or_else(theme::current);
         if area.height < self.items.len() as u16 {
@@ -831,7 +831,7 @@ impl ratatui::widgets::Widget for KeyValueList {
                 y,
                 &truncate(label, label_w as usize),
                 label_w,
-                st(th.text_muted, th.surface).add_modifier(ratatui::style::Modifier::BOLD),
+                st(th.text_muted, th.surface).add_modifier(ratatui_core::style::Modifier::BOLD),
             );
             let val_x = area.x + label_w + self.gap;
             let val_w = area.width.saturating_sub(label_w + self.gap);

@@ -10,7 +10,7 @@ rest of the library.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
 let mut state = ButtonState::new();
@@ -54,7 +54,7 @@ actions that should not compete for attention.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer) {
 let mut state = CheckboxState::new(CheckState::On);
@@ -82,7 +82,7 @@ list where the labels are the column being scanned.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
 let mut state = SwitchState::new(true);
@@ -115,7 +115,7 @@ users read.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer) {
 let mut state = RadioState::new(Some(0));
@@ -146,7 +146,7 @@ A multi-select list of checkboxes with a cursor, a scroll offset and its own scr
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
 let mut state = CheckListState::default();
@@ -167,7 +167,7 @@ options do not fit.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer) {
 let mut state = SegmentedState::new(1);
@@ -188,7 +188,7 @@ tight; prefer the radio group when the options need descriptions.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
 let mut state = SliderState::new(42.0, 0.0, 100.0, 1.0);
@@ -222,7 +222,7 @@ settings row.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer) {
 let mut state = StepperState::new(1, 1, 10, 1);
@@ -243,7 +243,7 @@ invite invalid input.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer) {
 let mut state = RatingState::new(3);

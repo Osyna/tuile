@@ -12,9 +12,9 @@
 
 use std::time::{Duration, Instant};
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::widgets::{StatefulWidget, Widget};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::widgets::{StatefulWidget, Widget};
 
 use crate::anim::{Tween, elapsed};
 use crate::core::{Interactive, Outcome};
@@ -97,11 +97,11 @@ impl ProgressState {
 }
 
 impl Interactive for ProgressState {
-    fn handle_key(&mut self, _key: ratatui::crossterm::event::KeyEvent) -> Outcome {
+    fn handle_key(&mut self, _key: crossterm::event::KeyEvent) -> Outcome {
         Outcome::Ignored
     }
 
-    fn handle_mouse(&mut self, _m: ratatui::crossterm::event::MouseEvent) -> Outcome {
+    fn handle_mouse(&mut self, _m: crossterm::event::MouseEvent) -> Outcome {
         Outcome::Ignored
     }
 }

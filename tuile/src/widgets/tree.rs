@@ -14,11 +14,11 @@
 use std::collections::HashSet;
 use std::time::Instant;
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::Modifier;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Alignment, Rect};
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::{Interactive, Outcome, is_press, mouse_in, mouse_pos, wheel_delta};

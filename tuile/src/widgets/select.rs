@@ -11,10 +11,10 @@
 
 use std::time::Instant;
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::*;
@@ -696,7 +696,7 @@ fn render_option_list(
 
         let mut style = st(fg, row_bg);
         if bold {
-            style = style.add_modifier(ratatui::style::Modifier::BOLD);
+            style = style.add_modifier(ratatui_core::style::Modifier::BOLD);
         }
 
         put(
@@ -906,7 +906,7 @@ impl ComboboxState {
 
             let mut style = st(fg, row_bg);
             if bold {
-                style = style.add_modifier(ratatui::style::Modifier::BOLD);
+                style = style.add_modifier(ratatui_core::style::Modifier::BOLD);
             }
 
             // Highlight matched characters
@@ -914,7 +914,7 @@ impl ComboboxState {
             for (i, ch) in opt.label.chars().enumerate() {
                 let matched = positions.contains(&i);
                 let s = if matched {
-                    style.add_modifier(ratatui::style::Modifier::UNDERLINED)
+                    style.add_modifier(ratatui_core::style::Modifier::UNDERLINED)
                 } else {
                     style
                 };
@@ -1247,7 +1247,7 @@ impl MultiSelectState {
 
             let mut style = st(fg, row_bg);
             if bold {
-                style = style.add_modifier(ratatui::style::Modifier::BOLD);
+                style = style.add_modifier(ratatui_core::style::Modifier::BOLD);
             }
 
             let check = if checked { "[✓]" } else { "[ ]" };
@@ -1465,7 +1465,7 @@ mod tests {
 
     #[test]
     fn multiselect_rendered_field_opens_on_click() {
-        use ratatui::crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
+        use crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
         let mut s = MultiSelectState::new(&["X", "Y"]);
         let mut buf = Buffer::empty(Rect::new(0, 0, 40, 5));
         MultiSelect::new().render(Rect::new(0, 0, 30, 3), &mut buf, &mut s);

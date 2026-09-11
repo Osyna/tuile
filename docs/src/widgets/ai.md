@@ -14,7 +14,7 @@ A scrollable chat log with bubbles or full-width messages. Assistant messages ha
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::ai::{ChatView, ChatState, ChatMessage, Role};
 
@@ -97,7 +97,7 @@ New text appears character by character. Call `state.begin_stream(message, full_
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::Instant;
 # use tuile::prelude::*;
 # use tuile::widgets::ai::{ChatView, ChatState, ChatMessage, Role};
@@ -117,7 +117,7 @@ Standalone streaming text widget with a cursor. Used for previews or isolated di
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::Instant;
 # use tuile::prelude::*;
 # use tuile::widgets::ai::{StreamText, StreamCursor};
@@ -139,7 +139,7 @@ Three-dot travelling pulse animation.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::Instant;
 # use tuile::prelude::*;
 # use tuile::widgets::ai::TypingIndicator;
@@ -158,7 +158,7 @@ One-row thinking indicator with spinner, label, optional detail, and elapsed cou
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::Instant;
 # use tuile::prelude::*;
 # use tuile::widgets::ai::Thinking;
@@ -182,7 +182,7 @@ Interactive approval dialog with three choices: Once, Always, Deny. Three visual
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai::{Approval, ApprovalState, ApprovalStyle};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -204,7 +204,7 @@ Token usage bar with prompt, completion, limit, percentage, and optional cost.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai::{ContextGauge, TokenUsage};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -224,7 +224,7 @@ Token probability heatmap: each token is coloured by its log probability. Higher
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai::TokenHeat;
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -252,7 +252,7 @@ Hierarchical tool execution log with live elapsed time, nested steps, and expand
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::Instant;
 # use tuile::prelude::*;
 # use tuile::widgets::ai::{ToolStatus};
@@ -285,7 +285,7 @@ Shell command display with streaming output, working directory, exit code, and e
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::Duration;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_tools::ShellBlock;
@@ -313,7 +313,7 @@ Code display with language label, file path, line numbers, and optional syntax h
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_tools::CodeBlock;
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -337,7 +337,7 @@ Interactive edit preview with animated reveal and decision buttons (Accept, Reje
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::Instant;
 # use tuile::prelude::*;
 # use tuile::widgets::ai::{DiffLine, DiffKind};
@@ -368,7 +368,7 @@ File change summary with stat bars. Each `FileChange` has a path, kind (Added, M
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_tools::{ChangeSet, ChangeSetState, FileChange, ChangeKind};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -395,7 +395,7 @@ Collapsible JSON tree viewer. Parse JSON text with `Json::parse(text)` then rend
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_tools::{JsonTree, JsonTreeState, Json};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -415,7 +415,7 @@ Retry countdown banner shown during exponential backoff.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::{Instant, Duration};
 # use tuile::prelude::*;
 # use tuile::widgets::ai_tools::RetryNotice;
@@ -444,7 +444,7 @@ Hierarchical agent tree with expansion, cursor, task labels, status, tokens, and
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::{Instant, Duration};
 # use tuile::prelude::*;
 # use tuile::widgets::ai_agents::{AgentTree, AgentTreeState, AgentNode, AgentStatus};
@@ -476,7 +476,7 @@ Gantt chart showing agent activity over time. Each `Lane` has a name and spans; 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_agents::{AgentLanes, Lane, LaneSpan, AgentStatus};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -498,7 +498,7 @@ Stacked bar showing token breakdown: input, output, cache read, cache write. Inc
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_agents::{TokenMeter, TokenBreakdown};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -519,7 +519,7 @@ Budget bar with current spend, total budget, and spend rate. The spend is passed
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_agents::{CostMeter, CostMeterState};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -541,7 +541,7 @@ Horizontal stacked bar showing context window segments by source. Each `ContextS
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_agents::{ContextMap, ContextSegment};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -562,7 +562,7 @@ Context compaction result banner showing before/after percentages, saved tokens,
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::Instant;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_agents::CompactionBanner;
@@ -582,7 +582,7 @@ KPI cells showing input tokens, output tokens, cache hit rate, tool calls, durat
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::Duration;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_agents::TurnStats;
@@ -605,7 +605,7 @@ Sparkline-style throughput rate graph.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_agents::RateGraph;
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -624,7 +624,7 @@ Scrollable session list with cursor, time, model, message count, and cost. Each 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_agents::{SessionList, SessionListState, SessionEntry};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -649,7 +649,7 @@ Interactive model picker with capability badges, context window, and pricing. Ea
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_agents::{ModelPicker, ModelPickerState, ModelInfo, Capability};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -673,7 +673,7 @@ Elapsed time display with a pulsing dot when running.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::{Instant, Duration};
 # use tuile::prelude::*;
 # use tuile::widgets::ai_agents::ElapsedTimer;
@@ -703,7 +703,7 @@ Popup slash command menu with fuzzy matching. Each `SlashCommand` has a name, de
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_compose::{SlashMenu, SlashMenuState, SlashCommand};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -728,7 +728,7 @@ Popup mention picker for files, directories, symbols, URLs, and agents. Each `Me
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_compose::{MentionPicker, MentionPickerState, MentionItem, MentionKind};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -753,7 +753,7 @@ Horizontal row of removable attachment chips with hover and focus. Each `Attachm
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_compose::{AttachmentChips, AttachmentChipsState, Attachment, AttachmentKind};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -778,7 +778,7 @@ Animated mode badge with colour transition. Modes are Plan, Act, Ask, Auto.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use std::time::Instant;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_compose::{ModeBadge, HarnessMode};
@@ -799,7 +799,7 @@ Status line showing model, mode, and optional stats (tokens, cost).
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_compose::{HarnessStatus, HarnessMode};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -821,7 +821,7 @@ Interactive card presenting a question with single or multi-select options. Each
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_compose::{QuestionCard, QuestionCardState, QuestionOption};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -848,7 +848,7 @@ Collapsible tree of plan phases and tasks with keyboard navigation. Each `PlanPh
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_compose::{PlanView, PlanViewState, PlanPhase, PlanTask, TaskState};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -872,7 +872,7 @@ Scrollable list of queued messages with delete controls. Each `QueuedMessage` ha
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_compose::{MessageQueue, MessageQueueState, QueuedMessage};
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -896,7 +896,7 @@ Row of clickable suggestion chips. The cursor moves with arrow keys and Enter pi
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::ai_compose::{Suggestions, SuggestionsState};
 # fn demo(area: Rect, buf: &mut Buffer) {

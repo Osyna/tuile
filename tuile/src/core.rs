@@ -1,10 +1,10 @@
 //! Shared vocabulary every widget speaks: event outcomes, interaction state (`Look`),
 //! focus rings, hit boxes for mouse handling, and small key/mouse helpers.
 
-use ratatui::crossterm::event::{
+use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
-use ratatui::layout::{Position, Rect};
+use ratatui_core::layout::{Position, Rect};
 
 // outcome
 

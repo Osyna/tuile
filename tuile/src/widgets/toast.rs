@@ -14,10 +14,10 @@ use crate::anim::Easing;
 use crate::core::{Hit, HitBox, Interactive, Outcome, is_press};
 use crate::draw::{Border, Edge, blend_area, bold, fill, hbar, put, put_centered, st, wrap};
 use crate::theme::{self, Theme, Variant};
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::widgets::StatefulWidget;
 use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

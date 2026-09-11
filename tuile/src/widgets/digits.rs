@@ -9,9 +9,9 @@
 //! Digits::new("12:34:56").color(theme.primary).render(area, &mut buf);
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
-use ratatui::widgets::Widget;
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Alignment, Rect};
+use ratatui_core::widgets::Widget;
 
 use crate::draw::{put, put_centered, st};
 use crate::theme::{self, Rgb, Theme, Variant};
@@ -209,7 +209,7 @@ impl Widget for Digits {
 
         let mut style = st(fg, bg);
         if self.bold {
-            style = style.add_modifier(ratatui::style::Modifier::BOLD);
+            style = style.add_modifier(ratatui_core::style::Modifier::BOLD);
         }
 
         let w = Self::width(&self.text);

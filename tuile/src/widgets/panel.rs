@@ -9,12 +9,12 @@
 //! // draw content into `inner`
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Rect};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Alignment, Rect};
 
 use crate::draw::{Border, fill, put, put_aligned, shadow, st};
 use crate::theme::{self, Rgb, Theme, Variant};
-use ratatui::style::Modifier;
+use ratatui_core::style::Modifier;
 
 /// Panel background fill.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -424,7 +424,7 @@ impl Default for Placeholder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::buffer::Buffer;
+    use ratatui_core::buffer::Buffer;
 
     #[test]
     fn panel_inner_rect() {

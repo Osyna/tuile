@@ -7,11 +7,11 @@
 //! Calendar::new().render(Rect::new(0, 0, 25, 10), &mut buf, &mut state);
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::StatefulWidget;
 
 use crate::core::{Hit, HitBox, Interactive, Outcome, ctrl, is_activate, is_press, mouse_in};
 use crate::draw::{fill, put, put_centered, st};
@@ -179,7 +179,7 @@ impl Interactive for CalendarState {
     }
 
     fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
-        let down = matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(_));
+        let down = matches!(m.kind, crossterm::event::MouseEventKind::Down(_));
 
         // check arrows
         if down && mouse_in(self.prev_arrow, &m) {
@@ -558,7 +558,7 @@ impl Interactive for DatePickerState {
                 return out;
             }
             // click outside the popup and the field closes it
-            let down = matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Down(_));
+            let down = matches!(m.kind, crossterm::event::MouseEventKind::Down(_));
             if out == Outcome::Ignored
                 && down
                 && !mouse_in(self.popup, &m)
@@ -720,7 +720,7 @@ mod tests {
 
     #[test]
     fn calendar_day_click_selects_that_day() {
-        use ratatui::crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
+        use crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
         let mut state = CalendarState {
             year: 2024,
             month: 3,

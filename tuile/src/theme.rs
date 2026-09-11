@@ -6,7 +6,7 @@
 
 use std::sync::RwLock;
 
-use ratatui::style::Color;
+use ratatui_core::style::Color;
 
 // colour
 

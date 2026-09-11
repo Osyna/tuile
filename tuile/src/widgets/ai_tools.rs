@@ -14,10 +14,10 @@
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::widgets::{StatefulWidget, Widget};
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::widgets::{StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{elapsed, since};
@@ -747,7 +747,7 @@ pub struct CodeBlock<'a> {
     now: Option<Instant>,
     // A `fn` pointer hook the caller must match exactly; an alias would hide the signature.
     #[allow(clippy::type_complexity)]
-    highlighter: Option<fn(&str) -> Vec<(usize, usize, ratatui::style::Style)>>,
+    highlighter: Option<fn(&str) -> Vec<(usize, usize, ratatui_core::style::Style)>>,
 }
 
 impl<'a> CodeBlock<'a> {
@@ -813,7 +813,7 @@ impl<'a> CodeBlock<'a> {
 
     pub fn highlighter(
         mut self,
-        h: fn(&str) -> Vec<(usize, usize, ratatui::style::Style)>,
+        h: fn(&str) -> Vec<(usize, usize, ratatui_core::style::Style)>,
     ) -> Self {
         self.highlighter = Some(h);
         self

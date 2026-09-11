@@ -18,7 +18,7 @@ implemented in plain ratatui with no runtime and no CSS engine.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {

@@ -8,11 +8,11 @@
 //! Swatches::new(&colors).render(Rect::new(0, 0, 40, 3), &mut buf, &mut state);
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
-use ratatui::widgets::{StatefulWidget, Widget};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::{StatefulWidget, Widget};
 
 use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, mouse_in, mouse_pos};
 use crate::draw::{fill, put, put_centered, st};
@@ -304,7 +304,7 @@ impl Interactive for ColorPickerState {
     }
 
     fn handle_mouse(&mut self, m: MouseEvent) -> Outcome {
-        use ratatui::crossterm::event::{MouseButton, MouseEventKind};
+        use crossterm::event::{MouseButton, MouseEventKind};
 
         let pos = mouse_pos(&m);
 

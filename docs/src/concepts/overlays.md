@@ -13,7 +13,7 @@ palette work this way:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct Page { table: DataTableState, toasts: Toaster, modal: ModalState }
 # impl Page {
@@ -43,7 +43,7 @@ the rest of your layout has not been drawn yet.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer) {
 let mut overlay = Overlay::new();
@@ -72,7 +72,7 @@ when there is no room, and slide horizontally to stay inside the bounds.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn main() {
 let screen = Rect::new(0, 0, 80, 24);
@@ -93,7 +93,7 @@ click first, or the thing underneath will react to a click it never received vis
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct Page { modal: ModalState, menu: ContextMenuState, table: DataTableState }
 # impl Page {

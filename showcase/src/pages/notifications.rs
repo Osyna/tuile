@@ -249,7 +249,7 @@ impl Page for NotificationsPage {
     }
 
     fn event(&mut self, ev: &Event, ctx: &mut Ctx) -> Outcome {
-        use ratatui::crossterm::event::{Event::*, KeyCode::*};
+        use tuile::crossterm::event::{Event::*, KeyCode::*};
         match ev {
             Key(k) if is_press(k) => match k.code {
                 Char('1') => {

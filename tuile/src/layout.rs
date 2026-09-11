@@ -1,8 +1,8 @@
-//! Small layout helpers on top of `ratatui::layout`: centring, padding, fixed rows/columns,
+//! Small layout helpers on top of `ratatui_core::layout`: centring, padding, fixed rows/columns,
 //! and an `Overlay` queue for things drawn after everything else (dropdowns, tooltips).
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Constraint, Direction, Layout, Rect};
 
 /// A `w`×`h` rectangle centred in `area` (clamped to fit).
 pub fn center(area: Rect, w: u16, h: u16) -> Rect {

@@ -7,11 +7,11 @@ use tuile::theme::gradient;
 use super::{Ctx, Page};
 
 const TITLE: [&str; 5] = [
-    "▄▄▄▄▄ ▄   ▄ ▄▄▄ ▄▄▄▄▄ ▄▄▄▄  ▄▄▄▄   ▄▄▄▄ ▄▄▄▄▄",
-    "  █   █   █  █  █     █   █ █   █ █     █    ",
-    "  █   █   █  █  █▄▄▄  █   █ █▄▄▄▀ █  ▄▄ █▄▄▄ ",
-    "  █   █   █  █  █     █   █ █  █  █   █ █    ",
-    "  █   ▀▄▄▄▀ ▄█▄ █     ▀▄▄▄▀ █   █ ▀▄▄▄▀ █▄▄▄▄",
+    "▄▄▄▄▄ ▄   ▄ ▄▄▄ ▄     ▄▄▄▄▄",
+    "  █   █   █  █  █     █    ",
+    "  █   █   █  █  █     █▄▄▄ ",
+    "  █   █   █  █  █     █    ",
+    "  █   ▀▄▄▄▀ ▄█▄ █▄▄▄▄ █▄▄▄▄",
 ];
 
 const FEATURES: [(&str, &str); 8] = [
@@ -20,7 +20,7 @@ const FEATURES: [(&str, &str); 8] = [
         "Textual's colour math: one palette → 30 derived roles, 12 built-in themes",
     ),
     (
-        "40+ widgets",
+        "108 widgets",
         "buttons, switches, inputs, selects, tabs, trees, tables, charts, modals, toasts…",
     ),
     (
@@ -45,7 +45,7 @@ const FEATURES: [(&str, &str); 8] = [
     ),
     (
         "No bloat",
-        "ratatui + unicode-width only; the runtime restores your terminal on panic",
+        "ratatui-core plus two unicode crates; the runtime restores your terminal on panic",
     ),
 ];
 

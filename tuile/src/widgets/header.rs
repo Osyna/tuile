@@ -8,10 +8,10 @@
 //! AppHeader::new().title("Settings").icon("⊛").clock(true).render(area, &mut buf, &mut state);
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyEvent, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
+use crossterm::event::{KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Modifier;
 
 use crate::core::{Hit, HitBox, Outcome};
 use crate::draw::{fill, put, put_centered, put_right, st};
@@ -377,7 +377,7 @@ impl Default for AppHeader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::buffer::Buffer;
+    use ratatui_core::buffer::Buffer;
 
     #[test]
     fn header_renders_without_panic() {

@@ -13,11 +13,11 @@
 use std::collections::BTreeSet;
 use std::time::Instant;
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::Modifier;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Alignment, Rect};
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::{
@@ -318,9 +318,7 @@ impl Interactive for ListViewState {
             // click
             if matches!(
                 m.kind,
-                ratatui::crossterm::event::MouseEventKind::Down(
-                    ratatui::crossterm::event::MouseButton::Left
-                )
+                crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left)
             ) {
                 self.cursor = row;
                 let now = Instant::now();
@@ -665,7 +663,7 @@ mod tests {
         assert_eq!(
             state.handle_key(KeyEvent::new(
                 KeyCode::Down,
-                ratatui::crossterm::event::KeyModifiers::NONE
+                crossterm::event::KeyModifiers::NONE
             )),
             Outcome::Changed
         );
@@ -673,7 +671,7 @@ mod tests {
         assert_eq!(
             state.handle_key(KeyEvent::new(
                 KeyCode::Up,
-                ratatui::crossterm::event::KeyModifiers::NONE
+                crossterm::event::KeyModifiers::NONE
             )),
             Outcome::Changed
         );
@@ -687,7 +685,7 @@ mod tests {
         assert_eq!(
             state.handle_key(KeyEvent::new(
                 KeyCode::Enter,
-                ratatui::crossterm::event::KeyModifiers::NONE
+                crossterm::event::KeyModifiers::NONE
             )),
             Outcome::Changed
         );

@@ -10,7 +10,7 @@ A compact inline chart that shows the last N values from a slice. Width-limited:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -45,7 +45,7 @@ Grouped vertical or horizontal bars. Each `BarGroup` has a label and a vector of
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -81,7 +81,7 @@ Multi-series line chart with axes, grid, and legend. Each `LineSeries` has a nam
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -127,7 +127,7 @@ Thin wrapper over `LineGraph` that forces every series to `LineStyle::Points`. S
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -155,7 +155,7 @@ Same scaling and NaN behavior as `LineGraph`. Minimum area: 8 columns and 4 rows
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -186,7 +186,7 @@ GitHub-style contribution grid: 7 rows (days) and up to 52 columns (weeks). Valu
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -209,7 +209,7 @@ Horizontal gauge showing a 0.0 to 1.0 value with optional label, percent, and su
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -255,7 +255,7 @@ Experimental semicircular gauge drawn with braille arcs. Shows a 0.0 to 1.0 valu
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {

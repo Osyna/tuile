@@ -4,13 +4,18 @@ members = ["tuile", "showcase"]
 exclude = ["xtask"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/Osyna/tuile"
 
 [workspace.dependencies]
-ratatui = "0.30"
+# The library builds on the split crates, not the `ratatui` facade: upstream's guidance is that
+# widget libraries depend on `ratatui-core` for a smaller, more stable surface. `ratatui-widgets`
+# is deliberately absent - tuile draws all 108 of its widgets itself.
+ratatui-core = "0.1.2"
+ratatui-crossterm = "0.1.2"
+crossterm = "0.29"
 unicode-width = "0.2.2"
 unicode-segmentation = "1"
 

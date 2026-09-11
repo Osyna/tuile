@@ -12,7 +12,7 @@ An app is a struct that implements four methods, two of which have defaults:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct Demo;
 impl App for Demo {
@@ -52,7 +52,7 @@ Widgets are rebuilt every frame, so anything that must survive a frame lives in 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 #[derive(Clone, Copy, PartialEq)]
 enum Id { Dark, Name, Save }
@@ -78,7 +78,7 @@ thumb. You can read and write their public fields directly.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # #[derive(Clone, Copy, PartialEq)] enum Id { Dark, Name, Save }
 # struct Demo { dark: SwitchState, name: InputState, save: ButtonState, focus: Focus<Id>, toasts: Toaster }
@@ -136,7 +136,7 @@ is not enough.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # #[derive(Clone, Copy, PartialEq)] enum Id { Dark, Name, Save }
 # struct Demo { dark: SwitchState, name: InputState, save: ButtonState, focus: Focus<Id>, toasts: Toaster }
@@ -181,7 +181,7 @@ nothing you care about changed, which is what you get from hover moves and curso
 
 ```rust,no_run
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # #[derive(Clone, Copy, PartialEq)] enum Id { Dark, Name, Save }
 # struct Demo { dark: SwitchState, name: InputState, save: ButtonState, focus: Focus<Id>, toasts: Toaster }

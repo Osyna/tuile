@@ -12,7 +12,7 @@ An animated horizontal bar with optional percentage and ETA. The state owns the 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use std::time::{Duration, Instant};
 
@@ -36,7 +36,7 @@ Indeterminate mode shows a sweeping segment when the total is unknown:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use std::time::Instant;
 
@@ -72,7 +72,7 @@ Dots for multi-step flows: `●●●○○` where filled dots mark completed st
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -91,7 +91,7 @@ Animated frame sequences from a catalog of 102 definitions. Every spinner in yas
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::spinners;
 use std::time::Instant;
@@ -109,7 +109,7 @@ The `spinners` module is a catalog of `const SpinnerDef` entries. Each definitio
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::spinners;
 
@@ -126,7 +126,7 @@ Custom spinners:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use std::time::Instant;
 
@@ -166,7 +166,7 @@ Inline bordered notes for heads-up messages. Not dismissible by default; set `di
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::CalloutBorder;
 
@@ -195,7 +195,7 @@ Dialogs with a dimmed backdrop. Three presets: `confirm`, `alert`, and `prompt`.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use std::time::Instant;
 
@@ -223,7 +223,7 @@ Confirm has two buttons (Cancel at index 0, Confirm at 1). Alert has one (OK at 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use std::time::Instant;
 
@@ -266,7 +266,7 @@ Fuzzy-matched command picker. Register items with `set_items`, open with `state.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -301,7 +301,7 @@ Tooltips appear after a hover delay. The state tracks the hovered widget and del
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use std::time::Instant;
 

@@ -10,7 +10,7 @@ An animated progress indicator in one of 20 styles. Every loader takes `.now(Ins
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
@@ -44,7 +44,7 @@ All bar styles ignore `label` (the text is drawn separately to the left of the l
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
@@ -67,7 +67,7 @@ For textual styles, the `label` is required (the default is an empty string, whi
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
@@ -90,7 +90,7 @@ All scene styles ignore `label`. `color` is the main color, `color2` is the acce
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
@@ -117,7 +117,7 @@ Painted placeholder shapes with a diagonal shimmer band. Use them to reserve spa
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
@@ -141,7 +141,7 @@ The default shape is `Text` with line widths `[60, 45, 50]` cells. For `Text`, p
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
@@ -158,7 +158,7 @@ Dim an area and center a `Loader` with an optional message over it. Draw this la
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
@@ -173,7 +173,7 @@ The loader is centered in the area. For single-row loader styles, the `.width(ce
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {

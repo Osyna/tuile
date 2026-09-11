@@ -13,10 +13,10 @@
 //! MenuBar::new(menus).render(area, &mut buf, &mut state);
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
-use ratatui::layout::{Position, Rect};
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Position, Rect};
+use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::{Interactive, Outcome, is_press, mouse_pos};

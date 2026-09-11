@@ -449,7 +449,7 @@ impl Page for AiComposePage {
     }
 
     fn event(&mut self, ev: &Event, ctx: &mut Ctx) -> Outcome {
-        use ratatui::crossterm::event::{Event as CEvent, KeyCode};
+        use tuile::crossterm::event::{Event as CEvent, KeyCode};
 
         // popups take keys first; printable keys/Backspace also land in the composer so the
         // field shows the partial token being typed. Only the trailing token is rewritten.

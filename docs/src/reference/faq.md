@@ -2,7 +2,7 @@
 
 ## Does tuile replace ratatui?
 
-No. tuile is a widget library built on top of ratatui, not a replacement for it. It re-exports `ratatui` and `crossterm` so your `Cargo.toml` needs only `tuile`, and every widget renders into ratatui's `Buffer`. Your own `Rect` math, raw text placement, and custom drawing code keep working exactly as before.
+No. tuile is a widget library built on top of ratatui, not a replacement for it. It builds on `ratatui-core`, the crate upstream recommends for widget libraries, and re-exports it alongside `crossterm` so your `Cargo.toml` needs only `tuile`. Every widget renders into ratatui's `Buffer`, the same type the `ratatui` facade gives you. Your own `Rect` math, raw text placement, and custom drawing code keep working exactly as before.
 
 ## Do I need the `App` runtime?
 

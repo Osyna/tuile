@@ -2,9 +2,9 @@
 //! of Textual border styles (with titles), colour blending, block glyph tables and text
 //! wrapping/truncation. All functions clip to the buffer, so callers never index out of range.
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::{Alignment, Position, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Alignment, Position, Rect};
+use ratatui_core::style::{Modifier, Style};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 

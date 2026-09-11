@@ -82,7 +82,7 @@ background, unlike the raw `error` red, which is chosen for fills.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer) {
 let th = theme::current();

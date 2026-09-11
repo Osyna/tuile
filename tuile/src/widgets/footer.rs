@@ -9,10 +9,10 @@
 //! if let Some(idx) = state.take_pressed() { /* handle binding click */ }
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyEvent, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
+use crossterm::event::{KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Modifier;
 
 use crate::core::{Hit, HitBox, Outcome};
 use crate::draw::{fill, put, put_right, st};
@@ -308,7 +308,7 @@ impl Default for KeyFooter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::buffer::Buffer;
+    use ratatui_core::buffer::Buffer;
 
     #[test]
     fn footer_renders_bindings() {

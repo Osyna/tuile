@@ -14,7 +14,7 @@ and it explains two behaviours that otherwise look like bugs.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn main() {
 let mut hit = HitBox::default();
@@ -27,7 +27,7 @@ returns what it saw:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(hit: &mut HitBox, m: MouseEvent) -> Outcome {
 match hit.mouse(&m) {
@@ -57,7 +57,7 @@ A list, a table or a tab bar needs one rectangle per row, cell or tab. Those wid
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct MyListState { hits: Vec<Rect>, cursor: usize }
 # impl MyListState {

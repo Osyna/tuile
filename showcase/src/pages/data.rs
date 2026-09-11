@@ -2,10 +2,10 @@
 
 use std::time::Instant;
 
-use ratatui::crossterm::event::{Event, KeyCode, KeyEvent};
-use ratatui::layout::{Alignment, Constraint};
-use ratatui::style::Modifier;
+use tuile::crossterm::event::{Event, KeyCode, KeyEvent};
 use tuile::prelude::*;
+use tuile::ratatui_core::layout::{Alignment, Constraint};
+use tuile::ratatui_core::style::Modifier;
 use tuile::widgets::{
     DataTable, DataTableState, Digits, KeyValueList, TableCell, TableColumn, TableCursor, TableRow,
 };

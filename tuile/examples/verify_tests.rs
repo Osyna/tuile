@@ -1,5 +1,5 @@
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
 use tuile::widgets::footer::{FooterBinding, KeyFooter, KeyFooterState};
 use tuile::widgets::header::{AppHeader, AppHeaderState};
 

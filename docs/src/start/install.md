@@ -2,7 +2,7 @@
 
 ```toml
 [dependencies]
-tuile = "0.1"
+tuile = "0.2"
 ```
 
 To track main instead of a release, depend on the repository:
@@ -12,15 +12,21 @@ To track main instead of a release, depend on the repository:
 tuile = { git = "https://github.com/Osyna/tuile" }
 ```
 
-That is the only dependency you need. tuile re-exports the two crates you would otherwise pin
+That is the only dependency you need. tuile re-exports the crates you would otherwise pin
 yourself:
 
 ```rust
 # extern crate tuile;
-use tuile::ratatui;      // the full ratatui crate
-use tuile::crossterm;    // ratatui's crossterm re-export
+use tuile::crossterm;         // key and mouse events, terminal control
+use tuile::ratatui_core;      // Rect, Buffer, Style, Frame
+use tuile::ratatui_crossterm; // the backend, if you build your own Terminal
 # fn main() {}
 ```
+
+tuile depends on `ratatui-core` rather than the `ratatui` facade. Upstream splits the project
+exactly this way: applications use `ratatui`, widget libraries use `ratatui-core`. The types are
+the same ones the facade re-exports, so tuile widgets render into a `Frame` from a `ratatui` app
+without any conversion.
 
 Pinning them yourself is allowed, but the versions must match tuile's or you will get two
 incompatible `Buffer` types and a confusing type error at the `render` call. If you already
@@ -58,7 +64,7 @@ If you prefer explicit imports, everything is reachable through its module:
 
 ```rust,no_run
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 struct Hello;

@@ -87,7 +87,7 @@ Every builder takes `.theme(&Theme)`, which overrides the global for that widget
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, st: &mut ButtonState) {
 let danger = ThemeSpec::new("danger", true, Rgb::hex(0xef4444)).resolve();
@@ -109,7 +109,7 @@ Offer `theme::theme_names()` in a select and call `set_by_name` on change:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct Prefs { picker: SelectState }
 # impl Prefs {

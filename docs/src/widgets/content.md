@@ -12,7 +12,7 @@ Plain text with variant tinting, alignment, and wrapping.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -39,7 +39,7 @@ Horizontal or vertical separator with optional title.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -54,7 +54,7 @@ Rule::horizontal().title("Settings").render(area, buf);
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -67,7 +67,7 @@ Badge::new("v1.2").variant(Variant::Accent).render(area, buf);
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -80,7 +80,7 @@ Pill::new("Live").variant(Variant::Success).render(area, buf);
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -97,7 +97,7 @@ Underlined clickable link with visited state.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -115,7 +115,7 @@ Dashboard card with large value, label, delta, and sparkline.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -136,7 +136,7 @@ Rich console markup with Rich-style `[tag]` syntax. `Markup::parse(input, theme)
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::text::Markup;
 
@@ -167,7 +167,7 @@ CommonMark subset renderer with scrolling.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::markdown::*;
 
@@ -212,7 +212,7 @@ Scrolling log viewer with level badges, filtering, and auto-follow.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::log::*;
 
@@ -247,7 +247,7 @@ Month grid with navigation, selection, and marks.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::calendar::*;
 
@@ -275,7 +275,7 @@ Date field with popup calendar.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::calendar::*;
 
@@ -296,7 +296,7 @@ Row of selectable color chips with optional labels.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::color::*;
 
@@ -319,7 +319,7 @@ HSL picker with hue strip and saturation/lightness grid.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::color::*;
 
@@ -338,7 +338,7 @@ Horizontal gradient with labels and marker.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::color::*;
 
@@ -357,7 +357,7 @@ Renders every role of a theme as labeled swatches.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::color::*;
 
@@ -375,7 +375,7 @@ Horizontal or vertical step indicator.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::steps::*;
 
@@ -396,7 +396,7 @@ Vertical timeline with time labels.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::steps::*;
 

@@ -10,7 +10,7 @@ Renders text at 3 or 5 rows per line in one of four fonts. Use it for headings, 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -83,7 +83,7 @@ A title with optional subtitle and rule.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -119,7 +119,7 @@ A vertical menu of big-font items with many rendering styles.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -139,7 +139,7 @@ The menu can be built from simple strings or from `BigMenuItem` structs that car
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -239,7 +239,7 @@ Values can be Bool, Choice (one of N strings), Int (with min/max/step), Text (re
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {

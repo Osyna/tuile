@@ -62,8 +62,8 @@ top, twelve colour palettes, and animation that redraws only while something mov
 widget is a builder plus a state: `Widget::new().options().render(area, buf, &mut state)`,
 and `state.handle(&event)` returns `Ignored`, `Consumed` or `Changed`.
 
-ratatui and crossterm are re-exported (`tuile::ratatui`, `tuile::crossterm`), so an app does
-not pin its own versions.
+ratatui-core and crossterm are re-exported (`tuile::ratatui_core`, `tuile::crossterm`), so an
+app does not pin its own versions.
 
 ## Families
 

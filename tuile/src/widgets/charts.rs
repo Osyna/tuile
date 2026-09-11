@@ -15,9 +15,9 @@
 
 use std::f64::consts::PI;
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::widgets::Widget;
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::widgets::Widget;
 
 use crate::draw::{
     bold, fill, hbar, put, put_centered, put_right, st, truncate, vbar, width as text_width,
@@ -155,7 +155,7 @@ impl BrailleCanvas {
                 };
                 let x = area.x + cx as u16;
                 let y = area.y + cy as u16;
-                if buf.area.contains(ratatui::layout::Position { x, y }) {
+                if buf.area.contains(ratatui_core::layout::Position { x, y }) {
                     buf[(x, y)]
                         .set_symbol(&glyph.to_string())
                         .set_fg(fg.color())

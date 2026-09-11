@@ -59,7 +59,7 @@ tracking a start time:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
 Spinner::new(&spinners::DOTS).now(now).render(area, buf);
@@ -82,7 +82,7 @@ Animated builders take one of two calls, and the difference matters:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
 Spinner::new(&spinners::DOTS).now(now).render(area, buf);        // phase from the epoch
@@ -104,7 +104,7 @@ The loop only redraws at 60 fps while `App::animating` returns true:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct MyApp { switch: SwitchState, progress: ProgressState }
 # impl MyApp {

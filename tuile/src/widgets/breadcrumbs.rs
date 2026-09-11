@@ -10,11 +10,11 @@
 //! Breadcrumbs::new(segments).render(area, &mut buf, &mut state);
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::{Interactive, Outcome, mouse_pos};
@@ -98,7 +98,7 @@ impl BreadcrumbsState {
 }
 
 impl Interactive for BreadcrumbsState {
-    fn handle_key(&mut self, _: ratatui::crossterm::event::KeyEvent) -> Outcome {
+    fn handle_key(&mut self, _: crossterm::event::KeyEvent) -> Outcome {
         Outcome::Ignored
     }
 
@@ -315,8 +315,8 @@ impl Default for PaginatorState {
 }
 
 impl Interactive for PaginatorState {
-    fn handle_key(&mut self, k: ratatui::crossterm::event::KeyEvent) -> Outcome {
-        use ratatui::crossterm::event::{KeyCode, KeyEventKind};
+    fn handle_key(&mut self, k: crossterm::event::KeyEvent) -> Outcome {
+        use crossterm::event::{KeyCode, KeyEventKind};
         if k.kind != KeyEventKind::Press && k.kind != KeyEventKind::Repeat {
             return Outcome::Ignored;
         }
@@ -528,7 +528,7 @@ mod tests {
             kind: MouseEventKind::Down(MouseButton::Left),
             column: 7,
             row: 0,
-            modifiers: ratatui::crossterm::event::KeyModifiers::empty(),
+            modifiers: crossterm::event::KeyModifiers::empty(),
         };
         assert_eq!(state.handle_mouse(m), Outcome::Changed);
         assert_eq!(state.take_clicked(), Some(1));

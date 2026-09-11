@@ -12,10 +12,10 @@
 
 use std::time::{Duration, Instant};
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Modifier;
 
 use crate::anim::{Easing, Tween};
 use crate::core::{Hit, HitBox, Outcome, is_activate, is_press};

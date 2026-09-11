@@ -11,9 +11,9 @@
 
 use std::time::Instant;
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyEvent, MouseEvent};
-use ratatui::layout::{Direction, Rect};
+use crossterm::event::{KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Direction, Rect};
 
 use crate::core::{Hit, HitBox, Outcome, is_left_drag, is_left_up, mouse_pos};
 use crate::draw::{fill, put_cell, st};
@@ -420,8 +420,8 @@ impl Default for SplitPane {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::buffer::Buffer;
-    use ratatui::layout::Direction;
+    use ratatui_core::buffer::Buffer;
+    use ratatui_core::layout::Direction;
 
     #[test]
     fn split_horizontal_ratio() {

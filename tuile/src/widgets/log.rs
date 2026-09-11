@@ -11,11 +11,11 @@
 
 use std::collections::VecDeque;
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::Modifier;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Alignment, Rect};
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::StatefulWidget;
 
 use crate::core::{HitBox, Interactive, Outcome, is_press, wheel_delta};
 use crate::draw::{Border, fill, put, st};

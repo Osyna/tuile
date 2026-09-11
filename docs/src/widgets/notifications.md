@@ -10,7 +10,7 @@ Toasts are temporary overlays that slide in, show a message, and auto-dismiss. T
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use std::time::Instant;
 
@@ -132,7 +132,7 @@ The `id` comes from `toast.id()`, which returns a unique `u64` assigned when the
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use std::time::Instant;
 # fn demo(toaster: &mut Toaster) {
@@ -154,9 +154,9 @@ To determine which action was activated, iterate `toaster.toasts` and check the 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
-use ratatui::crossterm::event::{Event, KeyEvent};
+use tuile::crossterm::event::{Event, KeyEvent};
 use std::time::Instant;
 
 # fn handle_event(toaster: &mut Toaster, event: Event) {
@@ -258,7 +258,7 @@ A full-width announcement bar for important messages. Banners typically sit at t
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::notify::{Banner, BannerState, BannerStyle};
 
@@ -300,7 +300,7 @@ A stateless alert box for inline warnings, errors, or info messages. Two forms: 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::notify::InlineAlert;
 
@@ -328,7 +328,7 @@ A helper function that draws a small circular badge with a count. Used by the no
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::notify::count_badge;
 

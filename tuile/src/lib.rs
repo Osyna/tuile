@@ -14,8 +14,12 @@
 //!
 //! `use tuile::prelude::*;` is the one import: every widget, `Theme`/`theme`, `draw`/`layout`
 //! helpers, `anim`, and the ratatui + crossterm types you touch (`Rect`, `Buffer`, `Frame`,
-//! `Event`, `KeyCode`…). The crates themselves are re-exported as [`ratatui`] and [`crossterm`]
-//! so an app needs no version pins of its own.
+//! `Event`, `KeyCode`…). The crates themselves are re-exported as [`ratatui_core`] and
+//! [`crossterm`] so an app needs no version pins of its own.
+//!
+//! The dependency is [`ratatui-core`][ratatui], not the `ratatui` facade: upstream splits the
+//! project so that applications use `ratatui` and widget libraries use `ratatui-core`. The types
+//! are identical, so these widgets render into a `Frame` from a `ratatui` app unchanged.
 //!
 //! ```no_run
 //! use tuile::prelude::*;
@@ -69,22 +73,29 @@ pub mod runtime;
 pub mod theme;
 pub mod widgets;
 
-pub use ratatui;
-pub use ratatui::crossterm;
+pub use crossterm;
+pub use ratatui_core;
+
+/// The `ratatui-crossterm` backend, for apps that build their own [`Terminal`].
+///
+/// [`Terminal`]: ratatui_core::terminal::Terminal
+pub use ratatui_crossterm;
 
 /// Everything an app usually needs.
 pub mod prelude {
     pub use std::time::{Duration, Instant};
 
-    pub use ratatui::Frame;
-    pub use ratatui::buffer::Buffer;
-    pub use ratatui::crossterm::event::{
+    pub use crossterm::event::{
         Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     };
-    pub use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect};
-    pub use ratatui::style::{Modifier, Style};
-    pub use ratatui::text::{Line, Span, Text};
-    pub use ratatui::widgets::{StatefulWidget, Widget};
+    pub use ratatui_core::buffer::Buffer;
+    pub use ratatui_core::layout::{
+        Alignment, Constraint, Direction, Layout, Margin, Position, Rect,
+    };
+    pub use ratatui_core::style::{Modifier, Style};
+    pub use ratatui_core::terminal::Frame;
+    pub use ratatui_core::text::{Line, Span, Text};
+    pub use ratatui_core::widgets::{StatefulWidget, Widget};
 
     pub use crate::anim::{self, Clock, Easing, Tween, blink, elapsed, frame_index, pulse, since};
     pub use crate::core::*;

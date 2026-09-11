@@ -12,7 +12,7 @@ key support.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 pub struct Pager {
@@ -38,7 +38,7 @@ caller can store it, snapshot it in a test, and construct it with `Default::defa
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # pub struct Pager { pages: usize, focused: bool, enabled: bool, theme: Option<Theme> }
 impl Pager {
@@ -69,7 +69,7 @@ call.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # pub struct Pager { pages: usize, focused: bool, enabled: bool, theme: Option<Theme> }
 # #[derive(Clone, Debug, Default)] pub struct PagerState { pub current: usize, pub hits: Vec<Rect> }
@@ -123,7 +123,7 @@ panics.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # #[derive(Clone, Debug, Default)] pub struct PagerState { pub current: usize, pub hits: Vec<Rect> }
 impl Interactive for PagerState {
@@ -176,7 +176,7 @@ being eaten. `Consumed` for a click that changed nothing still tells the app to 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # pub struct Pager { pages: usize, focused: bool, enabled: bool, theme: Option<Theme> }
 # impl Pager {
@@ -218,7 +218,7 @@ real contract here:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # pub struct Pager;
 # impl Pager { pub fn new(_: usize) -> Self { Pager } pub fn render(self, _: Rect, _: &mut Buffer, _: &mut u8) {} }
@@ -239,7 +239,7 @@ Take the frame instant through the builder and store the tween in the state:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use std::time::Duration;
 # #[derive(Clone, Debug)] pub struct PagerState { pub current: usize, pub slide: Tween }

@@ -17,11 +17,11 @@ use crate::core::{Outcome, is_press, wheel_delta};
 use crate::draw::{Border, blit, st};
 use crate::theme::{self, Theme};
 use crate::widgets::scrollbar::{ScrollAxis, Scrollbar, ScrollbarState};
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::Modifier;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Alignment, Rect};
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::StatefulWidget;
 
 /// Scrollbar visibility.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -385,7 +385,7 @@ impl Default for ScrollView {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::buffer::Buffer;
+    use ratatui_core::buffer::Buffer;
 
     #[test]
     fn scroll_offset_clamp() {

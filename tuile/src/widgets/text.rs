@@ -8,12 +8,12 @@
 //! Badge::new("NEW").variant(Variant::Accent).render(Rect::new(12, 0, 5, 1), &mut buf);
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyEvent, MouseEvent};
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::{Modifier, Style};
-use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{StatefulWidget, Widget};
+use crossterm::event::{KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Alignment, Rect};
+use ratatui_core::style::{Modifier, Style};
+use ratatui_core::text::{Line, Span, Text};
+use ratatui_core::widgets::{StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::{Hit, HitBox, Interactive, Outcome, is_activate, is_press};

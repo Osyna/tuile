@@ -11,11 +11,11 @@
 //! if let Some(i) = menu.take_activated() { /* run item i */ }
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::Modifier;
-use ratatui::widgets::{StatefulWidget, Widget};
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Alignment, Rect};
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::{StatefulWidget, Widget};
 use std::time::Instant;
 use unicode_width::UnicodeWidthStr;
 

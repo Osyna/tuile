@@ -327,7 +327,7 @@ impl Page for AiToolsPage {
         }
 
         // Right column - use Layout::vertical for proper budgeting
-        use ratatui::layout::{Constraint, Layout};
+        use tuile::ratatui_core::layout::{Constraint, Layout};
         let right_rects = Layout::vertical([
             Constraint::Length(10), // Edit preview
             Constraint::Length(10), // Change set

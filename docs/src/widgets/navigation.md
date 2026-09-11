@@ -24,7 +24,7 @@ TabBar renders tabs in one of five styles. Pass `.style(TabStyle::...)` to pick 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -46,7 +46,7 @@ The Underline style slides a highlight bar from the old tab to the new one. Pass
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use std::time::Instant;
 
@@ -69,7 +69,7 @@ Tabs accept `TabItem` instead of plain strings when you need icons, badges, or f
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -99,7 +99,7 @@ A closable tab shows an × button on hover. When clicked, the state records the 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn example() {
@@ -139,7 +139,7 @@ A helper that draws a TabBar and returns the inner content rect. Pair it with a 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -172,7 +172,7 @@ A vertical scrolling list with cursor, multi-select, fuzzy filtering, details co
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -197,7 +197,7 @@ Pass `.details(ListDetail::Right)` to show a right-aligned detail column. Each e
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -221,7 +221,7 @@ Entries support icons, disabled state, and visual variants (Default, Primary, Su
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -242,7 +242,7 @@ A separator is a horizontal line between groups. Set `.separator(true)` on an en
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -265,7 +265,7 @@ Pass `.multi_select(true)` to enable checkboxes. Space toggles the current item,
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -293,7 +293,7 @@ Pass `.filter(pattern)` to show only entries whose labels match. The filter uses
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer, pattern: &str) {
@@ -344,7 +344,7 @@ Create nodes with `TreeNode::new(label)`, nest them with `.with_children(vec![..
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -371,7 +371,7 @@ Nodes accept optional icon and detail strings, shown to the left and right of th
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -395,7 +395,7 @@ The state holds an `expanded` set of node ids. Call `state.expand(id)` and `stat
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo() {
@@ -443,7 +443,7 @@ A horizontal menu bar at the top of the window. Each menu is a `MenuDef` with a 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -485,7 +485,7 @@ Menus contain action items, separators, and submenus. An action has an id (any `
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo() {
@@ -510,7 +510,7 @@ Shortcuts are display-only strings shown right-aligned in the dropdown. They do 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -536,7 +536,7 @@ Call `state.open(index)` to open a menu by index, or `state.close()` to close al
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo() {
@@ -556,7 +556,7 @@ When an action item is clicked or activated with Enter, its id is recorded in `s
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo() {
@@ -582,7 +582,7 @@ A floating menu that opens at a cursor position. Build it with `ContextMenu::new
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -622,7 +622,7 @@ A horizontal breadcrumb trail with clickable segments. Middle segments collapse 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -651,7 +651,7 @@ When a segment is clicked, its index is recorded in `state`. Call `take_clicked(
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo() {
@@ -679,7 +679,7 @@ A page selector with ellipsis for large page counts. Shows current page, first, 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -700,7 +700,7 @@ Arrow keys, Home, End, and Page Up/Down move between pages when focused. Clickin
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo() {

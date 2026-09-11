@@ -14,8 +14,8 @@
 
 use std::time::Instant;
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
 
 use crate::draw::{Border, fill, put, st, wrap};
 use crate::layout::popup_below;

@@ -531,7 +531,7 @@ impl Page for NavigationPage {
 
         match ev {
             Event::Key(k) => {
-                if k.kind != ratatui::crossterm::event::KeyEventKind::Press {
+                if k.kind != tuile::crossterm::event::KeyEventKind::Press {
                     return Outcome::Ignored;
                 }
 
@@ -680,8 +680,8 @@ impl Page for NavigationPage {
                 // right-click in list opens context menu
                 if matches!(
                     m.kind,
-                    ratatui::crossterm::event::MouseEventKind::Down(
-                        ratatui::crossterm::event::MouseButton::Right
+                    tuile::crossterm::event::MouseEventKind::Down(
+                        tuile::crossterm::event::MouseButton::Right
                     )
                 ) {
                     self.context_menu.open_at(Position {
@@ -695,8 +695,8 @@ impl Page for NavigationPage {
                 if self.context_menu.open
                     && matches!(
                         m.kind,
-                        ratatui::crossterm::event::MouseEventKind::Down(
-                            ratatui::crossterm::event::MouseButton::Left
+                        tuile::crossterm::event::MouseEventKind::Down(
+                            tuile::crossterm::event::MouseButton::Left
                         )
                     )
                 {

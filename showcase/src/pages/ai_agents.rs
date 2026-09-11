@@ -473,7 +473,7 @@ impl Page for AiAgentsPage {
         }
 
         // Right column
-        use ratatui::layout::{Constraint, Layout};
+        use tuile::ratatui_core::layout::{Constraint, Layout};
 
         let right_constraints = [
             Constraint::Length(3), // TurnStats

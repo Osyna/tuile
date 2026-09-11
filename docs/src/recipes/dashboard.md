@@ -10,7 +10,7 @@ redraw cost honest.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn layout_demo(area: Rect) {
 let [header, body, footer] = Layout::vertical([
@@ -37,7 +37,7 @@ write with constraints: `columns(area, n, gap)`, `stack(area, &heights, gap)`,
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer) {
 let cards = columns(area, 3, 1);
@@ -55,7 +55,7 @@ Stat cards are stateless. Build them from your data each frame and pass no state
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, samples: &[f64]) {
 let th = theme::current();
@@ -80,7 +80,7 @@ should be true only while something is genuinely moving:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct Dash { deploy: ProgressState, spinner_visible: bool, toasts: Toaster }
 # impl Dash {
@@ -106,7 +106,7 @@ channel, drained in `update`:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 use std::sync::mpsc::Receiver;
 
@@ -142,7 +142,7 @@ list you can filter. Give that one widget the focus ring and leave the rest stat
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct Dash { hosts: DataTableState }
 # impl Dash {

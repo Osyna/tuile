@@ -15,11 +15,11 @@
 
 use std::time::{Duration, Instant};
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::Modifier;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Alignment, Rect};
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::Tween;
@@ -286,9 +286,7 @@ impl Interactive for TabBarState {
         // click tab
         if matches!(
             m.kind,
-            ratatui::crossterm::event::MouseEventKind::Down(
-                ratatui::crossterm::event::MouseButton::Left
-            )
+            crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left)
         ) && let Some(i) = hover
         {
             // check close button
@@ -852,7 +850,7 @@ mod tests {
         assert_eq!(
             state.handle_key(KeyEvent::new(
                 KeyCode::Right,
-                ratatui::crossterm::event::KeyModifiers::NONE
+                crossterm::event::KeyModifiers::NONE
             )),
             Outcome::Changed
         );
@@ -860,7 +858,7 @@ mod tests {
         assert_eq!(
             state.handle_key(KeyEvent::new(
                 KeyCode::Left,
-                ratatui::crossterm::event::KeyModifiers::NONE
+                crossterm::event::KeyModifiers::NONE
             )),
             Outcome::Changed
         );

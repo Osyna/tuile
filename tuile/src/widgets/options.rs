@@ -16,11 +16,11 @@
 //! if let Some(key) = state.take_changed() { let _ = state.choice("theme"); }
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::{HitBox, Interactive, Outcome, is_left_down, is_press, mouse_pos, wheel_delta};
@@ -363,7 +363,7 @@ impl Interactive for OptionListState {
             }
             Some(i)
                 if i != self.cursor
-                    && matches!(m.kind, ratatui::crossterm::event::MouseEventKind::Moved) =>
+                    && matches!(m.kind, crossterm::event::MouseEventKind::Moved) =>
             {
                 self.cursor = i;
                 Outcome::Consumed

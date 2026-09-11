@@ -11,6 +11,7 @@ name = "showcase"
 path = "src/main.rs"
 
 [dependencies]
-tuile = { path = "../tuile", version = "0.1.0" }
-ratatui = { workspace = true }
+# The gallery is a pure tuile consumer: every ratatui and crossterm type it needs comes
+# through `tuile::prelude`, which is the surface an app is meant to use.
+tuile = { path = "../tuile", version = "0.2.0" }
 unicode-width = { workspace = true }

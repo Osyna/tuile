@@ -5,7 +5,7 @@ that lives in your app between frames.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, state: &mut CheckboxState) {
 Checkbox::new("Send crash reports")
@@ -32,7 +32,7 @@ feeds it.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, st: &mut ButtonState, enabled: bool) {
 // Configuration follows the data it depends on, with no separate "update" step.
@@ -55,7 +55,7 @@ they contain no callbacks or parent pointers:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn main() {
 let mut state = InputState::new();
@@ -77,7 +77,7 @@ constructor that takes it:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn main() {
 let off = SwitchState::default();      // off
@@ -106,7 +106,7 @@ the hit rectangles follow automatically, with no invalidation step for you to fo
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, st: &mut ListViewState) {
 ListView::new(vec![ListEntry::new("alpha"), ListEntry::new("beta")]).render(area, buf, st);
@@ -131,7 +131,7 @@ explicitly to override a single widget:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, st: &mut ButtonState) {
 let danger = Theme::resolve(&ThemeSpec::new("danger", true, Rgb::hex(0xef4444)), None);

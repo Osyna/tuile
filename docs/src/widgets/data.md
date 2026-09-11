@@ -14,10 +14,10 @@ Columns define layout and behaviour. Rows hold cells.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::{DataTable, DataTableState, TableColumn, TableRow, TableCell, TableCursor};
-use ratatui::layout::{Constraint, Alignment};
+use tuile::ratatui_core::layout::{Constraint, Alignment};
 
 # fn demo(area: Rect, buf: &mut Buffer) {
 let cols = vec![
@@ -98,10 +98,10 @@ Enter or double-clicking a row sets `state.activated` to `Some(row_idx)`. Call `
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::{DataTable, DataTableState, TableColumn, TableRow, TableCursor};
-# use ratatui::crossterm::event::{Event, KeyEvent};
+# use tuile::crossterm::event::{Event, KeyEvent};
 # fn demo(state: &mut DataTableState, ev: &Event) -> Outcome {
 let out = state.handle(&ev);
 if let Some(idx) = state.take_activated() {
@@ -151,7 +151,7 @@ Example from the showcase (a heatmap blending primary and error colours based on
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # use tuile::widgets::TableCell;
 fn heatmap_style(_row: usize, _col: usize, cell: &TableCell, th: &Theme) -> Option<Style> {
@@ -225,7 +225,7 @@ A simple two-column widget for label-value pairs (definition lists, metadata, se
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::KeyValueList;
 
@@ -250,10 +250,10 @@ Textual-style 3-row large digits for displaying numbers, time, or short characte
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 use tuile::widgets::Digits;
-use ratatui::layout::Alignment;
+use tuile::ratatui_core::layout::Alignment;
 
 # fn demo(area: Rect, buf: &mut Buffer, theme: &Theme) {
 Digits::new("12:34:56")

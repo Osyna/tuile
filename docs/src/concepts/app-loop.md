@@ -7,7 +7,7 @@ app's CPU use and to decide whether you want it at all.
 ## What run does
 
 ```text
-ratatui::init()            enter alternate screen, raw mode, install the panic hook
+enter raw mode + alternate screen, install the panic hook
 enable mouse capture       unless RunOptions { mouse: false }
 
 loop {
@@ -18,7 +18,7 @@ loop {
 }
 
 disable mouse capture
-ratatui::restore()         leave the alternate screen, restore the terminal mode
+leave the alternate screen, restore the terminal mode
 ```
 
 The wait is the interesting part. When `animating()` returns true the timeout is
@@ -52,7 +52,7 @@ the bytes written. Raising it above 60 gains nothing; terminals do not repaint f
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct MyApp { dark: SwitchState, save: ButtonState, toasts: Toaster }
 # impl MyApp {
@@ -78,7 +78,7 @@ that is not a tween belongs:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct MyApp { toasts: Toaster }
 # impl MyApp {
@@ -101,7 +101,7 @@ any loop that can produce a `Buffer` works, including an existing ratatui app:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(frame: &mut Frame, table: &mut DataTableState) {
 // inside your own terminal.draw(|frame| { .. })
@@ -120,10 +120,14 @@ widget), and restoring the terminal when your app panics.
 
 ## Panic safety
 
-`ratatui::init()` installs a panic hook that restores the terminal before the message prints.
-Without it, a panic inside raw mode leaves the user typing into a shell that echoes nothing.
-If you build your own loop, install the same hook, or use `ratatui::init()` and
-`ratatui::restore()` directly.
+`run` installs a panic hook that restores the terminal before the message prints. Without it, a
+panic inside raw mode leaves the user typing into a shell that echoes nothing, and with mouse
+capture still on the terminal keeps emitting escape sequences on every mouse move. The hook
+undoes mouse capture, raw mode and the alternate screen, in that order.
+
+If you build your own loop, install an equivalent hook. `ratatui::init()` and
+`ratatui::restore()` cover raw mode and the alternate screen but know nothing about mouse
+capture, so disable that yourself.
 
 ## Quitting
 
@@ -133,7 +137,7 @@ cleanup after `run` returns.
 
 ```rust,no_run
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct MyApp;
 # impl App for MyApp {

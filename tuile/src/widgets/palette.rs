@@ -13,12 +13,12 @@
 
 use std::time::Instant;
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
-use ratatui::text::{Line, Span};
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Modifier;
+use ratatui_core::text::{Line, Span};
+use ratatui_core::widgets::StatefulWidget;
 
 use crate::core::{
     Hit, HitBox, Interactive, Outcome, is_left_down, is_press, mouse_pos, wheel_delta,
@@ -657,7 +657,7 @@ mod tests {
 
     #[test]
     fn palette_row_click_selects_item() {
-        use ratatui::crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
+        use crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
         let mut state = CommandPaletteState::new();
         state.set_items(&[PaletteItem::new("Alpha"), PaletteItem::new("Beta")]);
         state.open();

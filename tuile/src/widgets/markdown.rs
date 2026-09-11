@@ -9,12 +9,12 @@
 //! Markdown::new(src).render(Rect::new(0, 0, 60, 20), &mut buf, &mut state);
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
-use ratatui::text::{Line, Span};
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Modifier;
+use ratatui_core::text::{Line, Span};
+use ratatui_core::widgets::StatefulWidget;
 
 use crate::core::{Interactive, Outcome, is_press, wheel_delta};
 use crate::draw::{put, st, wrap as text_wrap};

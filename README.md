@@ -30,7 +30,7 @@
   <a href="https://github.com/Osyna/tuile/actions/workflows/ci.yml"><img src="https://github.com/Osyna/tuile/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://github.com/Osyna/tuile/actions/workflows/docs.yml"><img src="https://github.com/Osyna/tuile/actions/workflows/docs.yml/badge.svg" alt="docs"/></a>
   <img src="https://img.shields.io/badge/rust-1.88%2B-orange.svg" alt="Rust 1.88+"/>
-  <img src="https://img.shields.io/badge/ratatui-0.30-blue.svg" alt="ratatui 0.30"/>
+  <img src="https://img.shields.io/badge/ratatui--core-0.1-blue.svg" alt="ratatui-core 0.1"/>
   <img src="https://img.shields.io/badge/unsafe-forbidden-success.svg" alt="unsafe forbidden"/>
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"/>
 </div>
@@ -42,7 +42,7 @@ design system for animated, mouse-aware terminal UIs in Rust: 108 widget types, 
 system that expands ten colours into thirty semantic roles, tweened animation, overlays, and
 a 22-page `showcase` app that exercises every one of them. It ports the parts of
 [Textual](https://textual.textualize.io) that make building a TUI pleasant into plain ratatui
-code, with no runtime, no CSS engine, and two extra dependencies.
+code, with no runtime, no CSS engine, and two dependencies beyond ratatui itself.
 
 *tuile* (tweel) is French for tile, and the thin curved wafer you drape over a mould while it
 is still warm. Both fit: the library tiles a terminal, and it is shaped over ratatui.
@@ -70,7 +70,7 @@ As a library, from [crates.io](https://crates.io/crates/tuile):
 
 ```toml
 [dependencies]
-tuile = "0.1"                                        # re-exports ratatui + crossterm
+tuile = "0.2"                                  # re-exports ratatui-core + crossterm
 ```
 
 Or track main:
@@ -152,8 +152,8 @@ Focus belongs to your app through `Focus<Id>`; hover belongs to each state's `Hi
 render last through `render_overlay(..)` or a dedicated stack widget.
 
 `use tuile::prelude::*;` brings in every widget, the theme, layout and draw helpers, and the
-ratatui types you need (`Rect`, `Buffer`, `Frame`, key and mouse events). `tuile::ratatui` and
-`tuile::crossterm` are re-exported, so your app does not pin its own versions.
+ratatui types you need (`Rect`, `Buffer`, `Frame`, key and mouse events). `tuile::ratatui_core`
+and `tuile::crossterm` are re-exported, so your app does not pin its own versions.
 
 ## 🎨 Theming
 
@@ -259,7 +259,7 @@ cargo xtask shot -s 130x42 -k "Tab Enter" -o out.png -- ./target/release/showcas
 | Colour | Pick every colour by hand, per widget | Ten colours expand into thirty roles, twelve palettes, per-widget override |
 | Animation | Drive your own clock and redraw loop | Tweens and easings on a shared epoch; redraws only while animating |
 | Overlays | Draw last and clip by hand | `render_overlay(..)` queue, popup placement helpers |
-| Dependencies | ratatui | ratatui plus `unicode-width` and `unicode-segmentation` |
+| Dependencies | ratatui | `ratatui-core`, `ratatui-crossterm`, `crossterm`, `unicode-width`, `unicode-segmentation` |
 
 ## 🔧 Writing your own widget
 
@@ -284,7 +284,7 @@ cargo run -p tuile --example custom     # own ThemeSpec, own SpinnerDef, chat + 
 <summary><b>Why not just use ratatui?</b></summary>
 
 You still are. tuile is a widget library on top of ratatui, not a replacement, and it
-re-exports ratatui and crossterm so your own `Rect` and `Buffer` code keeps working. What it
+re-exports ratatui-core and crossterm so your own `Rect` and `Buffer` code keeps working. What it
 adds is the layer every app otherwise rebuilds: focus, hover, scrolling, dropdowns, dialogs,
 toasts, a colour system and animation.
 

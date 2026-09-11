@@ -15,11 +15,11 @@
 
 use std::time::Instant;
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent};
-use ratatui::layout::{Position, Rect};
-use ratatui::style::Modifier;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Position, Rect};
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{Easing, Tween};
@@ -916,7 +916,7 @@ impl StatefulWidget for RadioGroup {
                     border_color,
                     bg,
                     title,
-                    ratatui::layout::Alignment::Left,
+                    ratatui_core::layout::Alignment::Left,
                     title_style,
                 )
             } else {
@@ -1171,7 +1171,7 @@ impl Interactive for RadioState {
         };
         if let Some(idx) = self.hits.iter().position(|r| r.contains(pos)) {
             match m.kind {
-                ratatui::crossterm::event::MouseEventKind::Down(_) => {
+                crossterm::event::MouseEventKind::Down(_) => {
                     self.cursor = idx;
                     if self.selected != Some(idx) {
                         self.selected = Some(idx);
@@ -1511,7 +1511,7 @@ impl Interactive for CheckListState {
         };
         if let Some(&(_, idx)) = self.hits.iter().find(|(r, _)| r.contains(pos)) {
             match m.kind {
-                ratatui::crossterm::event::MouseEventKind::Down(_) => {
+                crossterm::event::MouseEventKind::Down(_) => {
                     self.cursor = idx;
                     if idx < self.checked.len() {
                         self.checked[idx] = !self.checked[idx];
@@ -1819,7 +1819,7 @@ impl Interactive for SegmentedState {
         };
         if let Some(idx) = self.hits.iter().position(|r| r.contains(pos)) {
             match m.kind {
-                ratatui::crossterm::event::MouseEventKind::Down(_) => {
+                crossterm::event::MouseEventKind::Down(_) => {
                     if self.selected != idx {
                         self.selected = idx;
                         Outcome::Changed

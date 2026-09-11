@@ -19,10 +19,10 @@
 
 use std::time::Instant;
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
-use ratatui::widgets::Widget;
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::Widget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{blink, ease_in_out_cubic, pulse, since};
@@ -1185,7 +1185,7 @@ mod tests {
 
             let has_content = (0..area.width).any(|x| {
                 buf.cell((x, 0))
-                    .is_some_and(|c| c.symbol() != " " || c.bg != ratatui::style::Color::Reset)
+                    .is_some_and(|c| c.symbol() != " " || c.bg != ratatui_core::style::Color::Reset)
             });
             assert!(has_content, "{style:?} should draw something in 1 row");
 
@@ -1199,7 +1199,7 @@ mod tests {
                 .filter(|&y| {
                     (0..area.width).any(|x| {
                         buf.cell((x, y)).is_some_and(|c| {
-                            c.symbol() != " " || c.bg != ratatui::style::Color::Reset
+                            c.symbol() != " " || c.bg != ratatui_core::style::Color::Reset
                         })
                     })
                 })
@@ -1277,11 +1277,15 @@ mod tests {
                 .theme(&th)
                 .render(area, &mut buf);
             // the row above the area is untouched
-            assert_eq!(buf[(2, 0)].bg, ratatui::style::Color::Reset, "{shape:?}");
+            assert_eq!(
+                buf[(2, 0)].bg,
+                ratatui_core::style::Color::Reset,
+                "{shape:?}"
+            );
             // something got painted in the area
             let painted = (area.top()..area.bottom())
                 .flat_map(|y| (area.left()..area.right()).map(move |x| (x, y)))
-                .filter(|&(x, y)| buf[(x, y)].bg != ratatui::style::Color::Reset)
+                .filter(|&(x, y)| buf[(x, y)].bg != ratatui_core::style::Color::Reset)
                 .count();
             assert!(painted > 0, "{shape:?}");
         }

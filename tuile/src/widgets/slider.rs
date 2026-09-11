@@ -12,11 +12,11 @@
 
 use std::time::{Duration, Instant};
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{Easing, Tween};
@@ -1187,11 +1187,11 @@ impl Interactive for RatingState {
         let pos = mouse_pos(&m);
         if let Some(idx) = self.hits.iter().position(|r| r.contains(pos)) {
             match m.kind {
-                ratatui::crossterm::event::MouseEventKind::Moved => {
+                crossterm::event::MouseEventKind::Moved => {
                     self.hover_value = Some((idx + 1) as u8);
                     Outcome::Consumed
                 }
-                ratatui::crossterm::event::MouseEventKind::Down(_) => {
+                crossterm::event::MouseEventKind::Down(_) => {
                     let v = (idx + 1) as u8;
                     let max = self.hits.len() as u8;
                     self.hover_value = None;
@@ -1204,7 +1204,7 @@ impl Interactive for RatingState {
                 _ => Outcome::Consumed,
             }
         } else {
-            if m.kind == ratatui::crossterm::event::MouseEventKind::Moved {
+            if m.kind == crossterm::event::MouseEventKind::Moved {
                 self.hover_value = None;
             }
             Outcome::Ignored

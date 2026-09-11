@@ -10,7 +10,7 @@ spinner is a name, an interval and a list of frames.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
 Spinner::new(&spinners::DOTS).label("Loading").now(now).render(area, buf);
@@ -41,7 +41,7 @@ spinner it would in a Node tool.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 const PULSE: SpinnerDef = SpinnerDef::new("pulse", 120, &["·", "•", "●", "•"]);
 
@@ -66,7 +66,7 @@ When the frames come from a config file or are computed, they are not `'static`:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant, frames: &[&str]) {
 Spinner::frames(frames, 90).now(now).render(area, buf);
@@ -81,7 +81,7 @@ copied; the slice only has to outlive the render call.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
 Spinner::new(&spinners::DOTS).now(now).render(area, buf);        // phase from the shared epoch
@@ -101,7 +101,7 @@ another constant; the spinner does not take a speed multiplier.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, now: Instant) {
 let th = theme::current();

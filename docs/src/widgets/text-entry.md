@@ -10,7 +10,7 @@ A single-line text field with cursor, horizontal scrolling, selection, history, 
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -96,7 +96,7 @@ A multi-line text editor with line numbers, syntax highlighting hook, undo/redo,
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -190,7 +190,7 @@ A dropdown with a fixed list of options. Click or press Space/Enter to open, arr
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -265,7 +265,7 @@ An editable select: type to filter options, arrow keys to navigate, Enter to cho
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {
@@ -331,7 +331,7 @@ A select with checkboxes. Space toggles the highlighted option, Enter confirms a
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 use tuile::prelude::*;
 
 # fn demo(area: Rect, buf: &mut Buffer) {

@@ -15,11 +15,11 @@
 
 use std::time::Instant;
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::style::Modifier;
-use ratatui::widgets::{StatefulWidget, Widget};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Modifier;
+use ratatui_core::widgets::{StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{blink, pulse, since};
@@ -2445,7 +2445,7 @@ impl StatefulWidget for PromptComposer {
         let limit = area.right().saturating_sub(right_w + 2);
 
         // left, in priority order, each only if it fits whole: model pill, send hint, attachments, newline hint
-        let mut place = |text: &str, style: ratatui::style::Style, x: &mut u16| {
+        let mut place = |text: &str, style: ratatui_core::style::Style, x: &mut u16| {
             let w = text.width() as u16;
             if *x + w <= limit {
                 put(buf, *x, y, text, w, style);
@@ -3061,7 +3061,7 @@ mod tests {
 
     #[test]
     fn clicking_thinking_header_toggles_it() {
-        use ratatui::crossterm::event::{MouseButton, MouseEventKind};
+        use crossterm::event::{MouseButton, MouseEventKind};
         let area = Rect::new(0, 0, 60, 12);
         let mut buf = Buffer::empty(area);
         let mut s = ChatState::new();

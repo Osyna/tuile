@@ -8,7 +8,7 @@ testing; the rest is covered by driving the real binary headlessly and looking a
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn main() {
 let mut buf = Buffer::empty(Rect::new(0, 0, 20, 3));
@@ -28,7 +28,7 @@ foreground, the background and the modifiers, so you can assert on colour as wel
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn main() {
 let mut state = CheckboxState::new(CheckState::Off);
@@ -57,7 +57,7 @@ A state must render before it can be clicked, because that is when it learns its
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn main() {
 let mut buf = Buffer::empty(Rect::new(0, 0, 20, 3));
@@ -87,7 +87,7 @@ Pin the clock with `.elapsed(secs)` instead of `.now(instant)`:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn main() {
 let mut buf = Buffer::empty(Rect::new(0, 0, 10, 1));

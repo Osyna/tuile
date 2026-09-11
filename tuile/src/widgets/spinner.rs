@@ -26,9 +26,9 @@
 
 use std::time::Instant;
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::widgets::Widget;
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::widgets::Widget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{frame_index, since};

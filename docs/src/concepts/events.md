@@ -23,7 +23,7 @@ Every stateful widget implements `Interactive`:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(state: &mut CheckboxState, key: KeyEvent, m: MouseEvent, ev: &Event) {
 state.handle_key(key);     // key events only
@@ -49,7 +49,7 @@ flash only appears if the builder was given a `now` to measure against.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn main() {
 assert_eq!(Outcome::Ignored | Outcome::Consumed, Outcome::Consumed);
@@ -61,7 +61,7 @@ That is what makes broadcasting a mouse event to a screen of widgets one express
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct Page { name: InputState, email: InputState, save: ButtonState }
 # impl Page {
@@ -83,7 +83,7 @@ dispatch is to offer the event to everyone and let each widget test its own rect
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # #[derive(Clone, Copy, PartialEq)] enum Id { Name, Save }
 # struct Page { name: InputState, save: ButtonState, focus: Focus<Id> }
@@ -121,7 +121,7 @@ Handle overlays before the widgets beneath them, and stop when one consumes:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct Page { menu: ContextMenuState, table: DataTableState }
 # impl Page {
@@ -144,7 +144,7 @@ The [overlays](overlays.md) chapter covers the drawing half of the same problem.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(dark: &mut SwitchState, ev: &Event) {
 if dark.handle(ev).is_changed() {

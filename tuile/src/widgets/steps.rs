@@ -7,10 +7,10 @@
 //! Steps::new(&["Start", "Build", "Deploy"]).active(1).render(Rect::new(0, 0, 40, 3), &mut buf, &mut state);
 //! ```
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyEvent, MouseEvent};
-use ratatui::layout::Rect;
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::{KeyEvent, MouseEvent};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::widgets::StatefulWidget;
 
 use crate::core::{Hit, HitBox, Interactive, Outcome};
 use crate::draw::{fill, put, put_centered, st};
@@ -369,7 +369,7 @@ impl Timeline {
     }
 }
 
-impl ratatui::widgets::Widget for Timeline {
+impl ratatui_core::widgets::Widget for Timeline {
     fn render(self, area: Rect, buf: &mut Buffer) {
         if area.width < 10 || area.height == 0 || self.entries.is_empty() {
             return;

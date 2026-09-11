@@ -10,7 +10,7 @@ the Settings page of the showcase, in about 300 lines.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 #[derive(Clone, Copy, PartialEq)]
 enum Field { Name, Email, Notify, Retention, Save }
@@ -48,7 +48,7 @@ separate model to keep in sync, and reading the form back is reading the states.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # #[derive(Clone, Copy, PartialEq)] enum Field { Name, Email, Notify, Retention, Save }
 # struct Settings { name: InputState, email: InputState, notify: SwitchState, retention: SliderState, save: ButtonState, focus: Focus<Field>, dirty: bool }
@@ -116,7 +116,7 @@ its enabled flag. Deriving all three from one bool is what keeps them consistent
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # #[derive(Clone, Copy, PartialEq)] enum Field { Name, Email, Notify, Retention, Save }
 # struct Settings { name: InputState, email: InputState, notify: SwitchState, retention: SliderState, save: ButtonState, focus: Focus<Field>, dirty: bool }
@@ -180,7 +180,7 @@ colour with the message underneath.
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # fn demo(area: Rect, buf: &mut Buffer, state: &mut InputState) {
 Input::new()
@@ -207,7 +207,7 @@ Gate submission on validity:
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct Settings { name: InputState, email: InputState }
 # impl Settings {
@@ -222,7 +222,7 @@ fn valid(&self) -> bool {
 
 ```rust
 # extern crate tuile;
-# extern crate ratatui;
+# extern crate ratatui_core;
 # use tuile::prelude::*;
 # struct Page { confirm: ModalState }
 # impl Page {

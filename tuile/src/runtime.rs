@@ -1,16 +1,21 @@
 //! The app runner: terminal setup/teardown (with panic-safe restore), mouse capture, an
 //! event loop that only redraws at 60 fps while something animates, and a local clock.
 
-use std::io::{self, stdout};
+use std::io::{self, Stdout, stdout};
 use std::process::Command;
 use std::sync::LazyLock;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use ratatui::Frame;
-use ratatui::crossterm::event::{
-    self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind,
+use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind};
+use crossterm::execute;
+use crossterm::terminal::{
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
-use ratatui::crossterm::execute;
+use ratatui_core::terminal::{Frame, Terminal};
+use ratatui_crossterm::CrosstermBackend;
+
+/// What [`run`] draws into: a terminal on the crossterm backend writing to stdout.
+pub type DefaultTerminal = Terminal<CrosstermBackend<Stdout>>;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Flow {
@@ -59,20 +64,47 @@ pub fn run<A: App>(app: &mut A) -> io::Result<()> {
 }
 
 pub fn run_with<A: App>(app: &mut A, opts: RunOptions) -> io::Result<()> {
-    let mut terminal = ratatui::init();
-    if opts.mouse {
-        execute!(stdout(), EnableMouseCapture)?;
-    }
+    let mut terminal = init(opts.mouse)?;
     let result = event_loop(&mut terminal, app, opts);
-    if opts.mouse {
-        let _ = execute!(stdout(), DisableMouseCapture);
-    }
-    ratatui::restore();
+    restore(opts.mouse);
     result
 }
 
+/// Enter raw mode and the alternate screen, and install a panic hook that leaves both.
+///
+/// The hook runs before the previous one, so a panic prints its message to a restored
+/// terminal instead of into a raw-mode screen that is about to be discarded.
+fn init(mouse: bool) -> io::Result<DefaultTerminal> {
+    let hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        restore(mouse);
+        hook(info);
+    }));
+    enable_raw_mode()?;
+    execute!(stdout(), EnterAlternateScreen)?;
+    if mouse {
+        execute!(stdout(), EnableMouseCapture)?;
+    }
+    Terminal::new(CrosstermBackend::new(stdout()))
+}
+
+/// Undo [`init`]. Every step is attempted even if an earlier one fails: a terminal left in
+/// raw mode with mouse reporting on is unusable, so a partial restore beats an early return.
+fn restore(mouse: bool) {
+    if mouse {
+        let _ = execute!(stdout(), DisableMouseCapture);
+    }
+    // Raw mode first: it has more side effects than the alternate screen.
+    if let Err(e) = disable_raw_mode() {
+        eprintln!("tuile: failed to leave raw mode: {e}");
+    }
+    if let Err(e) = execute!(stdout(), LeaveAlternateScreen) {
+        eprintln!("tuile: failed to leave the alternate screen: {e}");
+    }
+}
+
 fn event_loop<A: App>(
-    terminal: &mut ratatui::DefaultTerminal,
+    terminal: &mut DefaultTerminal,
     app: &mut A,
     opts: RunOptions,
 ) -> io::Result<()> {

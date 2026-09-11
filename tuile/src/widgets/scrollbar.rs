@@ -1,10 +1,10 @@
 //! Textual-style scrollbars with eighth-block thumb ends, plus `ScrollbarState` that turns
 //! wheel/drag mouse events into offsets. Shared by lists, tables, scroll views, logs…
 
-use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::MouseEvent;
-use ratatui::layout::{Position, Rect};
-use ratatui::widgets::StatefulWidget;
+use crossterm::event::MouseEvent;
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::{Position, Rect};
+use ratatui_core::widgets::StatefulWidget;
 
 use crate::core::{Hit, HitBox, Outcome};
 use crate::draw::{LEFT_BLOCKS, LOWER_BLOCKS, fill};
@@ -306,7 +306,7 @@ pub fn row_at(area: Rect, offset: usize, pos: Position) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
+    use crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
 
     fn me(kind: MouseEventKind, x: u16, y: u16) -> MouseEvent {
         MouseEvent {

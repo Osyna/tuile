@@ -14,4 +14,5 @@ path = "src/main.rs"
 # The gallery is a pure tuile consumer: every ratatui and crossterm type it needs comes
 # through `tuile::prelude`, which is the surface an app is meant to use.
 tuile = { path = "../tuile", version = "0.2.0" }
+unicode-segmentation = { workspace = true }
 unicode-width = { workspace = true }

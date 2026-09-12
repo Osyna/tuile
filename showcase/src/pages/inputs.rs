@@ -1,6 +1,7 @@
 //! Input widgets: Input, TextArea, Select, Combobox, MultiSelect.
 
 use std::time::Instant;
+use unicode_segmentation::UnicodeSegmentation;
 
 use tuile::draw::{Border, fill, put, st};
 use tuile::prelude::*;
@@ -690,27 +691,46 @@ fn highlight_rust(line: &str) -> Vec<(usize, usize, Style)> {
     let keyword_style = st(th.primary, th.surface);
     let string_style = st(th.success, th.surface);
 
+    let graphemes: Vec<&str> = line.graphemes(true).collect();
+
     // Simple keyword matching
     for kw in keywords {
-        let mut start = 0;
-        while let Some(pos) = line[start..].find(kw) {
-            let abs_pos = start + pos;
-            // Check word boundary
-            let before_ok = abs_pos == 0 || !line.as_bytes()[abs_pos - 1].is_ascii_alphanumeric();
-            let after_ok = abs_pos + kw.len() >= line.len()
-                || !line.as_bytes()[abs_pos + kw.len()].is_ascii_alphanumeric();
-            if before_ok && after_ok {
-                spans.push((abs_pos, abs_pos + kw.len(), keyword_style));
+        let kw_graphemes: Vec<&str> = kw.graphemes(true).collect();
+        let kw_len = kw_graphemes.len();
+
+        for start in 0..graphemes.len() {
+            if start + kw_len > graphemes.len() {
+                break;
             }
-            start = abs_pos + kw.len();
+            // Check if graphemes match
+            let matches = graphemes[start..start + kw_len]
+                .iter()
+                .zip(&kw_graphemes)
+                .all(|(a, b)| a == b);
+
+            if matches {
+                // Check word boundaries
+                let before_ok = start == 0
+                    || !graphemes[start - 1]
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric());
+                let after_ok = start + kw_len >= graphemes.len()
+                    || !graphemes[start + kw_len]
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric());
+
+                if before_ok && after_ok {
+                    spans.push((start, start + kw_len, keyword_style));
+                }
+            }
         }
     }
 
     // String literals
     let mut in_string = false;
     let mut string_start = 0;
-    for (i, ch) in line.chars().enumerate() {
-        if ch == '"' {
+    for (i, g) in graphemes.iter().enumerate() {
+        if *g == "\"" {
             if in_string {
                 spans.push((string_start, i + 1, string_style));
                 in_string = false;
@@ -721,7 +741,7 @@ fn highlight_rust(line: &str) -> Vec<(usize, usize, Style)> {
         }
     }
     if in_string {
-        spans.push((string_start, line.len(), string_style));
+        spans.push((string_start, graphemes.len(), string_style));
     }
 
     spans.sort_by_key(|s| s.0);

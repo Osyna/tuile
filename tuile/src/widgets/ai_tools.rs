@@ -21,8 +21,10 @@ use ratatui_core::widgets::{StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{elapsed, since};
-use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
-use crate::draw::{Border, Edge, bold, fill, hbar, put, put_right, st, truncate, truncate_start};
+use crate::core::{Highlighter, Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
+use crate::draw::{
+    Border, Edge, bold, fill, hbar, put, put_highlighted, put_right, st, truncate, truncate_start,
+};
 use crate::theme::{self, Theme, Variant};
 use crate::widgets::ai::{DiffKind, DiffLine, ToolStatus};
 use crate::widgets::spinner::spinners;
@@ -746,8 +748,7 @@ pub struct CodeBlock<'a> {
     caret: bool,
     now: Option<Instant>,
     // A `fn` pointer hook the caller must match exactly; an alias would hide the signature.
-    #[allow(clippy::type_complexity)]
-    highlighter: Option<fn(&str) -> Vec<(usize, usize, ratatui_core::style::Style)>>,
+    highlighter: Option<Highlighter>,
 }
 
 impl<'a> CodeBlock<'a> {
@@ -811,10 +812,7 @@ impl<'a> CodeBlock<'a> {
         self
     }
 
-    pub fn highlighter(
-        mut self,
-        h: fn(&str) -> Vec<(usize, usize, ratatui_core::style::Style)>,
-    ) -> Self {
+    pub fn highlighter(mut self, h: Highlighter) -> Self {
         self.highlighter = Some(h);
         self
     }
@@ -934,7 +932,12 @@ impl Widget for CodeBlock<'_> {
 
                 // Line text
                 let text = truncate(line, code_w as usize);
-                put(buf, code_x, y, &text, code_w, st(th.text, code_bg));
+                if let Some(highlighter) = self.highlighter {
+                    let ranges = highlighter(line);
+                    put_highlighted(buf, code_x, y, &text, code_w, st(th.text, code_bg), &ranges);
+                } else {
+                    put(buf, code_x, y, &text, code_w, st(th.text, code_bg));
+                }
 
                 y += 1;
             }
@@ -2261,6 +2264,7 @@ fn fmt_ms(secs: f32) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::theme::Rgb;
 
     #[test]
     fn tool_step_builder() {
@@ -2438,5 +2442,62 @@ mod tests {
                 .reason("test")
                 .render(area, &mut buf);
         }
+    }
+
+    #[test]
+    fn code_block_highlighter_applies_styles() {
+        use ratatui_core::buffer::Buffer;
+        use ratatui_core::style::Style;
+
+        let area = Rect::new(0, 0, 30, 5);
+        let mut buf = Buffer::empty(area);
+        let hl_style = st(Rgb(0, 255, 0), Rgb(0, 0, 0));
+
+        fn simple_highlighter(line: &str) -> Vec<(usize, usize, Style)> {
+            let hl = st(Rgb(0, 255, 0), Rgb(0, 0, 0));
+            if line.contains("keyword") {
+                vec![(0, 7, hl)] // highlight "keyword"
+            } else {
+                vec![]
+            }
+        }
+
+        CodeBlock::new()
+            .text("keyword rest")
+            .line_numbers(false)
+            .highlighter(simple_highlighter)
+            .render(area, &mut buf);
+
+        // The code starts at y=1 (after header)
+        let code_y = 1;
+        // First 7 chars should be highlighted (grapheme offsets 0-6 inclusive)
+        assert_eq!(
+            buf[(0, code_y)].fg,
+            hl_style.fg.unwrap(),
+            "char 0 (k) should be highlighted"
+        );
+        assert_eq!(
+            buf[(6, code_y)].fg,
+            hl_style.fg.unwrap(),
+            "char 6 (d) should be highlighted"
+        );
+        // Char 7 (space) should not be highlighted
+        assert_ne!(
+            buf[(7, code_y)].fg,
+            hl_style.fg.unwrap(),
+            "char 7 (space) should use base style"
+        );
+    }
+
+    #[test]
+    fn code_block_no_panic_at_tiny_size() {
+        use ratatui_core::buffer::Buffer;
+        let area = Rect::new(0, 0, 1, 1);
+        let mut buf = Buffer::empty(area);
+        CodeBlock::new()
+            .text("hello")
+            .highlighter(|_| vec![(0, 5, st(Rgb(0, 255, 0), Rgb(0, 0, 0)))])
+            .render(area, &mut buf);
+        // Should not panic
     }
 }

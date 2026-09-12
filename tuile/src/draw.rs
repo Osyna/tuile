@@ -78,6 +78,47 @@ pub fn put_aligned(
         Alignment::Right => put_right(buf, area, text, style),
     }
 }
+/// Draw `text` at (x, y) applying highlight `ranges`, clipped to `max_width` and the buffer.
+/// Ranges are `(start, end, Style)` where `start..end` are half-open grapheme-cluster offsets.
+/// Text outside all ranges uses `base_style`. Returns columns drawn.
+///
+/// Malformed ranges (out-of-bounds, overlapping, descending) are ignored; never panics.
+pub fn put_highlighted(
+    buf: &mut Buffer,
+    x: u16,
+    y: u16,
+    text: &str,
+    max_width: u16,
+    base_style: Style,
+    ranges: &[(usize, usize, Style)],
+) -> u16 {
+    if y >= buf.area.bottom() || x >= buf.area.right() || max_width == 0 {
+        return 0;
+    }
+    let clip_width = max_width.min(buf.area.right().saturating_sub(x));
+    let mut drawn = 0u16;
+
+    for (grapheme_idx, grapheme) in text.graphemes(true).enumerate() {
+        if drawn >= clip_width {
+            break;
+        }
+        // Find the range covering this grapheme (ranges are half-open: [start..end))
+        let style = ranges
+            .iter()
+            .find(|(start, end, _)| *start <= grapheme_idx && grapheme_idx < *end && start < end)
+            .map(|(_, _, s)| *s)
+            .unwrap_or(base_style);
+
+        let glyph_width = grapheme.width() as u16;
+        if drawn + glyph_width <= clip_width {
+            put(buf, x + drawn, y, grapheme, glyph_width, style);
+            drawn += glyph_width;
+        } else {
+            break;
+        }
+    }
+    drawn
+}
 
 /// Draw a single cell symbol.
 pub fn put_cell(buf: &mut Buffer, x: u16, y: u16, sym: &str, style: Style) {
@@ -769,6 +810,79 @@ mod tests {
         assert_eq!(FieldShape::Band.padding(), 0);
         assert_eq!(FieldShape::Tall(Edge::Thin).vertical_chrome(), 2);
         assert_eq!(FieldShape::Bars(Edge::Thin).vertical_chrome(), 0);
+    }
+
+    #[test]
+    fn put_highlighted_applies_ranges_at_grapheme_offsets() {
+        let area = Rect::new(0, 0, 20, 1);
+        let mut buf = Buffer::empty(area);
+        let base = st(Rgb(255, 255, 255), Rgb(0, 0, 0));
+        let hl = st(Rgb(0, 255, 0), Rgb(0, 0, 0));
+        let text = "hello world";
+        let ranges = vec![(0, 5, hl)]; // highlight "hello"
+        put_highlighted(&mut buf, 0, 0, text, 20, base, &ranges);
+        // First 5 graphemes should be highlighted
+        assert_eq!(buf[(0, 0)].fg, hl.fg.unwrap());
+        assert_eq!(buf[(4, 0)].fg, hl.fg.unwrap());
+        // Space and rest should use base
+        assert_eq!(buf[(5, 0)].fg, base.fg.unwrap());
+        assert_eq!(buf[(6, 0)].fg, base.fg.unwrap());
+    }
+
+    #[test]
+    fn put_highlighted_handles_wide_graphemes() {
+        let area = Rect::new(0, 0, 20, 1);
+        let mut buf = Buffer::empty(area);
+        let base = st(Rgb(255, 255, 255), Rgb(0, 0, 0));
+        let hl = st(Rgb(0, 255, 0), Rgb(0, 0, 0));
+        let text = "你好 world"; // "你好" are 2 graphemes, each 2 cells wide
+        let ranges = vec![(0, 2, hl)]; // highlight the two CJK chars
+        put_highlighted(&mut buf, 0, 0, text, 20, base, &ranges);
+        // Check first cell of each wide grapheme (cells 0 and 2)
+        assert_eq!(buf[(0, 0)].fg, hl.fg.unwrap(), "first wide char first cell");
+        assert_eq!(
+            buf[(2, 0)].fg,
+            hl.fg.unwrap(),
+            "second wide char first cell"
+        );
+        // Space after (cell 4) should use base
+        assert_eq!(buf[(4, 0)].fg, base.fg.unwrap());
+    }
+
+    #[test]
+    fn put_highlighted_ignores_malformed_ranges() {
+        let area = Rect::new(0, 0, 20, 1);
+        let mut buf = Buffer::empty(area);
+        let base = st(Rgb(255, 255, 255), Rgb(0, 0, 0));
+        let hl = st(Rgb(0, 255, 0), Rgb(0, 0, 0));
+        let text = "hello";
+        // Out of bounds, overlapping, and descending ranges
+        let ranges = vec![
+            (100, 200, hl), // out of bounds
+            (3, 2, hl),     // descending (start > end)
+        ];
+        // Should not panic
+        put_highlighted(&mut buf, 0, 0, text, 20, base, &ranges);
+        // All cells should use base style
+        for x in 0..5 {
+            assert_eq!(buf[(x, 0)].fg, base.fg.unwrap());
+        }
+    }
+
+    #[test]
+    fn put_highlighted_clips_to_width() {
+        let area = Rect::new(0, 0, 3, 1);
+        let mut buf = Buffer::empty(area);
+        let base = st(Rgb(255, 255, 255), Rgb(0, 0, 0));
+        let hl = st(Rgb(0, 255, 0), Rgb(0, 0, 0));
+        let text = "hello world";
+        let ranges = vec![(0, 11, hl)];
+        // Only 3 cells available
+        let drawn = put_highlighted(&mut buf, 0, 0, text, 3, base, &ranges);
+        assert_eq!(drawn, 3);
+        assert_eq!(buf[(0, 0)].symbol(), "h");
+        assert_eq!(buf[(1, 0)].symbol(), "e");
+        assert_eq!(buf[(2, 0)].symbol(), "l");
     }
 
     #[test]

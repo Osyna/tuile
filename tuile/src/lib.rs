@@ -100,7 +100,8 @@ pub mod prelude {
     pub use crate::anim::{self, Clock, Easing, Tween, blink, elapsed, frame_index, pulse, since};
     pub use crate::core::*;
     pub use crate::draw::{
-        Border, Edge, FieldShape, fill, put, put_centered, put_right, st, truncate, wrap,
+        Border, Edge, FieldShape, fill, put, put_centered, put_highlighted, put_right, st,
+        truncate, wrap,
     };
     pub use crate::layout::{Overlay, center, center_h, columns, pad, popup_below, stack};
     pub use crate::runtime::{App, Flow, RunOptions, run, run_with};

@@ -23,9 +23,10 @@ use ratatui_core::widgets::{StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{blink, pulse, since};
-use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
+use crate::core::{Highlighter, Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
 use crate::draw::{
-    Border, Edge, FieldShape, fill, put, put_centered, put_right, st, truncate, wrap,
+    Border, Edge, FieldShape, fill, put, put_centered, put_highlighted, put_right, st, truncate,
+    wrap,
 };
 use crate::theme::{self, Rgb, Theme};
 use crate::widgets::charts::{Meter, MeterStyle};
@@ -366,6 +367,7 @@ pub struct ChatView {
     max_width: Option<u16>,
     compact: bool,
     hover: bool,
+    highlighter: Option<Highlighter>,
 }
 
 impl ChatView {
@@ -381,6 +383,7 @@ impl ChatView {
             max_width: None,
             compact: false,
             hover: false,
+            highlighter: None,
         }
     }
 
@@ -435,6 +438,12 @@ impl ChatView {
     /// Maximum bubble width.
     pub fn max_width(mut self, w: u16) -> Self {
         self.max_width = Some(w);
+        self
+    }
+
+    /// Syntax highlighting function for code blocks.
+    pub fn highlighter(mut self, h: Highlighter) -> Self {
+        self.highlighter = Some(h);
         self
     }
 }
@@ -968,7 +977,20 @@ impl StatefulWidget for ChatView {
                     }
                 }
                 RowKind::Code => {
-                    let used = put(buf, inner.x, y, &row.text, inner.width, st(fg, bg));
+                    let used = if let Some(highlighter) = self.highlighter {
+                        let ranges = highlighter(&row.text);
+                        put_highlighted(
+                            buf,
+                            inner.x,
+                            y,
+                            &row.text,
+                            inner.width,
+                            st(fg, bg),
+                            &ranges,
+                        )
+                    } else {
+                        put(buf, inner.x, y, &row.text, inner.width, st(fg, bg))
+                    };
                     if let Some(lang) = row.right.as_deref().filter(|l| !l.is_empty()) {
                         // painted language chip on the block's header row
                         let chip = format!(" {lang} ");
@@ -2889,6 +2911,7 @@ impl StatefulWidget for Approval {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::theme::Rgb;
 
     #[test]
     fn chat_append_text_grows_last_message() {
@@ -3198,5 +3221,84 @@ mod tests {
                     .render(area, &mut buf, &mut a);
             }
         }
+    }
+
+    #[test]
+    fn chat_view_highlighter_applies_to_code_blocks() {
+        use ratatui_core::buffer::Buffer;
+        use ratatui_core::style::Style;
+
+        let area = Rect::new(0, 0, 40, 10);
+        let mut buf_with_hl = Buffer::empty(area);
+        let mut buf_without_hl = Buffer::empty(area);
+        let mut state = ChatState::default();
+
+        let mut msg = ChatMessage::new(Role::Assistant, "");
+        msg.blocks = vec![ChatBlock::Code {
+            lang: None,
+            text: "keyword rest".to_string(),
+        }];
+        state.messages.push(msg);
+
+        fn simple_highlighter(line: &str) -> Vec<(usize, usize, Style)> {
+            let hl = st(Rgb(0, 255, 0), Rgb(0, 0, 0));
+            if line.contains("keyword") {
+                vec![(1, 8, hl)] // highlight "keyword" (skipping leading space in " keyword rest")
+            } else {
+                vec![]
+            }
+        }
+
+        // Render with highlighter
+        ChatView::new().highlighter(simple_highlighter).render(
+            area,
+            &mut buf_with_hl,
+            &mut state.clone(),
+        );
+
+        // Render without highlighter
+        ChatView::new().render(area, &mut buf_without_hl, &mut state);
+
+        // Find a cell that should be highlighted (somewhere in the middle of "keyword")
+        // Code rows have a leading space, so "keyword" starts at offset 1
+        let mut found_highlighted = false;
+        for y in 0..area.height {
+            for x in 0..area.width {
+                let cell_with = &buf_with_hl[(x, y)];
+                let cell_without = &buf_without_hl[(x, y)];
+                if (cell_with.symbol() == "k" || cell_with.symbol() == "e")
+                    && cell_with.fg != cell_without.fg
+                {
+                    found_highlighted = true;
+                    break;
+                }
+            }
+            if found_highlighted {
+                break;
+            }
+        }
+        assert!(
+            found_highlighted,
+            "Highlighter should change cell colors in code blocks"
+        );
+    }
+
+    #[test]
+    fn chat_view_no_panic_at_tiny_size_with_highlighter() {
+        use ratatui_core::buffer::Buffer;
+        let area = Rect::new(0, 0, 1, 1);
+        let mut buf = Buffer::empty(area);
+        let mut state = ChatState::default();
+        state.push(
+            ChatMessage::new(Role::Assistant, "").with_blocks(vec![ChatBlock::Code {
+                lang: None,
+                text: "hello world".to_string(),
+            }]),
+        );
+
+        ChatView::new()
+            .highlighter(|_| vec![(0, 5, st(Rgb(0, 255, 0), Rgb(0, 0, 0)))])
+            .render(area, &mut buf, &mut state);
+        // Should not panic
     }
 }

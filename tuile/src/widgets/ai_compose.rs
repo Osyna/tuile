@@ -1270,9 +1270,12 @@ pub struct HarnessStatus {
     model: String,
     branch: String,
     dirty: bool,
-    context_pct: f32,
+    /// Fraction of the context window in use, 0.0..=1.0. `None` when the provider manages its
+    /// own window and reports nothing: the segment and its bar are then not drawn at all.
+    context_pct: Option<f32>,
     tokens: u32,
-    cost: f32,
+    /// `None` when nobody reported a cost. `Some(0.0)` is a real, reported zero.
+    cost: Option<f32>,
     elapsed: std::time::Duration,
     busy: bool,
     queued: u32,
@@ -1288,9 +1291,9 @@ impl HarnessStatus {
             model: String::new(),
             branch: String::new(),
             dirty: false,
-            context_pct: 0.0,
+            context_pct: None,
             tokens: 0,
-            cost: 0.0,
+            cost: None,
             elapsed: std::time::Duration::ZERO,
             busy: false,
             queued: 0,
@@ -1318,9 +1321,9 @@ impl HarnessStatus {
         self.dirty = d;
         self
     }
-    /// Set context percentage.
-    pub fn context_pct(mut self, p: f32) -> Self {
-        self.context_pct = p;
+    /// Set the context window usage as a fraction, 0.0..=1.0. Leave unset when it is unknown.
+    pub fn context_pct(mut self, fraction: f32) -> Self {
+        self.context_pct = Some(fraction);
         self
     }
     /// Set tokens.
@@ -1328,9 +1331,9 @@ impl HarnessStatus {
         self.tokens = t;
         self
     }
-    /// Set cost.
+    /// Set cost. Leave unset when no cost was reported, which is not the same as zero.
     pub fn cost(mut self, c: f32) -> Self {
-        self.cost = c;
+        self.cost = Some(c);
         self
     }
     /// Set elapsed.
@@ -1394,9 +1397,10 @@ impl Widget for HarnessStatus {
             parts.push(self.model.clone());
         }
 
-        // context bar + pct
-        let ctx_bar = format!("{}%", (self.context_pct * 100.0) as u32);
-        parts.push(ctx_bar.clone());
+        // context bar + pct, drawn only when a fraction was actually reported
+        if let Some(fraction) = self.context_pct {
+            parts.push(format!("{}%", (fraction * 100.0) as u32));
+        }
 
         // tokens
         if self.tokens > 0 {
@@ -1404,8 +1408,8 @@ impl Widget for HarnessStatus {
         }
 
         // cost
-        if self.cost > 0.0 {
-            parts.push(format!("${:.2}", self.cost));
+        if let Some(c) = self.cost {
+            parts.push(format!("${:.2}", c));
         }
 
         // branch
@@ -1494,7 +1498,7 @@ impl Widget for HarnessStatus {
                         x,
                         area.y,
                         bar_w,
-                        self.context_pct,
+                        self.context_pct.unwrap_or(0.0),
                         th.primary,
                         th.surface,
                     );
@@ -2716,6 +2720,37 @@ mod tests {
         assert!(narrow.contains("Act") && narrow.contains("claude") && narrow.contains("50%"));
         assert!(
             !narrow.contains("queued") && !narrow.contains("main") && !narrow.contains("$0.50")
+        );
+    }
+
+    /// A provider that manages its own context window reports no percentage and no cost. The
+    /// status line must then show neither, rather than a confident `0%` / `$0.00`.
+    #[test]
+    fn harness_status_omits_unreported_context_and_cost() {
+        let render = |f: &dyn Fn(HarnessStatus) -> HarnessStatus| {
+            let mut buf = Buffer::empty(Rect::new(0, 0, 120, 1));
+            f(HarnessStatus::new().mode(HarnessMode::Act).model("sonnet"))
+                .render(buf.area, &mut buf);
+            (0..120)
+                .map(|x| buf[(x, 0)].symbol().to_string())
+                .collect::<String>()
+        };
+        let silent = render(&|s| s);
+        assert!(silent.contains("sonnet"), "what is known is still shown");
+        assert!(
+            !silent.contains('%'),
+            "no percentage was reported: {silent:?}"
+        );
+        assert!(!silent.contains('$'), "no cost was reported: {silent:?}");
+
+        let reported = render(&|s| s.context_pct(0.47).cost(0.0));
+        assert!(
+            reported.contains("47%"),
+            "a reported fraction renders as a percentage"
+        );
+        assert!(
+            reported.contains("$0.00"),
+            "a reported zero is a real number and is shown"
         );
     }
 

@@ -450,6 +450,15 @@ pub fn word_boundary(graphemes: &[&str], pos: usize, forward: bool) -> usize {
         i
     }
 }
+// highlighting
+
+/// Syntax highlighting function: returns styled ranges as half-open grapheme offsets.
+///
+/// Each `(start, end, Style)` tuple marks a range `[start..end)` of grapheme cluster indices
+/// (as walked by `line.graphemes(true)`). Ranges must be ascending and non-overlapping.
+/// Text not covered by any range keeps the caller's base style. Out-of-bounds, overlapping,
+/// or descending ranges are ignored (the helper never panics).
+pub type Highlighter = fn(&str) -> Vec<(usize, usize, ratatui_core::style::Style)>;
 
 #[cfg(test)]
 mod tests {

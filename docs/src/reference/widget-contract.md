@@ -102,6 +102,7 @@ Rules:
     `◈ ◉ ◔ ◌ ◆ ◇ ● ○ ■ □ ◧ ◫ ◊ ⊞ ⊡ ⊙ ⊛ ⊕ ⊗ ⌘ ⌂ ≡ ▸ ▹ ◂ ◃ ▴ ▾ ▲ ▼ • ◦ ✓ ✗ ✶ ¶ ⋮ ⋯ ❯`. Check a
     candidate with `unicode_width::UnicodeWidthStr::width` **and** a `cargo xtask shot` screenshot
     before using it.
+17. **Syntax highlighting.** `Highlighter` (from `core`) returns styled ranges as `(start, end, Style)` where `start..end` are **grapheme-cluster offsets** (as walked by `line.graphemes(true)`), not byte or char indices. Use `draw::put_highlighted` to apply them. Ranges must be ascending and non-overlapping; the helper ignores malformed ranges rather than panicking. Text outside all ranges keeps the base style.
 
 ## Showcase page contract (`showcase/src/pages/<name>.rs`)
 

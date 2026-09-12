@@ -1723,14 +1723,15 @@ impl Widget for RateGraph<'_> {
 
 // SessionList
 
-/// One session entry.
+/// One session entry: a title, a when string, and whatever facts the host wants on the detail
+/// row. Facts are strings rather than fixed fields because a session's vocabulary belongs to
+/// the harness — one counts messages and dollars, another counts steps and tokens on a branch.
+/// A fact that was never reported is simply never pushed, so absence cannot be rendered as zero.
 #[derive(Clone, Debug)]
 pub struct SessionEntry {
     pub title: String,
     pub when: String,
-    pub messages: u32,
-    pub cost: f32,
-    pub model: String,
+    pub facts: Vec<String>,
     pub active: bool,
 }
 
@@ -1739,26 +1740,29 @@ impl SessionEntry {
         Self {
             title: title.to_string(),
             when: when.to_string(),
-            messages: 0,
-            cost: 0.0,
-            model: String::new(),
+            facts: Vec::new(),
             active: false,
         }
     }
 
-    pub fn messages(mut self, m: u32) -> Self {
-        self.messages = m;
+    /// Add a fact verbatim. Facts render in the order they were added, separated by `·`.
+    pub fn fact(mut self, f: impl Into<String>) -> Self {
+        self.facts.push(f.into());
         self
     }
 
-    pub fn cost(mut self, c: f32) -> Self {
-        self.cost = c;
-        self
+    /// `N msgs`, for the common chat-shaped session.
+    pub fn messages(self, m: u32) -> Self {
+        self.fact(format!("{m} msgs"))
     }
 
-    pub fn model(mut self, m: &str) -> Self {
-        self.model = m.to_string();
-        self
+    /// A reported cost. Do not call it when no cost was reported: that is not zero dollars.
+    pub fn cost(self, c: f32) -> Self {
+        self.fact(fmt_usd(c))
+    }
+
+    pub fn model(self, m: &str) -> Self {
+        self.fact(m)
     }
 
     pub fn active(mut self, a: bool) -> Self {
@@ -2020,12 +2024,7 @@ impl StatefulWidget for SessionList {
 
             // Second line
             if self.two_line && y < area.bottom() {
-                let detail = format!(
-                    "{} msgs · {} · {}",
-                    entry.messages,
-                    fmt_usd(entry.cost),
-                    entry.model
-                );
+                let detail = entry.facts.join(" · ");
                 put(
                     buf,
                     title_x,
@@ -2085,9 +2084,11 @@ impl Capability {
 pub struct ModelInfo {
     pub id: String,
     pub provider: String,
-    pub context: u32,
-    pub in_price: f32,
-    pub out_price: f32,
+    /// `None` when the context window is not published.
+    pub context: Option<u32>,
+    /// Input and output price per million tokens. One `Option` for the pair because pricing is
+    /// published as a pair or not at all; a local model has none.
+    pub prices: Option<(f32, f32)>,
     pub caps: Vec<Capability>,
 }
 
@@ -2096,21 +2097,21 @@ impl ModelInfo {
         Self {
             id: id.to_string(),
             provider: provider.to_string(),
-            context: 0,
-            in_price: 0.0,
-            out_price: 0.0,
+            context: None,
+            prices: None,
             caps: Vec::new(),
         }
     }
 
+    /// Set the published context window. Leave unset when it is unknown.
     pub fn context(mut self, c: u32) -> Self {
-        self.context = c;
+        self.context = Some(c);
         self
     }
 
+    /// Set the published price per million input and output tokens.
     pub fn prices(mut self, inp: f32, out: f32) -> Self {
-        self.in_price = inp;
-        self.out_price = out;
+        self.prices = Some((inp, out));
         self
     }
 
@@ -2233,6 +2234,18 @@ impl StatefulWidget for ModelPicker {
             state.offset = state.cursor;
         }
 
+        // One id column wide enough for the longest id on screen, so the rows still line up,
+        // but never wider than half the pane — a provider with very long ids must not push the
+        // chip and the capability badges off the row. A fixed width truncated ids that fit.
+        let widest = state
+            .models
+            .iter()
+            .skip(state.offset)
+            .take(visible)
+            .map(|m| unicode_width::UnicodeWidthStr::width(m.id.as_str()))
+            .max()
+            .unwrap_or(0) as u16;
+        let id_w = widest.clamp(8, (area.width / 2).max(8));
         for (y, (i, model)) in
             (area.y..area.bottom()).zip(state.models.iter().enumerate().skip(state.offset))
         {
@@ -2268,8 +2281,15 @@ impl StatefulWidget for ModelPicker {
             x += 2;
 
             // Model id
-            let id_w = 20.min(area.width.saturating_sub(x - area.x));
-            put(buf, x, y, &model.id, id_w, st(th.text, bg));
+            let id_w = id_w.min(area.width.saturating_sub(x - area.x));
+            put(
+                buf,
+                x,
+                y,
+                &truncate(&model.id, id_w as usize),
+                id_w,
+                st(th.text, bg),
+            );
             x += id_w + 1;
 
             // Provider chip
@@ -2288,29 +2308,33 @@ impl StatefulWidget for ModelPicker {
                 x += chip_w + 1;
             }
 
-            // Context
-            let ctx_str = fmt_tokens(model.context);
-            put(
-                buf,
-                x,
-                y,
-                &ctx_str,
-                ctx_str.len() as u16,
-                st(th.text_muted, bg),
-            );
-            x += ctx_str.len() as u16 + 2;
+            // Context and pricing are published per model, so a model that publishes neither
+            // simply takes less width rather than claiming a free zero-token window.
+            if let Some(ctx) = model.context {
+                let ctx_str = fmt_tokens(ctx);
+                put(
+                    buf,
+                    x,
+                    y,
+                    &ctx_str,
+                    ctx_str.len() as u16,
+                    st(th.text_muted, bg),
+                );
+                x += ctx_str.len() as u16 + 2;
+            }
 
-            // Prices
-            let prices = format!("{} / {}", fmt_usd(model.in_price), fmt_usd(model.out_price));
-            put(
-                buf,
-                x,
-                y,
-                &prices,
-                prices.len() as u16,
-                st(th.text_muted, bg),
-            );
-            x += prices.len() as u16 + 2;
+            if let Some((inp, out)) = model.prices {
+                let prices = format!("{} / {}", fmt_usd(inp), fmt_usd(out));
+                put(
+                    buf,
+                    x,
+                    y,
+                    &prices,
+                    prices.len() as u16,
+                    st(th.text_muted, bg),
+                );
+                x += prices.len() as u16 + 2;
+            }
 
             // Capabilities
             for cap in &model.caps {
@@ -2595,6 +2619,118 @@ mod tests {
                     .iter()
                     .any(|&(idx, _, _)| state.entries[idx].title.contains("feature"))
         );
+    }
+
+    /// A session run on a local model has no cost to report. The detail line must then read
+    /// "N msgs · model" and not invent "$0.0000".
+    #[test]
+    fn session_detail_omits_unreported_cost() {
+        let screen = |entry: SessionEntry| {
+            let mut state = SessionListState::new();
+            state.entries = vec![entry];
+            let area = Rect::new(0, 0, 60, 4);
+            let mut buf = Buffer::empty(area);
+            SessionList::new()
+                .two_line(true)
+                .render(area, &mut buf, &mut state);
+            buf.content().iter().map(|c| c.symbol()).collect::<String>()
+        };
+
+        let local = screen(
+            SessionEntry::new("Local run", "2h ago")
+                .messages(7)
+                .model("qwen3"),
+        );
+        assert!(local.contains("7 msgs") && local.contains("qwen3"));
+        assert!(!local.contains('$'), "no cost was reported: {local:?}");
+
+        let billed = screen(
+            SessionEntry::new("Claude run", "2h ago")
+                .messages(7)
+                .model("opus")
+                .cost(1.25),
+        );
+        assert!(billed.contains('$'), "a reported cost is shown: {billed:?}");
+
+        // A harness that counts steps on a branch instead of messages and dollars says so in
+        // its own words, in the order it chose.
+        let stepped = screen(
+            SessionEntry::new("Refactor TUI", "2h ago")
+                .fact("12 steps")
+                .fact("48.2k tok")
+                .fact("main"),
+        );
+        assert!(
+            stepped.contains("12 steps · 48.2k tok · main"),
+            "{stepped:?}"
+        );
+        assert!(
+            !stepped.contains("msgs"),
+            "no message count was claimed: {stepped:?}"
+        );
+    }
+
+    /// A managed llama-server model publishes neither a window nor a price list.
+    #[test]
+    fn model_picker_omits_unpublished_context_and_prices() {
+        let screen = |model: ModelInfo| {
+            let mut state = ModelPickerState::new();
+            state.models = vec![model];
+            let area = Rect::new(0, 0, 80, 4);
+            let mut buf = Buffer::empty(area);
+            ModelPicker::new().render(area, &mut buf, &mut state);
+            buf.content().iter().map(|c| c.symbol()).collect::<String>()
+        };
+
+        let local = screen(ModelInfo::new("qwen3-8b", "llama.cpp"));
+        assert!(
+            local.contains("qwen3-8b"),
+            "the id is always shown: {local:?}"
+        );
+        assert!(!local.contains('$'), "no pricing was published: {local:?}");
+
+        let published = screen(
+            ModelInfo::new("claude-opus-4", "anthropic")
+                .context(200_000)
+                .prices(15.0, 75.0),
+        );
+        assert!(
+            published.contains('$'),
+            "published pricing is shown: {published:?}"
+        );
+    }
+
+    /// The id column fits the longest id on screen instead of a fixed 20 cells, which used to
+    /// cut `granite-embedding:278m` short in a pane with room to spare. It still refuses to eat
+    /// more than half the pane, so the provider chip survives a pathological id.
+    #[test]
+    fn model_picker_id_column_fits_its_content() {
+        let screen = |ids: &[&str], width: u16| {
+            let mut state = ModelPickerState::new();
+            state.models = ids.iter().map(|id| ModelInfo::new(id, "ollama")).collect();
+            let area = Rect::new(0, 0, width, ids.len() as u16);
+            let mut buf = Buffer::empty(area);
+            ModelPicker::new().render(area, &mut buf, &mut state);
+            buf.content().iter().map(|c| c.symbol()).collect::<String>()
+        };
+
+        let long = screen(&["granite-embedding:278m", "qwen3.5:9b"], 60);
+        assert!(
+            long.contains("granite-embedding:278m"),
+            "the full id fits: {long:?}"
+        );
+        assert!(
+            long.contains("ollama"),
+            "and the provider chip still lands: {long:?}"
+        );
+
+        // Half of 30 is 15, so a 40-cell id is cut and the chip keeps its place.
+        let cramped = screen(&["a-really-very-long-model-identifier-xxxx"], 30);
+        assert!(
+            cramped.contains('…'),
+            "an id too long for the pane is cut: {cramped:?}"
+        );
+        assert!(cramped.contains("ollama"), "the chip survives: {cramped:?}");
     }
 
     #[test]

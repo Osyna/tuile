@@ -814,7 +814,7 @@ impl KeyValueList {
 impl ratatui_core::widgets::Widget for KeyValueList {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let th = self.theme.unwrap_or_else(theme::current);
-        if area.height < self.items.len() as u16 {
+        if area.width < 2 || area.height == 0 {
             return;
         }
         let max_label_w = self.items.iter().map(|(l, _)| l.len()).max().unwrap_or(0) as u16;
@@ -893,5 +893,36 @@ mod tests {
         assert_eq!(offset, 3);
         let offset = keep_visible(10, 5, 10);
         assert_eq!(offset, 5);
+    }
+
+    /// A list taller than its area shows the rows that fit. It used to draw nothing at all, which
+    /// reads on screen as "there is no data" rather than "there is more data".
+    #[test]
+    fn key_value_list_clips_instead_of_vanishing() {
+        use ratatui_core::widgets::Widget;
+        let items: Vec<(String, String)> = (0..11)
+            .map(|i| (format!("k{i}"), format!("v{i}")))
+            .collect();
+        let area = Rect::new(0, 0, 20, 6);
+        let mut buf = Buffer::empty(area);
+        KeyValueList::new(items).render(area, &mut buf);
+        let first = buf.content().iter().map(|c| c.symbol()).collect::<String>();
+        assert!(first.contains("k0"), "the first row must be drawn");
+        assert!(first.contains("k5"), "every row that fits must be drawn");
+        assert!(
+            !first.contains("k6"),
+            "a row past the area must not be drawn"
+        );
+    }
+
+    /// Degenerate areas draw nothing rather than panicking, as the widget contract requires.
+    #[test]
+    fn key_value_list_survives_a_tiny_area() {
+        use ratatui_core::widgets::Widget;
+        for (w, h) in [(0, 0), (1, 1), (2, 1), (20, 0)] {
+            let area = Rect::new(0, 0, w, h);
+            let mut buf = Buffer::empty(Rect::new(0, 0, w.max(1), h.max(1)));
+            KeyValueList::new(vec![("a".into(), "b".into())]).render(area, &mut buf);
+        }
     }
 }

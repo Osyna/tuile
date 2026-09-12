@@ -21,7 +21,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::anim;
 use crate::core::*;
-use crate::draw::{FieldShape, bold, fill, put, put_cell, st};
+use crate::draw::{FieldShape, bold, fill, put, put_highlighted, st};
 use crate::theme::{self, Rgb, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
@@ -51,8 +51,7 @@ pub struct TextArea {
     placeholder: String,
     shape: FieldShape,
     // A `fn` pointer hook the caller must match exactly; an alias would hide the signature.
-    #[allow(clippy::type_complexity)]
-    highlighter: Option<fn(&str) -> Vec<(usize, usize, Style)>>,
+    highlighter: Option<Highlighter>,
     cursor_style: CursorStyle,
     cursor_blink: bool,
     cursor_when_unfocused: bool,
@@ -139,7 +138,7 @@ impl TextArea {
         self
     }
 
-    pub fn highlighter(mut self, f: fn(&str) -> Vec<(usize, usize, Style)>) -> Self {
+    pub fn highlighter(mut self, f: Highlighter) -> Self {
         self.highlighter = Some(f);
         self
     }
@@ -844,81 +843,31 @@ impl StatefulWidget for TextArea {
 
             // Apply syntax highlighting if provided
             if let Some(highlighter) = self.highlighter {
-                let spans = highlighter(line);
-                let mut x = text_area.x;
-                let mut char_pos = 0;
-                for grapheme in line.graphemes(true) {
-                    if char_pos < state.scroll_x {
-                        char_pos += 1;
-                        continue;
-                    }
-                    if x >= text_area.right() {
-                        break;
-                    }
-
-                    // Find applicable style
-                    let byte_pos = line
-                        .graphemes(true)
-                        .take(char_pos)
-                        .collect::<String>()
-                        .len();
-                    let style = spans
-                        .iter()
-                        .find(|(start, end, _)| byte_pos >= *start && byte_pos < *end)
-                        .map(|(_, _, s)| *s)
-                        .unwrap_or_else(|| st(fg, line_bg));
-                    // Draw cursor
-                    let draw_cursor = if look.focused {
-                        true
-                    } else {
-                        self.cursor_when_unfocused
-                    };
-
-                    let is_cursor =
-                        draw_cursor && i == state.cursor.0 && char_pos == state.cursor.1;
-                    let cursor_visible = !self.cursor_blink
-                        || self.now.is_none_or(|n| anim::blink(anim::since(n), 1.0));
-
-                    let final_style = if is_cursor && cursor_visible {
-                        match self.cursor_style {
-                            CursorStyle::Block => st(th.cursor_fg, th.cursor_bg),
-                            CursorStyle::Bar => {
-                                // Bar is drawn separately, use normal style for text
-                                style
-                            }
-                            CursorStyle::Underline => bold(st(
-                                if look.focused {
-                                    th.primary
-                                } else {
-                                    th.cursor_blurred_bg
-                                },
-                                line_bg,
-                            ))
-                            .add_modifier(Modifier::UNDERLINED),
-                            CursorStyle::Outline => {
-                                let style_fg = style.fg.and_then(Rgb::from_color).unwrap_or(fg);
-                                st(style_fg, th.cursor_blurred_bg)
-                            }
-                        }
-                    } else {
-                        style
-                    };
-
-                    put(buf, x, y, grapheme, grapheme.width() as u16, final_style);
-
-                    // Draw bar cursor after text
-                    if is_cursor && cursor_visible && self.cursor_style == CursorStyle::Bar {
-                        let cursor_color = if look.focused {
-                            th.cursor_bg
+                let ranges = highlighter(line);
+                // Adjust ranges for horizontal scroll: shift by scroll_x and filter to visible window
+                let scroll_x = state.scroll_x;
+                let adjusted: Vec<(usize, usize, Style)> = ranges
+                    .iter()
+                    .filter_map(|(start, end, style)| {
+                        if *end <= scroll_x {
+                            None // range is entirely scrolled off to the left
                         } else {
-                            th.cursor_blurred_bg
-                        };
-                        put_cell(buf, x, y, "▎", st(cursor_color, line_bg));
-                    }
+                            let adj_start = start.saturating_sub(scroll_x);
+                            let adj_end = end.saturating_sub(scroll_x);
+                            Some((adj_start, adj_end, *style))
+                        }
+                    })
+                    .collect();
 
-                    x += grapheme.width() as u16;
-                    char_pos += 1;
-                }
+                put_highlighted(
+                    buf,
+                    text_area.x,
+                    y,
+                    &display,
+                    text_area.width,
+                    st(fg, line_bg),
+                    &adjusted,
+                );
             } else {
                 put(
                     buf,
@@ -928,51 +877,50 @@ impl StatefulWidget for TextArea {
                     text_area.width,
                     st(fg, line_bg),
                 );
+            }
 
-                // Cursor
-                let draw_cursor = if look.focused {
-                    true
-                } else {
-                    self.cursor_when_unfocused
-                };
+            // Cursor (same for both paths)
+            let draw_cursor = if look.focused {
+                true
+            } else {
+                self.cursor_when_unfocused
+            };
 
-                if draw_cursor && i == state.cursor.0 {
-                    let cursor_col = state.cursor.1.saturating_sub(state.scroll_x);
-                    if cursor_col < text_area.width as usize {
-                        let cursor_x = text_area.x + cursor_col as u16;
+            if draw_cursor && i == state.cursor.0 {
+                let cursor_col = state.cursor.1.saturating_sub(state.scroll_x);
+                if cursor_col < text_area.width as usize {
+                    let cursor_x = text_area.x + cursor_col as u16;
 
-                        let cursor_visible = !self.cursor_blink
-                            || self.now.is_none_or(|n| anim::blink(anim::since(n), 1.0));
+                    let cursor_visible = !self.cursor_blink
+                        || self.now.is_none_or(|n| anim::blink(anim::since(n), 1.0));
 
-                        if cursor_visible && let Some(cell) = buf.cell_mut((cursor_x, y)) {
-                            match self.cursor_style {
-                                CursorStyle::Block => {
-                                    cell.set_style(st(th.cursor_fg, th.cursor_bg));
-                                }
-                                CursorStyle::Bar => {
-                                    let cursor_color = if look.focused {
-                                        th.cursor_bg
-                                    } else {
-                                        th.cursor_blurred_bg
-                                    };
-                                    cell.set_symbol("▎");
-                                    cell.set_style(st(cursor_color, line_bg));
-                                }
-                                CursorStyle::Underline => {
-                                    let accent = if look.focused {
-                                        th.primary
-                                    } else {
-                                        th.cursor_blurred_bg
-                                    };
-                                    cell.set_style(
-                                        bold(st(accent, line_bg))
-                                            .add_modifier(Modifier::UNDERLINED),
-                                    );
-                                }
-                                CursorStyle::Outline => {
-                                    let cell_fg = Rgb::from_color(cell.fg).unwrap_or(th.text);
-                                    cell.set_style(st(cell_fg, th.cursor_blurred_bg));
-                                }
+                    if cursor_visible && let Some(cell) = buf.cell_mut((cursor_x, y)) {
+                        match self.cursor_style {
+                            CursorStyle::Block => {
+                                cell.set_style(st(th.cursor_fg, th.cursor_bg));
+                            }
+                            CursorStyle::Bar => {
+                                let cursor_color = if look.focused {
+                                    th.cursor_bg
+                                } else {
+                                    th.cursor_blurred_bg
+                                };
+                                cell.set_symbol("▎");
+                                cell.set_style(st(cursor_color, line_bg));
+                            }
+                            CursorStyle::Underline => {
+                                let accent = if look.focused {
+                                    th.primary
+                                } else {
+                                    th.cursor_blurred_bg
+                                };
+                                cell.set_style(
+                                    bold(st(accent, line_bg)).add_modifier(Modifier::UNDERLINED),
+                                );
+                            }
+                            CursorStyle::Outline => {
+                                let cell_fg = Rgb::from_color(cell.fg).unwrap_or(th.text);
+                                cell.set_style(st(cell_fg, th.cursor_blurred_bg));
                             }
                         }
                     }

@@ -39,6 +39,7 @@ The state owns `messages: Vec<ChatMessage>`, `scroll: usize`, and `follow: bool`
 | `.hover(bool)` | Track mouse hover row in `state.hover_row` |
 | `.max_width(u16)` | Maximum message width in bubbles mode |
 | `.now(Instant)` | Clock for thinking spinners and elapsed timers |
+| `.highlighter(Highlighter)` | Syntax highlighting for code blocks; ranges are grapheme offsets |
 
 ### ChatMessage
 
@@ -329,7 +330,7 @@ CodeBlock::new()
 # fn main() {}
 ```
 
-Methods: `.wrap(bool)`, `.caret(bool)` (blinking caret on the last line for live editing previews), `.highlighter(fn(&str) -> Vec<(usize, usize, Style)>)` (custom syntax highlighter function).
+Methods: `.wrap(bool)`, `.caret(bool)` (blinking caret on the last line for live editing previews), `.highlighter(Highlighter)` (syntax highlighting function; `Highlighter` is a type alias for `fn(&str) -> Vec<(usize, usize, Style)>` where ranges are half-open grapheme-cluster offsets).
 
 ### EditPreview
 
@@ -620,7 +621,11 @@ RateGraph::new(&values)
 
 ### SessionList
 
-Scrollable session list with cursor, time, model, message count, and cost. Each `SessionEntry` has a title, when string, message count, cost, model name, and active flag.
+Scrollable session list with cursor, time, and a detail row of facts. Each `SessionEntry` has a title, a when string, an active flag, and `facts: Vec<String>`.
+
+Facts are strings, not fixed fields, because a session's vocabulary belongs to the harness: one counts messages and dollars, another counts steps and tokens on a branch. `.messages(u32)`, `.cost(f32)` and `.model(&str)` are conveniences that push `"42 msgs"`, `"$1.20"` and the model name; `.fact(impl Into<String>)` pushes anything else. They render in call order, separated by `·`.
+
+A fact that was never reported is simply never pushed, so a local model with no cost shows `7 msgs · qwen3` rather than `$0.0000`. Never call `.cost(0.0)` to mean "unknown".
 
 ```rust
 # extern crate tuile;
@@ -645,7 +650,9 @@ Keys: `j`/`k` navigate, `Enter` activates the selected session (read `state.acti
 
 ### ModelPicker
 
-Interactive model picker with capability badges, context window, and pricing. Each `ModelInfo` has an id, provider, context limit, input price per million tokens, output price, and capabilities (Vision, Tools, Reasoning, Fast).
+Interactive model picker with capability badges, context window, and pricing. Each `ModelInfo` has an id, provider, capabilities (Vision, Tools, Reasoning, Fast), and two optional facts: `context: Option<u32>` and `prices: Option<(f32, f32)>` (per million input/output tokens).
+
+Both are published per model, so a managed or local model that publishes neither simply takes less width in the row. Only call `.context()` and `.prices()` with numbers a provider actually stated.
 
 ```rust
 # extern crate tuile;
@@ -814,6 +821,8 @@ HarnessStatus::new()
 ```
 
 Methods: `.branch(String)`, `.dirty(bool)`, `.context_pct(f32)`, `.elapsed(Duration)`, `.busy(bool)`, `.queued(u32)`.
+
+`.context_pct` takes a **fraction**, `0.0..=1.0`, and renders it as a percentage beside a small bar. `.context_pct` and `.cost` are both unset by default and draw nothing at all when unset, so a provider that manages its own context window shows no percentage rather than `0%`. `.cost(0.0)` is a reported zero and does render as `$0.00`.
 
 ### QuestionCard
 

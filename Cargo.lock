@@ -439,6 +439,7 @@ name = "showcase"
 version = "0.2.0"
 dependencies = [
  "tuile",
+ "unicode-segmentation",
  "unicode-width",
 ]
 

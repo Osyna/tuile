@@ -1,6 +1,9 @@
 //! Multi-line text area with line numbers, syntax highlighting hook, undo/redo,
 //! auto-indent, and scrolling.
 //!
+//! Enter inserts a newline (an edit); `TextArea` has no commit key, so there is no
+//! `Outcome::Submitted` and no `take_submitted()` accessor.
+//!
 //! ```no_run
 //! use tuile::prelude::*;
 //! # let area = Rect::new(0, 0, 60, 15);
@@ -21,7 +24,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::anim;
 use crate::core::*;
-use crate::draw::{FieldShape, bold, fill, put, put_highlighted, st};
+use crate::draw::{FieldShape, bold, fill, put, put_highlighted, refuse, st};
 use crate::theme::{self, Rgb, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
@@ -138,6 +141,14 @@ impl TextArea {
         self
     }
 
+    /// 1-row field, no frame.
+    pub fn compact(mut self, v: bool) -> Self {
+        if v {
+            self.shape = FieldShape::None;
+        }
+        self
+    }
+
     pub fn highlighter(mut self, f: Highlighter) -> Self {
         self.highlighter = Some(f);
         self
@@ -187,6 +198,13 @@ impl TextArea {
 impl Default for TextArea {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl MinSize for TextArea {
+    /// Config-dependent: `(width, height)` in cells.
+    fn min_size(&self) -> (u16, u16) {
+        (4, 1 + self.shape.vertical_chrome())
     }
 }
 
@@ -720,13 +738,13 @@ impl StatefulWidget for TextArea {
     type State = TextAreaState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        let chrome = self.shape.vertical_chrome();
-        if area.height < 1 + chrome || area.width < 4 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             state.hit.set_area(Rect::default());
             return;
         }
 
-        let th = self.theme.unwrap_or_else(theme::current);
+        let chrome = self.shape.vertical_chrome();
         let look = Look {
             focused: self.focused,
             hover: state.hit.hover,
@@ -1248,5 +1266,55 @@ mod tests {
             })
             .collect();
         assert!(rows.iter().any(|r| r.contains("Ln 2, Col 4")), "{rows:#?}");
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| c.symbol() != " ")
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        let (w, h) = TextArea::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        TextArea::new().render(buf.area, &mut buf, &mut TextAreaState::default());
+        assert!(painted(&buf), "should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h.saturating_sub(1)));
+        TextArea::new().render(buf.area, &mut buf, &mut TextAreaState::default());
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
+    }
+
+    #[test]
+    fn compact_renders_at_height_one() {
+        let mut buf = Buffer::empty(Rect::new(0, 0, 20, 1));
+        let mut state = TextAreaState::new();
+        TextArea::new()
+            .compact(true)
+            .placeholder("test")
+            .render(buf.area, &mut buf, &mut state);
+        let text: String = buf
+            .content()
+            .iter()
+            .map(|c| c.symbol())
+            .collect::<Vec<_>>()
+            .join("");
+        assert!(
+            text.contains("test"),
+            "compact TextArea should show placeholder at height 1"
+        );
+    }
+
+    #[test]
+    fn default_shaped_at_height_one_refuses_visibly() {
+        let mut buf = Buffer::empty(Rect::new(0, 0, 20, 1));
+        let mut state = TextAreaState::new();
+        TextArea::new().render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "default-shaped TextArea (Tall, 2 chrome rows) at height 1 must paint ⋯, not silently draw nothing"
+        );
     }
 }

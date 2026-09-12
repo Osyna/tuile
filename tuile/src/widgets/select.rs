@@ -18,7 +18,7 @@ use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::core::*;
-use crate::draw::{Border, FieldShape, fill, put, st};
+use crate::draw::{Border, FieldShape, fill, put, refuse, st};
 use crate::fuzzy;
 use crate::layout::{pad, popup_below};
 use crate::theme::{self, Theme};
@@ -98,6 +98,7 @@ pub struct SelectState {
     pub dropdown_area: Rect,
     /// Width policy for the open list (`DropdownWidth::Field` matches the field).
     pub dropdown_width: DropdownWidth,
+    activated: Option<usize>,
 }
 
 /// Builder for an editable combobox (filterable select).
@@ -128,6 +129,7 @@ pub struct ComboboxState {
     option_hits: Vec<HitBox>,
     pub dropdown_area: Rect,
     pub dropdown_width: DropdownWidth,
+    activated: Option<usize>,
 }
 
 /// Builder for a multi-select with checkboxes.
@@ -190,8 +192,12 @@ impl Select {
         self
     }
 
+    /// 1-row field, no frame.
     pub fn compact(mut self, v: bool) -> Self {
         self.compact = v;
+        if v {
+            self.shape = FieldShape::None;
+        }
         self
     }
 
@@ -228,6 +234,16 @@ impl Default for Select {
     }
 }
 
+impl MinSize for Select {
+    fn min_size(&self) -> (u16, u16) {
+        if self.compact {
+            (4, 1)
+        } else {
+            (8, 1 + self.shape.vertical_chrome())
+        }
+    }
+}
+
 // select state
 
 impl SelectState {
@@ -245,6 +261,7 @@ impl SelectState {
             option_hits: Vec::new(),
             dropdown_area: Rect::default(),
             dropdown_width: DropdownWidth::Auto,
+            activated: None,
         }
     }
 
@@ -262,6 +279,7 @@ impl SelectState {
             option_hits: Vec::new(),
             dropdown_area: Rect::default(),
             dropdown_width: DropdownWidth::Auto,
+            activated: None,
         }
     }
 
@@ -282,6 +300,11 @@ impl SelectState {
 
     pub fn close(&mut self) {
         self.open = false;
+    }
+
+    /// Drain the activated flag exactly once (Enter or click on an option).
+    pub fn take_activated(&mut self) -> Option<usize> {
+        self.activated.take()
     }
 
     fn typeahead_match(&mut self, now: Instant) {
@@ -334,8 +357,9 @@ impl Interactive for SelectState {
             KeyCode::Enter => {
                 if !self.options.is_empty() && !self.options[self.highlight].disabled {
                     self.selected = Some(self.highlight);
+                    self.activated = Some(self.highlight);
                     self.open = false;
-                    return Outcome::Changed;
+                    return Outcome::Submitted;
                 }
                 return Outcome::Consumed;
             }
@@ -402,8 +426,9 @@ impl Interactive for SelectState {
                     let idx = i + self.scroll;
                     if idx < self.options.len() && !self.options[idx].disabled {
                         self.selected = Some(idx);
+                        self.activated = Some(idx);
                         self.open = false;
-                        return Outcome::Changed;
+                        return Outcome::Submitted;
                     }
                 }
                 if matches!(h, Hit::HoverChanged) {
@@ -453,6 +478,11 @@ impl StatefulWidget for Select {
             hover: state.hit.hover,
             enabled: self.enabled,
         };
+
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hit.set_area(Rect::default());
+            return;
+        }
 
         let label = state.selected_label().map(str::to_string);
         if self.compact {
@@ -540,9 +570,6 @@ fn render_select_compact(
     open: bool,
 ) {
     hit.set_area(area);
-    if area.width < 4 || area.height == 0 {
-        return;
-    }
 
     let bg = if look.focused {
         th.focus_bg()
@@ -592,11 +619,6 @@ fn render_field(
     open: bool,
 ) {
     let chrome = shape.vertical_chrome();
-    if area.height < 1 + chrome || area.width < 8 {
-        hit.set_area(Rect::default());
-        return;
-    }
-
     hit.set_area(area);
     let bg = if look.focused {
         th.focus_bg()
@@ -753,8 +775,12 @@ impl Combobox {
         self
     }
 
+    /// 1-row field, no frame.
     pub fn compact(mut self, v: bool) -> Self {
         self.compact = v;
+        if v {
+            self.shape = FieldShape::None;
+        }
         self
     }
 
@@ -790,6 +816,16 @@ impl Default for Combobox {
     }
 }
 
+impl MinSize for Combobox {
+    fn min_size(&self) -> (u16, u16) {
+        if self.compact {
+            (4, 1)
+        } else {
+            (8, 1 + self.shape.vertical_chrome())
+        }
+    }
+}
+
 impl ComboboxState {
     pub fn new(options: &[&str]) -> Self {
         Self {
@@ -805,6 +841,7 @@ impl ComboboxState {
             option_hits: Vec::new(),
             dropdown_area: Rect::default(),
             dropdown_width: DropdownWidth::Auto,
+            activated: None,
         }
     }
 
@@ -823,6 +860,11 @@ impl ComboboxState {
 
     pub fn close(&mut self) {
         self.open = false;
+    }
+
+    /// Drain the activated flag exactly once (Enter or click on an option).
+    pub fn take_activated(&mut self) -> Option<usize> {
+        self.activated.take()
     }
 
     fn update_filter(&mut self) {
@@ -982,9 +1024,10 @@ impl Interactive for ComboboxState {
                         let (orig_idx, _, _) = self.filtered[self.highlight];
                         if !self.options[orig_idx].disabled {
                             self.selected = Some(orig_idx);
+                            self.activated = Some(orig_idx);
                             self.input.set_value(&self.options[orig_idx].label);
                             self.open = false;
-                            return Outcome::Changed;
+                            return Outcome::Submitted;
                         }
                     }
                     return Outcome::Consumed;
@@ -1029,9 +1072,10 @@ impl Interactive for ComboboxState {
                         let (orig_idx, _, _) = self.filtered[list_idx];
                         if !self.options[orig_idx].disabled {
                             self.selected = Some(orig_idx);
+                            self.activated = Some(orig_idx);
                             self.input.set_value(&self.options[orig_idx].label);
                             self.open = false;
-                            return Outcome::Changed;
+                            return Outcome::Submitted;
                         }
                     }
                 }
@@ -1062,6 +1106,11 @@ impl StatefulWidget for Combobox {
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let th = self.theme.unwrap_or_else(theme::current);
         state.hit.set_area(area);
+
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hit.set_area(Rect::default());
+            return;
+        }
 
         Input::new()
             .placeholder(&self.placeholder)
@@ -1101,8 +1150,12 @@ impl MultiSelect {
         self
     }
 
+    /// 1-row field, no frame.
     pub fn compact(mut self, v: bool) -> Self {
         self.compact = v;
+        if v {
+            self.shape = FieldShape::None;
+        }
         self
     }
 
@@ -1135,6 +1188,16 @@ impl MultiSelect {
 impl Default for MultiSelect {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl MinSize for MultiSelect {
+    fn min_size(&self) -> (u16, u16) {
+        if self.compact {
+            (4, 1)
+        } else {
+            (8, 1 + self.shape.vertical_chrome())
+        }
     }
 }
 
@@ -1400,6 +1463,11 @@ impl StatefulWidget for MultiSelect {
             enabled: self.enabled,
         };
 
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hit.set_area(Rect::default());
+            return;
+        }
+
         let summary = state.summary();
         let label = if state.selected.iter().any(|&b| b) {
             Some(summary.as_str())
@@ -1436,6 +1504,10 @@ impl StatefulWidget for MultiSelect {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| c.symbol() != " ")
+    }
 
     #[test]
     fn select_navigation() {
@@ -1480,5 +1552,78 @@ mod tests {
             s.open,
             "click inside the rendered field must open the dropdown"
         );
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        let opts = ["Red", "Green", "Blue"];
+        let (w, h) = Select::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        Select::new().render(buf.area, &mut buf, &mut SelectState::new(&opts));
+        assert!(painted(&buf));
+
+        // Shrink whichever axis can shrink
+        let (sw, sh) = if h > 1 { (w, h - 1) } else { (w - 1, h) };
+        let mut buf = Buffer::empty(Rect::new(0, 0, sw, sh));
+        Select::new().render(buf.area, &mut buf, &mut SelectState::new(&opts));
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one cell short must refuse visibly, not silently draw nothing"
+        );
+    }
+
+    #[test]
+    fn compact_renders_in_one_row() {
+        let opts = ["Red", "Green", "Blue"];
+        let mut state = SelectState::new(&opts);
+        state.selected = Some(1);
+        let mut buf = Buffer::empty(Rect::new(0, 0, 20, 1));
+        Select::new()
+            .compact(true)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "compact field must render in height 1");
+        // Default shape cannot fit in 1 row
+        let mut buf = Buffer::empty(Rect::new(0, 0, 20, 1));
+        Select::new().render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "default shape needs 3 rows, height 1 must refuse"
+        );
+    }
+
+    #[test]
+    fn edit_vs_commit_outcomes() {
+        let opts = ["Red", "Green", "Blue"];
+        let mut state = SelectState::new(&opts);
+        state.open = true;
+        state.highlight = 1;
+
+        // Arrow keys inside dropdown are Consumed, not Submitted
+        let out = state.handle_key(KeyEvent::from(KeyCode::Down));
+        assert!(!out.is_submitted(), "arrow key should not be submitted");
+        assert_eq!(state.highlight, 2);
+
+        // Enter commits and is Submitted
+        let out = state.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert!(out.is_submitted(), "Enter must return Submitted");
+        assert_eq!(state.selected, Some(2));
+        assert_eq!(
+            state.take_activated(),
+            Some(2),
+            "first take returns the index"
+        );
+        assert_eq!(state.take_activated(), None, "second take returns None");
+
+        // MultiSelect toggle is Changed, not Submitted
+        let mut ms = MultiSelectState::new(&opts);
+        ms.open = true;
+        ms.highlight = 1;
+        let out = ms.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert!(out.is_changed(), "MultiSelect toggle must be changed");
+        assert!(
+            !out.is_submitted(),
+            "MultiSelect toggle must not be submitted"
+        );
+        assert!(ms.selected[1]);
     }
 }

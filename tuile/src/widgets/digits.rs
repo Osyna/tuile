@@ -13,7 +13,8 @@ use ratatui_core::buffer::Buffer;
 use ratatui_core::layout::{Alignment, Rect};
 use ratatui_core::widgets::Widget;
 
-use crate::draw::{put, put_centered, st};
+use crate::core::MinSize;
+use crate::draw::{self, put, put_centered, st};
 use crate::theme::{self, Rgb, Theme, Variant};
 
 // Textual's DIGITS3X3: " 0123456789+-^x:ABCDEF$£€()"
@@ -191,10 +192,17 @@ impl Digits {
     }
 }
 
+impl MinSize for Digits {
+    /// Config-dependent: (width, 3). Width is 3 cells per digit, 1 for colon.
+    fn min_size(&self) -> (u16, u16) {
+        (Self::width(&self.text), 3)
+    }
+}
+
 impl Widget for Digits {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let th = self.theme.unwrap_or_else(theme::current);
-        if area.height < 3 {
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
@@ -269,5 +277,23 @@ mod tests {
         assert_eq!(GLYPH_DATA[3], "╭─╮"); // 0 first line
         assert_eq!(GLYPH_DATA[4], "│ │"); // 0 second line
         assert_eq!(GLYPH_DATA[5], "╰─╯"); // 0 third line
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        fn painted(buf: &Buffer) -> bool {
+            buf.content().iter().any(|c| c.symbol() != " ")
+        }
+        let (w, h) = Digits::new("12:34").min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        Digits::new("12:34").render(buf.area, &mut buf);
+        assert!(painted(&buf), "should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h.saturating_sub(1)));
+        Digits::new("12:34").render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
     }
 }

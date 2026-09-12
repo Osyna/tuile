@@ -14,8 +14,8 @@ use ratatui_core::layout::Rect;
 use ratatui_core::style::Modifier;
 use ratatui_core::widgets::{StatefulWidget, Widget};
 
-use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, mouse_in, mouse_pos};
-use crate::draw::{fill, put, put_centered, st};
+use crate::core::{Hit, HitBox, Interactive, MinSize, Outcome, is_press, mouse_in, mouse_pos};
+use crate::draw::{self, fill, put, put_centered, st};
 use crate::theme::{self, Rgb, Theme, gradient};
 
 // Swatches
@@ -382,13 +382,20 @@ impl Default for ColorPicker {
     }
 }
 
+impl MinSize for ColorPicker {
+    /// (20, 10) minimum for the color picker.
+    fn min_size(&self) -> (u16, u16) {
+        (20, 10)
+    }
+}
+
 impl StatefulWidget for ColorPicker {
     type State = ColorPickerState;
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 20 || area.height < 10 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         fill(buf, area, th.surface);
 
         // Layout: hue strip top, SL grid below, preview + text at bottom
@@ -600,12 +607,22 @@ impl GradientBar {
     }
 }
 
+impl MinSize for GradientBar {
+    /// (5, 1) minimum for gradient bar.
+    fn min_size(&self) -> (u16, u16) {
+        (5, 1)
+    }
+}
+
 impl Widget for GradientBar {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 5 || area.height == 0 || self.stops.is_empty() {
+        if self.stops.is_empty() {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
+            return;
+        }
         fill(buf, area, th.surface);
 
         let bar_y = area.y;
@@ -682,9 +699,17 @@ impl Default for ThemePalette {
     }
 }
 
+impl MinSize for ThemePalette {
+    /// (15, 2) minimum for theme palette.
+    fn min_size(&self) -> (u16, u16) {
+        (15, 2)
+    }
+}
+
 impl Widget for ThemePalette {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 15 || area.height < 2 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
@@ -762,5 +787,65 @@ mod tests {
         assert!(red.0 > 250 && red.1 < 5 && red.2 < 5);
         let green = hsl_to_rgb(120.0, 1.0, 0.5);
         assert!(green.0 < 5 && green.1 > 250 && green.2 < 5);
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        // ColorPicker (20, 10)
+        let (w, h) = ColorPicker::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        ColorPicker::new().render(buf.area, &mut buf, &mut ColorPickerState::default());
+        assert!(
+            painted(&buf),
+            "ColorPicker should draw at its stated minimum"
+        );
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        ColorPicker::new().render(buf.area, &mut buf, &mut ColorPickerState::default());
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "ColorPicker one cell short must refuse visibly"
+        );
+
+        // GradientBar (5, 1)
+        let colors = vec![Rgb(255, 0, 0), Rgb(0, 0, 255)];
+        let (w, h) = GradientBar::new(&colors).min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        GradientBar::new(&colors).render(buf.area, &mut buf);
+        assert!(
+            painted(&buf),
+            "GradientBar should draw at its stated minimum"
+        );
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        GradientBar::new(&colors).render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "GradientBar one cell short must refuse visibly"
+        );
+
+        // ThemePalette (15, 2)
+        let (w, h) = ThemePalette::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        ThemePalette::new().render(buf.area, &mut buf);
+        assert!(
+            painted(&buf),
+            "ThemePalette should draw at its stated minimum"
+        );
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        ThemePalette::new().render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "ThemePalette one cell short must refuse visibly"
+        );
     }
 }

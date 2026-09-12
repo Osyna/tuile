@@ -13,24 +13,36 @@ use ratatui_core::layout::{Position, Rect};
 /// `Ignored` → the widget did nothing, let someone else handle it.
 /// `Consumed` → handled, redraw is enough (hover moved, cursor blinked, scrolled).
 /// `Changed` → the *value* the widget owns changed (toggle flipped, text edited, row picked).
+/// `Submitted` → the value was *committed* (Enter in a field, a row activated, a dialog
+/// answered). Editing widgets report `Changed` per keystroke and `Submitted` once, so a
+/// screen that writes a config on commit does not write it on the first character typed.
+///
+/// The order is the composition order: `|` keeps the strongest outcome of a fan-out, and
+/// `is_changed()` is true for `Submitted` as well, since a commit is also a value change.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Outcome {
     #[default]
     Ignored,
     Consumed,
     Changed,
+    Submitted,
 }
 
 impl Outcome {
     pub fn is_ignored(self) -> bool {
         self == Outcome::Ignored
     }
-    /// `Consumed` or `Changed`.
+    /// Anything but `Ignored`.
     pub fn is_consumed(self) -> bool {
         self != Outcome::Ignored
     }
+    /// `Changed` or `Submitted`: the value the widget owns is not what it was.
     pub fn is_changed(self) -> bool {
-        self == Outcome::Changed
+        self >= Outcome::Changed
+    }
+    /// `Submitted` only: the user committed the value (Enter, activate, answer).
+    pub fn is_submitted(self) -> bool {
+        self == Outcome::Submitted
     }
     /// `true` → `Changed`, `false` → `Consumed`.
     pub fn changed_if(flag: bool) -> Outcome {
@@ -420,6 +432,22 @@ pub trait Interactive {
     }
 }
 
+// minimum size
+
+/// The smallest area a widget draws in. Layout code can allocate from it, and `render` uses
+/// [`crate::draw::refuse`] to guard and visibly mark when the area is too small.
+///
+/// ```
+/// # use tuile::prelude::*;
+/// struct MyWidget { /* config */ }
+/// impl MinSize for MyWidget {
+///     fn min_size(&self) -> (u16, u16) { (10, 2) }
+/// }
+/// ```
+pub trait MinSize {
+    /// `(width, height)` in cells, for this builder's current configuration.
+    fn min_size(&self) -> (u16, u16);
+}
 // text navigation
 
 /// Index of the next word boundary from `pos`, the rule behind Ctrl+Left / Ctrl+Right.

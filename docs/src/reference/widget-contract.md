@@ -44,7 +44,13 @@ Rules:
    testing) in the state via `HitBox::set_area` / plain `Rect` fields. Mouse handling uses only
    those cached rects. Never recompute layout in `handle_mouse`.
 2. **Outcome semantics.** `Ignored` = not mine. `Consumed` = redraw (hover/press/scroll/cursor
-   move). `Changed` = the value the widget owns changed. Apps react on `is_changed()`.
+   move). `Changed` = the value the widget owns changed. `Submitted` = the value was *committed*
+   (Enter in a field, a row activated, a dialog answered). An editing widget reports `Changed` per
+   keystroke and `Submitted` once, so a screen that persists on commit does not persist on the
+   first character typed. `is_changed()` is true for both, `is_submitted()` only for the commit;
+   `|` keeps the strongest outcome, so `Submitted` sorts above `Changed`. Every widget states in
+   its own docs what `Changed` means for it, and a widget that commits exposes the drain accessor
+   (`take_submitted()` / `take_activated()`) next to it.
 3. **Hover** comes from `HitBox` in the state; **focus** and **enabled** come from the builder.
    Build `Look { focused, hover: state.hit.hover, enabled }` and style from it
    (`th.focus_bg()`, `th.border` vs `th.border_blurred`, `th.hover_bg`, `th.text_disabled`).
@@ -64,11 +70,26 @@ Rules:
 6. **Draw through `crate::draw`.** `fill`, `put`, `put_centered`, `Border::*.draw/draw_titled`,
    `hbar`, `blend_area`, `truncate`, `wrap`. They clip to the buffer; you never index `buf[(x, y)]`
    without first checking `buf.area.contains(..)` (or use the helpers).
-7. **Never panic on size.** Any `area` (including 0×0 and 1×1) must render without panicking.
-   Degrade: hide parts, truncate text, return early.
+7. **Never panic on size, and never vanish silently.** Any `area` (including 0×0 and 1×1) must
+   render without panicking. Degrade first: hide parts, truncate text, drop a subtitle row. When a
+   widget genuinely cannot draw, it implements `core::MinSize` and guards with
+   `if draw::refuse(buf, area, self.min_size(), th.text_disabled) { return; }`, which paints a dim
+   `⋯`. A private `if area.height < 2 { return; }` is forbidden: the state still accepts every key
+   while nothing paints, so the symptom a consumer sees is "my keystrokes are not arriving", not
+   "my widget is too small". `min_size()` reads `self`, because style and `FieldShape` change the
+   answer, and it is what layout should allocate from: `Constraint::Length(w.min_size().1)`. The
+   guard keeps whatever geometry reset the old early return did — a stale `HitBox` clicks a widget
+   that is no longer on screen. Per-family numbers are tabled below.
 8. **Keyboard.** Follow Textual bindings: `Enter`/`Space` activate, arrows move, `Home`/`End`,
    `PageUp`/`PageDown`, `Esc` closes overlays, `Tab` is *not* handled by widgets (the app's
    `Focus` ring does it) except inside multi-field widgets that document it.
+   **A widget that can coexist with a focused text field must let the caller narrow what it
+   claims.** A persistent nav bar wired ahead of the focused screen — the obvious wiring — used to
+   swallow Enter, Space, every digit and caret movement app-wide, and because letters still arrived
+   it read as a submit bug rather than a routing bug. Chrome widgets therefore take a key-group
+   selector (`TabBar`/`TabBarState::keys(TabKeys::ARROWS)`, default `TabKeys::ALL` = today's
+   behaviour) and return `Ignored` for anything outside it. List every key group you claim in the
+   widget's docs.
 9. **Names.** `PascalCase` builder, `<Builder>State` state, enums for options
    (`TabStyle::Underline`). Do not reuse ratatui widget names (`Tabs`, `Table`, `List`,
    `Sparkline`, `Gauge`, `Chart`, `BarChart`, `Scrollbar`, `Paragraph`, `Block`, `ListItem`,
@@ -103,6 +124,93 @@ Rules:
     candidate with `unicode_width::UnicodeWidthStr::width` **and** a `cargo xtask shot` screenshot
     before using it.
 17. **Syntax highlighting.** `Highlighter` (from `core`) returns styled ranges as `(start, end, Style)` where `start..end` are **grapheme-cluster offsets** (as walked by `line.graphemes(true)`), not byte or char indices. Use `draw::put_highlighted` to apply them. Ranges must be ascending and non-overlapping; the helper ignores malformed ranges rather than panicking. Text outside all ranges keeps the base style.
+18. **Which side owns a setting.** The **state** owns what must survive frames: scroll offsets,
+    cursor positions, hit rects, tween clocks, queues, and anything an event handler reads before
+    the next render (a key-claim selector; a toast queue's corner, because the slide animation
+    interpolates against it). The **builder** owns per-frame look. A setting that has to live on
+    the state is still mirrored on the builder, writing through in `render`, so the first guess
+    compiles: `ToastStack::new().corner(..)` and `Toaster::corner` both work. Exceptions — settings
+    that are state-only with no builder mirror — are listed under "State-owned settings" below.
+
+## Minimum sizes
+
+`min_size()` on the builder is authoritative — it reads the configuration, so a style or a
+`FieldShape` changes the answer. Allocate from it (`Constraint::Length(w.min_size().1)`) instead of
+guessing. Below it, `render` paints a dim `⋯` and returns; it never draws nothing.
+
+`chrome` below is `FieldShape::vertical_chrome()`: 2 for the default `Tall(Edge::Full)`, `Rule`,
+`Round` and `Band`; 0 for `Bar`, `Bars`, `Prompt` and `None`. `.compact(true)` on `Input`,
+`TextArea` and `Select` selects the zero-chrome shape, which is how a field fits in one row.
+
+| Family | Widget | Minimum `(w, h)` |
+| --- | --- | --- |
+| Text entry | `Input` | `(7, 1 + chrome)` |
+| | `TextArea` | `(4, 1 + chrome)` |
+| | `Select`, `Combobox`, `MultiSelect` | `(8, 1 + chrome)`, compact `(4, 1)` |
+| | `Slider`, `RangeSlider` | `(10, 1 + chrome)` |
+| | `Stepper` | `(15, 1)` for a one-digit value; a wider value refuses visibly |
+| | `Rating` | `(2 × max, 1)` |
+| | `PromptComposer` | `(8, 2 + chrome)` |
+| Controls | `Button`, `Checkbox`, `RadioGroup`, `Segmented` | `(3, 1)` |
+| | `Switch` | style-dependent |
+| | `CheckList` | `(5, 3)` |
+| | `OptionList` | `(8, 1)` |
+| Navigation | `TabBar` | `(8, 2)` `Underline`, `(8, 3)` `Boxed`, else `(8, 1)` |
+| | `TabbedContent` | the bar's minimum + 1 content row, + 2 each way when bordered |
+| | `MenuBar`, `Breadcrumbs`, `Paginator`, `KeyFooter`, `Collapsible` | `(8, 1)` |
+| | `AppHeader` | `(8, 1)`, tall `(8, 3)` |
+| | `Steps` | `(8, 1)` horizontal, one row per label vertical |
+| | `Timeline` | `(10, 1)` |
+| | `Accordion` | `(8, titles)` |
+| | `ScrollView` | `(1, 1)` |
+| | `SplitPane` | `(3, 1)` |
+| | `Panel` | `1 + chrome` both ways |
+| Data | `DataTable` | content `(2, header + 1)` plus `2 × padding` both ways: `(4, 4)` by default |
+| | `TreeView` | `(3, 3)` bordered (the default), `(1, 1)` without |
+| | `KeyValueList` | `(2, 1)` |
+| | `Catalog` | columns + header rows |
+| | `Digits` | 3 cells per digit × `(_, 3)` |
+| | `BigMenu`, `BigText` | one character in the configured font, plus that style's chrome |
+| | `LineGraph` | `(10, 5)` |
+| | `ActivityGraph` | `(10, 8)` |
+| | `Meter` | `(4, 1)` |
+| | `RadialGauge` | `(12, 6)` |
+| | `LogView`, `Markdown` | `(5, 2)` |
+| | `ColorPicker` | `(20, 10)` |
+| | `GradientBar` | `(5, 1)` |
+| | `ThemePalette` | `(15, 2)` |
+| Content | `Badge`, `KeyValueList` | `(2, 1)` |
+| | `Pill`, `KeyCap`, `Loader` | `(3, 1)` |
+| | `StatusLine` | `(4, 1)` |
+| | `StatCard` | `(6, 2)` |
+| | `Skeleton` | `(3, 1)` for `Chart` (it degrades to one bar), else `(3, 2)` |
+| AI | `StreamText` | `(1, 1)` |
+| | `TokenHeat` | `(2, 1)` |
+| | `Thinking`, `DiffView`, `ModeBadge` | `(4, 1)` |
+| | `ContextGauge` | `(4, 1)` compact, `(4, 2)` full |
+| | `ToolCall` | `(4, 3)` |
+| | `ChatView` | `(8, 2)` |
+| | `CostMeter`, `EditPreview` | `(8, 2)` |
+| | `HarnessStatus` | `(10, 1)` |
+| | `RateGraph` | `(10, 2)` |
+| | `RetryNotice` | `(10, 1)` compact, `(10, 3)` card |
+| | `AgentLanes` | name column + a 10-cell track, 2 rows |
+| | `Approval` | `(12, 1)` inline, `(12, 2)` banner, `(12, 5)` card |
+| | `TurnStats` | `(12, 2)` |
+| | `CompactionBanner` | `(20, 2)` |
+
+Degrading beats refusing where a widget can still say something true: `Skeleton`'s chart shape
+draws a single bar under 2 rows rather than a marker, and reports `1` as its minimum height.
+
+## State-owned settings
+
+Settings that live on the state because an event handler reads them between renders. Both of
+these are mirrored on the builder, so either side works:
+
+| State field | Builder mirror | Why the state owns it |
+| --- | --- | --- |
+| `Toaster::corner` | `ToastStack::corner` | the queue slides toasts toward it between frames |
+| `TabBarState::keys` | `TabBar::keys` | `handle_key` consults it before the next render |
 
 ## Showcase page contract (`showcase/src/pages/<name>.rs`)
 

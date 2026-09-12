@@ -13,8 +13,10 @@ use ratatui_core::layout::Rect;
 use ratatui_core::style::Modifier;
 use ratatui_core::widgets::StatefulWidget;
 
-use crate::core::{Hit, HitBox, Interactive, Outcome, ctrl, is_activate, is_press, mouse_in};
-use crate::draw::{fill, put, put_centered, st};
+use crate::core::{
+    Hit, HitBox, Interactive, MinSize, Outcome, ctrl, is_activate, is_press, mouse_in,
+};
+use crate::draw::{self, fill, put, put_centered, st};
 use crate::layout::popup_below;
 use crate::runtime::{civil_from_days, days_from_civil, local_ymd};
 use crate::theme::{self, Theme, Variant};
@@ -284,13 +286,20 @@ impl Default for Calendar {
     }
 }
 
+impl MinSize for Calendar {
+    /// (20, 8) minimum for month view.
+    fn min_size(&self) -> (u16, u16) {
+        (20, 8)
+    }
+}
+
 impl StatefulWidget for Calendar {
     type State = CalendarState;
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 20 || area.height < 8 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         fill(buf, area, th.surface);
 
         state.day_rects.clear();
@@ -627,14 +636,20 @@ impl Default for DatePicker {
     }
 }
 
+impl MinSize for DatePicker {
+    /// (12, 1) minimum for compact picker.
+    fn min_size(&self) -> (u16, u16) {
+        (12, 1)
+    }
+}
+
 impl StatefulWidget for DatePicker {
     type State = DatePickerState;
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 12 || area.height < 1 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        state.hit.set_area(area);
-        let th = self.theme.unwrap_or_else(theme::current);
         let bg = th.surface;
         let border = if self.focused || state.open {
             th.border
@@ -738,5 +753,45 @@ mod tests {
         };
         assert_eq!(state.handle_mouse(press), Outcome::Changed);
         assert_eq!(state.selected, Some((2024, 3, 10)));
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        // Calendar (20, 8)
+        let (w, h) = Calendar::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        Calendar::new().render(buf.area, &mut buf, &mut CalendarState::default());
+        assert!(painted(&buf), "Calendar should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        Calendar::new().render(buf.area, &mut buf, &mut CalendarState::default());
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "Calendar one cell short must refuse visibly"
+        );
+
+        // DatePicker (12, 1)
+        let (w, h) = DatePicker::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        DatePicker::new().render(buf.area, &mut buf, &mut DatePickerState::default());
+        assert!(
+            painted(&buf),
+            "DatePicker should draw at its stated minimum"
+        );
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        DatePicker::new().render(buf.area, &mut buf, &mut DatePickerState::default());
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "DatePicker one cell short must refuse visibly"
+        );
     }
 }

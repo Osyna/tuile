@@ -24,6 +24,7 @@ pub mod menu;
 pub mod tabs;
 pub mod tree;
 // data
+pub mod catalog;
 pub mod charts;
 pub mod digits;
 pub mod table;
@@ -66,6 +67,7 @@ pub use bigtext::*;
 pub use breadcrumbs::*;
 pub use button::*;
 pub use calendar::*;
+pub use catalog::*;
 pub use charts::*;
 pub use collapsible::*;
 pub use color::*;

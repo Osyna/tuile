@@ -19,8 +19,9 @@ use ratatui_core::buffer::Buffer;
 use ratatui_core::layout::Rect;
 use ratatui_core::widgets::Widget;
 
+use crate::core::MinSize;
 use crate::draw::{
-    bold, fill, hbar, put, put_centered, put_right, st, truncate, vbar, width as text_width,
+    self, bold, fill, hbar, put, put_centered, put_right, st, truncate, vbar, width as text_width,
 };
 use crate::theme::{self, Rgb, Theme, Variant, gradient as color_gradient};
 
@@ -794,9 +795,17 @@ impl<'a> LineGraph<'a> {
     }
 }
 
+impl MinSize for LineGraph<'_> {
+    /// (10, 5) minimum for the graph with axes.
+    fn min_size(&self) -> (u16, u16) {
+        (10, 5)
+    }
+}
+
 impl Widget for LineGraph<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 10 || area.height < 5 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
@@ -1302,12 +1311,19 @@ impl<'a> ActivityGraph<'a> {
     }
 }
 
+impl MinSize for ActivityGraph<'_> {
+    /// (10, 8) minimum for the activity grid.
+    fn min_size(&self) -> (u16, u16) {
+        (10, 8)
+    }
+}
+
 impl Widget for ActivityGraph<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 10 || area.height < 8 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         fill(buf, area, th.background);
 
         let default_levels = [
@@ -1477,12 +1493,19 @@ impl Default for Meter<'_> {
     }
 }
 
+impl MinSize for Meter<'_> {
+    /// (4, 1) minimum for the meter.
+    fn min_size(&self) -> (u16, u16) {
+        (4, 1)
+    }
+}
+
 impl Widget for Meter<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 4 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let bg = th.background;
         fill(buf, area, bg);
 
@@ -1657,13 +1680,20 @@ impl Default for RadialGauge {
     }
 }
 
+impl MinSize for RadialGauge {
+    /// (12, 6) minimum for the radial gauge on braille canvas.
+    fn min_size(&self) -> (u16, u16) {
+        (12, 6)
+    }
+}
+
 impl Widget for RadialGauge {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // ponytail: radial gauge on braille canvas at 20x10 looks sparse; keeping as a showcase curiosity
-        if area.width < 12 || area.height < 6 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         fill(buf, area, th.background);
 
         let cx = area.width as f64 / 2.0;
@@ -1795,6 +1825,63 @@ mod tests {
         assert_eq!(z_down[(0, 1)].symbol(), " ");
     }
 
+    /// Filled areas are painted as background colour on a space (contract rule 15), so a
+    /// symbol-only check reads "nothing drawn" for a bar chart that did draw.
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
+
+    #[test]
+    fn draws_at_minimum_and_refuses_below() {
+        // LineGraph
+        let series = [LineSeries {
+            name: "test".into(),
+            points: vec![(0.0, 1.0), (1.0, 2.0)],
+            color: None,
+            style: LineStyle::Line,
+        }];
+        let (w, h) = LineGraph::new(&series).min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        LineGraph::new(&series).render(buf.area, &mut buf);
+        assert!(painted(&buf), "LineGraph should draw at stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        LineGraph::new(&series).render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "LineGraph one cell short must refuse visibly"
+        );
+
+        // Meter
+        let (w, h) = Meter::new().value(0.5).min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        Meter::new().value(0.5).render(buf.area, &mut buf);
+        assert!(painted(&buf), "Meter should draw at stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        Meter::new().value(0.5).render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "Meter one cell short must refuse visibly"
+        );
+
+        // RadialGauge
+        let (w, h) = RadialGauge::new().value(0.5).min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        RadialGauge::new().value(0.5).render(buf.area, &mut buf);
+        assert!(painted(&buf), "RadialGauge should draw at stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        RadialGauge::new().value(0.5).render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "RadialGauge one cell short must refuse visibly"
+        );
+    }
     #[test]
     fn test_nice_bounds() {
         let (min, max, step) = nice_bounds(0.3, 8.7);

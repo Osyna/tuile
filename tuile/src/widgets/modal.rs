@@ -23,11 +23,18 @@ use crate::draw::{Border, blend_area, bold, fill, put, put_centered, st, wrap};
 use crate::layout::center;
 use crate::theme::{self, Theme, Variant};
 
+/// Where the modal sits and how big it is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ModalKind {
+    /// Centred dialog sized to its own text and buttons.
     Dialog,
+    /// Wide sheet anchored to the bottom edge, keeping the page visible above it.
     Sheet,
+    /// The whole area minus a margin.
     Fullscreen,
+    /// Centred card of a caller-chosen size whose body the caller draws into
+    /// [`ModalState::body`]. See [`Modal::card`].
+    Card,
 }
 
 /// Modal dialog builder.
@@ -36,6 +43,7 @@ pub struct Modal {
     body: String,
     buttons: Vec<(String, Variant)>,
     width: u16,
+    height: Option<u16>,
     kind: ModalKind,
     dim: f32,
     icon: Option<String>,
@@ -55,6 +63,7 @@ impl Modal {
             body: String::new(),
             buttons: Vec::new(),
             width: 48,
+            height: None,
             kind: ModalKind::Dialog,
             dim: 0.6,
             icon: None,
@@ -80,6 +89,13 @@ impl Modal {
 
     pub fn width(mut self, w: u16) -> Self {
         self.width = w.clamp(24, 80);
+        self
+    }
+
+    /// Card height in rows (only [`ModalKind::Card`] uses it; the other kinds size themselves
+    /// from their text and buttons). Default: two thirds of the area.
+    pub fn height(mut self, h: u16) -> Self {
+        self.height = Some(h);
         self
     }
 
@@ -153,6 +169,26 @@ impl Modal {
             .with_input(true)
     }
 
+    /// A card over the current screen whose body the caller draws: backdrop, centred frame,
+    /// title, `Esc` to close. `render` publishes the interior in [`ModalState::body`]; draw
+    /// into that rect after rendering the modal, and the card is above the screen because it
+    /// painted later.
+    ///
+    /// ```
+    /// # use tuile::prelude::*;
+    /// # use std::time::Instant;
+    /// # let mut buf = Buffer::empty(Rect::new(0, 0, 60, 20));
+    /// # let entries = vec![ListEntry::new("one"), ListEntry::new("two")];
+    /// # let mut list = ListViewState::new();
+    /// let mut state = ModalState::new();
+    /// state.open(Instant::now());
+    /// Modal::card("Pick a model").width(40).height(12).render(buf.area, &mut buf, &mut state);
+    /// ListView::new(entries).focused(true).render(state.body, &mut buf, &mut list);
+    /// ```
+    pub fn card(title: impl Into<String>) -> Self {
+        Self::new(title).kind(ModalKind::Card)
+    }
+
     /// Show a text field (prompt dialog); `Tab`/arrows move between field and buttons.
     pub fn with_input(mut self, v: bool) -> Self {
         self.prompt = v;
@@ -160,12 +196,15 @@ impl Modal {
     }
 }
 
-/// State for a modal: open/closed, focus, result, input text, cached config.
+/// State for a modal: open/closed, focus, result, input text, body rect, cached config.
 #[derive(Clone, Debug)]
 pub struct ModalState {
     pub open: bool,
     focus: usize,
     pub result: Option<usize>,
+    /// Interior of the card, written by every `render` and `Rect::ZERO` while closed. Draw the
+    /// body of a [`Modal::card`] into it *after* rendering the modal.
+    pub body: Rect,
     button_hits: Vec<HitBox>,
     backdrop_hit: HitBox,
     opened_at: Option<Instant>,
@@ -187,6 +226,7 @@ impl Default for ModalState {
             open: false,
             focus: 0,
             result: None,
+            body: Rect::ZERO,
             button_hits: Vec::new(),
             backdrop_hit: HitBox::default(),
             opened_at: None,
@@ -212,6 +252,12 @@ impl ModalState {
         self.opened_at = Some(now);
         self.result = None;
         self.fresh = true;
+    }
+
+    /// `true` while the modal is on screen. A host checks this first and routes the event to the
+    /// modal, so the card outranks the field focused underneath it.
+    pub fn is_open(&self) -> bool {
+        self.open
     }
 
     pub fn close(&mut self) {
@@ -250,6 +296,9 @@ impl ModalState {
         }
     }
 
+    /// Answer the dialog with `index`: the result waits in [`ModalState::take_result`] and the
+    /// modal closes. Every path that lands here reports `Outcome::Submitted`, including `Esc`
+    /// and a backdrop click, which answer with `cancel_index`.
     fn press_button(&mut self, index: usize) {
         self.result = Some(index);
         self.open = false;
@@ -307,11 +356,11 @@ impl Interactive for ModalState {
                 }
                 KeyCode::Enter => {
                     self.press_button(1);
-                    return Outcome::Changed;
+                    return Outcome::Submitted;
                 }
                 KeyCode::Esc if self.close_on_escape => {
                     self.press_button(self.cancel_index);
-                    return Outcome::Changed;
+                    return Outcome::Submitted;
                 }
                 _ => return Outcome::Ignored,
             }
@@ -336,11 +385,11 @@ impl Interactive for ModalState {
             }
             _ if is_activate(&k) => {
                 self.press_button(self.focus);
-                Outcome::Changed
+                Outcome::Submitted
             }
             KeyCode::Esc if self.close_on_escape => {
                 self.press_button(self.cancel_index);
-                Outcome::Changed
+                Outcome::Submitted
             }
             _ => Outcome::Ignored,
         }
@@ -351,7 +400,7 @@ impl Interactive for ModalState {
             let h = hit.mouse(&m);
             if matches!(h, Hit::Press) {
                 self.press_button(i);
-                return Outcome::Changed;
+                return Outcome::Submitted;
             } else if hit.hover {
                 self.focus = i;
             }
@@ -361,7 +410,7 @@ impl Interactive for ModalState {
             let h = self.backdrop_hit.mouse(&m);
             if matches!(h, Hit::Press) {
                 self.press_button(self.cancel_index);
-                return Outcome::Changed;
+                return Outcome::Submitted;
             }
         }
 
@@ -373,6 +422,7 @@ impl StatefulWidget for Modal {
     type State = ModalState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        state.body = Rect::ZERO;
         if !state.open || area.is_empty() {
             return;
         }
@@ -403,28 +453,39 @@ impl StatefulWidget for Modal {
         }
 
         let width = match self.kind {
-            ModalKind::Dialog => self.width.min(area.width),
+            ModalKind::Dialog | ModalKind::Card => self.width.min(area.width),
             ModalKind::Sheet => area.width.saturating_sub(8).max(self.width.min(area.width)),
             ModalKind::Fullscreen => area.width.saturating_sub(4),
         };
         let inner_w = width.saturating_sub(6);
-        let body_lines = wrap(&self.body, inner_w as usize);
+        // `wrap("")` yields one empty line; a card with no prose must not spend two rows on it
+        let body_lines = if self.body.is_empty() {
+            Vec::new()
+        } else {
+            wrap(&self.body, inner_w as usize)
+        };
         let prompt_h = if is_prompt { 4 } else { 0 };
         let buttons_h = if self.buttons.is_empty() { 0 } else { 4 };
         let icon_h = if self.icon.is_some() { 2 } else { 0 };
-        let h = (2
-            + 1
-            + icon_h
-            + 1
-            + body_lines.len() as u16
-            + if body_lines.is_empty() { 0 } else { 1 }
-            + prompt_h
-            + buttons_h
-            + 1)
-        .min(area.height);
+        // A card is sized by the caller: its body is content this widget cannot measure.
+        let h = if self.kind == ModalKind::Card {
+            self.height
+                .unwrap_or_else(|| (area.height * 2 / 3).max(7))
+                .min(area.height)
+        } else {
+            (2 + 1
+                + icon_h
+                + 1
+                + body_lines.len() as u16
+                + if body_lines.is_empty() { 0 } else { 1 }
+                + prompt_h
+                + buttons_h
+                + 1)
+            .min(area.height)
+        };
 
         let modal_area = match self.kind {
-            ModalKind::Dialog => center(area, width, h),
+            ModalKind::Dialog | ModalKind::Card => center(area, width, h),
             // anchored to the bottom edge, wide, keeps the page context visible above
             ModalKind::Sheet => Rect {
                 x: area.x + (area.width - width) / 2,
@@ -499,6 +560,25 @@ impl StatefulWidget for Modal {
         if !body_lines.is_empty() {
             cy += 1;
         }
+
+        // Geometry for the caller: everything between the text and the buttons, inside the
+        // frame. `Modal::card` draws nothing here, so the rect is the whole card interior.
+        let body_bottom = modal_area
+            .bottom()
+            .saturating_sub(
+                1 + if self.buttons.is_empty() {
+                    0
+                } else {
+                    buttons_h
+                },
+            )
+            .max(cy);
+        state.body = Rect {
+            x: cx,
+            y: cy,
+            width: inner_w,
+            height: body_bottom - cy,
+        };
 
         if is_prompt {
             let input_area = Rect {
@@ -631,6 +711,7 @@ fn draw_button(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ratatui_core::style::Style;
 
     fn opened(modal: Modal) -> ModalState {
         let mut state = ModalState::new();
@@ -669,5 +750,102 @@ mod tests {
         state.handle_key(KeyEvent::from(KeyCode::Backspace));
         assert_eq!(state.input_text, "a");
         assert_eq!(state.input_cursor, 1);
+    }
+
+    #[test]
+    fn card_publishes_a_body_the_caller_draws_into() {
+        let mut buf = Buffer::empty(Rect::new(0, 0, 60, 20));
+        let mut state = ModalState::new();
+        state.open(Instant::now());
+        Modal::card("Pick a model")
+            .width(40)
+            .height(12)
+            .now(Instant::now() + std::time::Duration::from_secs(1))
+            .render(buf.area, &mut buf, &mut state);
+
+        let card = center(buf.area, 40, 12);
+        let body = state.body;
+        assert!(body.width > 0 && body.height > 0, "{body:?}");
+        // strictly inside the frame: never on the border row/column
+        assert!(body.x > card.x, "{body:?} vs {card:?}");
+        assert!(body.y > card.y, "{body:?} vs {card:?}");
+        assert!(body.right() < card.right(), "{body:?} vs {card:?}");
+        assert!(body.bottom() < card.bottom(), "{body:?} vs {card:?}");
+
+        // what the caller paints there lands inside the card
+        put(
+            &mut buf,
+            body.x,
+            body.y,
+            "picker row",
+            body.width,
+            Style::new(),
+        );
+        let row: String = (0..buf.area.width)
+            .map(|x| buf[(x, body.y)].symbol().to_string())
+            .collect();
+        assert!(row.contains("picker row"), "{row:?}");
+
+        state.close();
+        Modal::card("Pick a model").render(buf.area, &mut buf, &mut state);
+        assert_eq!(
+            state.body,
+            Rect::ZERO,
+            "a closed modal publishes no geometry"
+        );
+    }
+
+    #[test]
+    fn card_backdrop_covers_what_was_underneath() {
+        let area = Rect::new(0, 0, 60, 20);
+        let th = theme::current();
+        let mut buf = Buffer::empty(area);
+        // a busy screen: a real background colour with glyphs on top of it
+        fill(&mut buf, area, th.primary);
+        for y in 0..area.height {
+            for x in 0..area.width {
+                buf[(x, y)].set_symbol("#");
+            }
+        }
+        let mut state = ModalState::new();
+        state.open(Instant::now());
+        Modal::card("Busy screen behind me")
+            .width(40)
+            .height(12)
+            .now(Instant::now() + std::time::Duration::from_secs(1))
+            .render(area, &mut buf, &mut state);
+
+        let card = center(area, 40, 12);
+        // inside the card: the card's own paint, none of the screen's pattern
+        let inside: String = (card.x..card.right())
+            .map(|x| buf[(x, card.y + 3)].symbol().to_string())
+            .collect();
+        assert!(
+            !inside.contains('#'),
+            "card must cover the screen: {inside:?}"
+        );
+        // outside: the glyphs survive, but the backdrop has tinted them away from the screen's own colour
+        assert_eq!(buf[(0, 0)].symbol(), "#");
+        assert_ne!(
+            buf[(0, 0)].bg,
+            th.primary.color(),
+            "the backdrop must tint what it does not cover"
+        );
+    }
+
+    #[test]
+    fn answering_is_a_commit_and_navigating_is_not() {
+        let mut state = opened(Modal::confirm("Sure?", "really"));
+        let moved = state.handle_key(KeyEvent::from(KeyCode::Left));
+        assert!(!moved.is_submitted(), "{moved:?}");
+        let answered = state.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert!(answered.is_submitted(), "{answered:?}");
+        assert!(state.take_result().is_some());
+
+        // Esc answers with the cancel index, so it is also a commit
+        let mut state = opened(Modal::confirm("Sure?", "really").cancel_index(0));
+        let cancelled = state.handle_key(KeyEvent::from(KeyCode::Esc));
+        assert!(cancelled.is_submitted(), "{cancelled:?}");
+        assert_eq!(state.take_result(), Some(0));
     }
 }

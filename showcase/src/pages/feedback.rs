@@ -42,6 +42,7 @@ pub struct FeedbackPage {
     buttons: [ButtonState; 8],
     modal: ModalState,
     modal_kind: usize,
+    picker: ListViewState,
     callouts: [CalloutState; 4],
     tooltip: TooltipState,
     spinner_hits: Vec<(Rect, &'static str)>,
@@ -81,6 +82,7 @@ impl Default for FeedbackPage {
             buttons: Default::default(),
             modal: ModalState::new(),
             modal_kind: 0,
+            picker: ListViewState::new(),
             callouts: Default::default(),
             tooltip: TooltipState::new(),
             spinner_hits: Vec::new(),
@@ -106,10 +108,12 @@ impl FeedbackPage {
             )
             .icon("↑"),
             2 => Modal::prompt("Rename branch", "New name for `feature/toasts`:"),
-            _ => Modal::new("Sheet")
+            3 => Modal::new("Sheet")
                 .body("A bottom sheet slides up from the edge and keeps the page context visible.")
                 .buttons(&[("Close", Variant::Primary)])
                 .kind(ModalKind::Sheet),
+            // a card the caller fills: the modal draws frame and title, we draw the picker
+            _ => Modal::card("Pick a model").width(44).height(12),
         };
         m.theme(th).now(now)
     }
@@ -135,6 +139,8 @@ impl Page for FeedbackPage {
             ("Tab", "Focus"),
             ("Enter", "Press"),
             ("1-4", "Toast"),
+            ("m", "Dialog"),
+            ("l", "Card + picker"),
             ("Esc", "Dismiss"),
         ]
     }
@@ -551,9 +557,22 @@ impl Page for FeedbackPage {
         }
 
         // overlays: dialog, then tooltip
-        if self.modal.open {
+        if self.modal.is_open() {
             let m = self.modal_builder(&th, now);
             m.render(area, buf, &mut self.modal);
+            if self.modal_kind == 4 {
+                // the card published its interior; the picker paints into it, above the screen
+                ListView::new(vec![
+                    ListEntry::new("claude-opus-4.5").detail("200k ctx"),
+                    ListEntry::new("claude-sonnet-4.5").detail("200k ctx"),
+                    ListEntry::new("gpt-5.1").detail("128k ctx"),
+                    ListEntry::new("gemini-3-pro").detail("1M ctx"),
+                ])
+                .title("models")
+                .focused(true)
+                .theme(&th)
+                .render(self.modal.body, buf, &mut self.picker);
+            }
         }
         if let Some(i) = self.hover_spinner
             && let Some((rect, name)) = self.spinner_hits.get(i)
@@ -572,7 +591,21 @@ impl Page for FeedbackPage {
     }
 
     fn event(&mut self, ev: &Event, ctx: &mut Ctx) -> Outcome {
-        if self.modal.open {
+        // the modal outranks everything underneath it, including a focused field
+        if self.modal.is_open() {
+            // inside a card, the body owns the keyboard; Esc still reaches the modal
+            if self.modal_kind == 4 && self.picker.handle(ev).is_submitted() {
+                let i = self.picker.take_activated().unwrap_or(0);
+                let name = [
+                    "claude-opus-4.5",
+                    "claude-sonnet-4.5",
+                    "gpt-5.1",
+                    "gemini-3-pro",
+                ][i.min(3)];
+                self.modal.close();
+                ctx.notify(format!("Picked {name}"), Variant::Success);
+                return Outcome::Consumed;
+            }
             self.modal.handle(ev);
             if let Some(r) = self.modal.take_result() {
                 let text = self.modal.input_text.clone();
@@ -582,6 +615,7 @@ impl Page for FeedbackPage {
                     (0, _) => "Kept editing".to_string(),
                     (2, 1) => format!("Renamed to `{text}`"),
                     (2, _) => "Rename cancelled".to_string(),
+                    (4, _) => "Picker dismissed".to_string(),
                     _ => "Dialog closed".to_string(),
                 };
                 ctx.notify(msg, Variant::Primary);
@@ -619,6 +653,10 @@ impl Page for FeedbackPage {
                     }
                     KeyCode::Char('m') => {
                         self.open_modal(0, ctx);
+                        return Outcome::Changed;
+                    }
+                    KeyCode::Char('l') => {
+                        self.open_modal(4, ctx);
                         return Outcome::Changed;
                     }
                     KeyCode::Esc => {

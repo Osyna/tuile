@@ -1,7 +1,7 @@
 # tuile
 
 tuile is a widget library and design system for [ratatui](https://ratatui.rs). It gives you
-108 widget types, a colour system that expands ten colours into thirty semantic roles, tweened
+109 widget types, a colour system that expands ten colours into thirty semantic roles, tweened
 animation, mouse handling with hit rectangles, overlays, and a 22-page gallery app that
 exercises all of it.
 

@@ -2,6 +2,7 @@
 
 use std::time::{Duration, Instant};
 use tuile::prelude::*;
+use tuile::theme::Variant;
 use tuile::widgets::ai::{
     Approval, ApprovalChoice, ApprovalState, ApprovalStyle, ChatBlock, ChatMessage, ChatState,
     ChatView, ComposerState, ContextGauge, PromptComposer, Role, StreamCursor, StreamText,
@@ -233,6 +234,16 @@ impl AiPage {
                         lang: Some("rust".into()),
                         text: CODE.into(),
                     });
+                    m.blocks.push(ChatBlock::Facts(vec![
+                        ("model".into(), "claude-sonnet-4".into()),
+                        ("temperature".into(), "1.0".into()),
+                        ("max_tokens".into(), "4096".into()),
+                    ]));
+                    m.blocks.push(ChatBlock::Alert {
+                        level: Variant::Success,
+                        title: "Tests passed".into(),
+                        text: "All 124 tests completed successfully".into(),
+                    });
                 }
             }
             Step::AskApproval => {
@@ -388,8 +399,8 @@ impl Page for AiPage {
         PromptComposer::new()
             .model("claude-sonnet-4")
             .placeholder("Reply…")
+            .tokens(1234)
             .focused(self.focus.is(Id::Composer))
-            .now(now)
             .theme(&th)
             .render(composer_area, buf, &mut self.composer);
 

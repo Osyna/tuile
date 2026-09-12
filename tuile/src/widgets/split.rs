@@ -15,7 +15,7 @@ use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui_core::buffer::Buffer;
 use ratatui_core::layout::{Direction, Rect};
 
-use crate::core::{Hit, HitBox, Outcome, is_left_drag, is_left_up, mouse_pos};
+use crate::core::{Hit, HitBox, MinSize, Outcome, is_left_drag, is_left_up, mouse_pos};
 use crate::draw::{fill, put_cell, st};
 use crate::theme::{self, Theme};
 
@@ -414,6 +414,14 @@ impl SplitPane {
 impl Default for SplitPane {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl MinSize for SplitPane {
+    /// Minimum: both panes at their minimum + divider.
+    fn min_size(&self) -> (u16, u16) {
+        // Cannot compute without state, return smallest viable
+        (3, 1)
     }
 }
 

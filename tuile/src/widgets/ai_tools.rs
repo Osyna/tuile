@@ -21,9 +21,10 @@ use ratatui_core::widgets::{StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{elapsed, since};
-use crate::core::{Highlighter, Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
+use crate::core::{Highlighter, Hit, HitBox, Interactive, MinSize, Outcome, is_press, wheel_delta};
 use crate::draw::{
-    Border, Edge, bold, fill, hbar, put, put_highlighted, put_right, st, truncate, truncate_start,
+    Border, Edge, bold, fill, hbar, put, put_highlighted, put_right, refuse, st, truncate,
+    truncate_start,
 };
 use crate::theme::{self, Theme, Variant};
 use crate::widgets::ai::{DiffKind, DiffLine, ToolStatus};
@@ -1068,6 +1069,9 @@ pub struct EditPreview<'a> {
     now: Option<Instant>,
     lps: f32,
     side_by_side: bool,
+    accept_text: Option<String>,
+    reject_text: Option<String>,
+    edit_text: Option<String>,
 }
 
 impl<'a> EditPreview<'a> {
@@ -1080,6 +1084,9 @@ impl<'a> EditPreview<'a> {
             now: None,
             lps: 24.0,
             side_by_side: false,
+            accept_text: None,
+            reject_text: None,
+            edit_text: None,
         }
     }
 
@@ -1117,6 +1124,31 @@ impl<'a> EditPreview<'a> {
         self.side_by_side = v;
         self
     }
+
+    /// Accept button text override. Default is `[a] Accept`.
+    pub fn accept_text(mut self, s: impl Into<String>) -> Self {
+        self.accept_text = Some(s.into());
+        self
+    }
+
+    /// Reject button text override. Default is `[r] Reject`.
+    pub fn reject_text(mut self, s: impl Into<String>) -> Self {
+        self.reject_text = Some(s.into());
+        self
+    }
+
+    /// Edit button text override. Default is `[e] Edit`.
+    pub fn edit_text(mut self, s: impl Into<String>) -> Self {
+        self.edit_text = Some(s.into());
+        self
+    }
+}
+
+impl MinSize for EditPreview<'_> {
+    /// Needs 2 rows: header + footer. Body is optional.
+    fn min_size(&self) -> (u16, u16) {
+        (8, 2)
+    }
 }
 
 impl Default for EditPreview<'_> {
@@ -1131,7 +1163,7 @@ impl StatefulWidget for EditPreview<'_> {
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let th = self.theme.unwrap_or_else(theme::current);
 
-        if area.height < 2 {
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
@@ -1237,9 +1269,21 @@ impl StatefulWidget for EditPreview<'_> {
             );
 
             let buttons = [
-                ("[a] Accept", Variant::Success, EditDecision::Accept),
-                ("[r] Reject", Variant::Error, EditDecision::Reject),
-                ("[e] Edit", Variant::Default, EditDecision::Edit),
+                (
+                    self.accept_text.as_deref().unwrap_or("[a] Accept"),
+                    Variant::Success,
+                    EditDecision::Accept,
+                ),
+                (
+                    self.reject_text.as_deref().unwrap_or("[r] Reject"),
+                    Variant::Error,
+                    EditDecision::Reject,
+                ),
+                (
+                    self.edit_text.as_deref().unwrap_or("[e] Edit"),
+                    Variant::Default,
+                    EditDecision::Edit,
+                ),
             ];
 
             let mut x = area.x;
@@ -1356,7 +1400,7 @@ impl Interactive for ChangeSetState {
             }
             KeyCode::Enter => {
                 self.activated = Some(self.cursor);
-                return Outcome::Changed;
+                return Outcome::Submitted;
             }
             _ => {}
         }
@@ -1373,7 +1417,7 @@ impl Interactive for ChangeSetState {
                 Hit::Press => {
                     self.cursor = i;
                     self.activated = Some(i);
-                    return Outcome::Changed;
+                    return Outcome::Submitted;
                 }
                 Hit::HoverChanged => {
                     self.cursor = i;
@@ -2078,6 +2122,8 @@ pub struct RetryNotice<'a> {
     deadline: Instant,
     now: Option<Instant>,
     compact: bool,
+    retrying_text: Option<String>,
+    retry_text: Option<String>,
 }
 
 impl<'a> RetryNotice<'a> {
@@ -2089,6 +2135,8 @@ impl<'a> RetryNotice<'a> {
             deadline: Instant::now(),
             now: None,
             compact: false,
+            retrying_text: None,
+            retry_text: None,
         }
     }
 
@@ -2121,6 +2169,26 @@ impl<'a> RetryNotice<'a> {
         self.compact = c;
         self
     }
+
+    /// Retrying status text override. Default is `retrying…`.
+    pub fn retrying_text(mut self, s: impl Into<String>) -> Self {
+        self.retrying_text = Some(s.into());
+        self
+    }
+
+    /// Retry countdown text override. Receives formatted string.
+    /// Default formats as `retry {current}/{total} in {secs}s`.
+    pub fn retry_text(mut self, s: impl Into<String>) -> Self {
+        self.retry_text = Some(s.into());
+        self
+    }
+}
+
+impl MinSize for RetryNotice<'_> {
+    /// Compact mode needs 1 row; card mode needs 3 rows.
+    fn min_size(&self) -> (u16, u16) {
+        if self.compact { (10, 1) } else { (10, 3) }
+    }
 }
 
 impl Default for RetryNotice<'_> {
@@ -2141,6 +2209,10 @@ impl Widget for RetryNotice<'_> {
             .max(0.0);
         let is_retrying = remaining <= 0.0;
 
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
+            return;
+        }
+
         if self.compact {
             // One row: ⊛ reason · retry N/M in Ns ▁▁▁
             if area.height == 0 {
@@ -2154,15 +2226,20 @@ impl Widget for RetryNotice<'_> {
             x += 2;
 
             let status_text = if is_retrying {
-                format!("{} · retrying…", self.reason)
+                let retrying = self.retrying_text.as_deref().unwrap_or("retrying…");
+                format!("{} · {}", self.reason, retrying)
             } else {
-                format!(
-                    "{} · retry {}/{} in {}s",
-                    self.reason,
-                    self.attempt.0,
-                    self.attempt.1,
-                    remaining.ceil() as u32
-                )
+                if let Some(retry) = &self.retry_text {
+                    format!("{} · {}", self.reason, retry)
+                } else {
+                    format!(
+                        "{} · retry {}/{} in {}s",
+                        self.reason,
+                        self.attempt.0,
+                        self.attempt.1,
+                        remaining.ceil() as u32
+                    )
+                }
             };
 
             let bar_w = 8;
@@ -2177,10 +2254,7 @@ impl Widget for RetryNotice<'_> {
                 hbar(buf, bar_x, area.y, bar_w, frac, th.warning, bg);
             }
         } else {
-            // 3-row card
-            if area.height < 3 {
-                return;
-            }
+            // 3-row card (already validated by refuse)
             let card_h = 3;
             let card_area = Rect::new(area.x, area.y, area.width, card_h);
             Border::Round.draw(buf, card_area, th.warning, th.background);
@@ -2209,16 +2283,21 @@ impl Widget for RetryNotice<'_> {
                 // Row 2: retry N/M in Ns or retrying…
                 fill(buf, Rect::new(inner.x, y, inner.width, 1), th.background);
                 let status = if is_retrying {
+                    let retrying = self.retrying_text.as_deref().unwrap_or("retrying…");
                     let now_val = self.now.unwrap_or_else(Instant::now);
                     let frame = spinners::DOTS.frame(since(now_val));
-                    format!("{}retrying…", frame)
+                    format!("{}{}", frame, retrying)
                 } else {
-                    format!(
-                        "retry {}/{} in {}s",
-                        self.attempt.0,
-                        self.attempt.1,
-                        remaining.ceil() as u32
-                    )
+                    if let Some(retry) = &self.retry_text {
+                        retry.clone()
+                    } else {
+                        format!(
+                            "retry {}/{} in {}s",
+                            self.attempt.0,
+                            self.attempt.1,
+                            remaining.ceil() as u32
+                        )
+                    }
                 };
                 put(
                     buf,
@@ -2499,5 +2578,154 @@ mod tests {
             .highlighter(|_| vec![(0, 5, st(Rgb(0, 255, 0), Rgb(0, 0, 0)))])
             .render(area, &mut buf);
         // Should not panic
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| c.symbol() != " ")
+    }
+
+    #[test]
+    fn edit_preview_custom_button_text() {
+        let area = Rect::new(0, 0, 40, 4);
+        let mut buf = Buffer::empty(area);
+        let mut state = EditPreviewState::default();
+        let lines = vec![DiffLine {
+            kind: DiffKind::Add,
+            text: "new".into(),
+        }];
+
+        EditPreview::new()
+            .lines(&lines)
+            .accept_text("✓ OK")
+            .render(area, &mut buf, &mut state);
+
+        let footer_row: String = (0..40).map(|x| buf[(x, 3)].symbol()).collect();
+        assert!(
+            footer_row.contains("✓ OK"),
+            "custom accept text should appear in buffer"
+        );
+    }
+
+    #[test]
+    fn edit_preview_default_button_text() {
+        let area = Rect::new(0, 0, 40, 4);
+        let mut buf = Buffer::empty(area);
+        let mut state = EditPreviewState::default();
+        let lines = vec![DiffLine {
+            kind: DiffKind::Add,
+            text: "new".into(),
+        }];
+
+        EditPreview::new()
+            .lines(&lines)
+            .render(area, &mut buf, &mut state);
+
+        let footer_row: String = (0..40).map(|x| buf[(x, 3)].symbol()).collect();
+        assert!(
+            footer_row.contains("[a] Accept"),
+            "default accept text should appear"
+        );
+    }
+
+    #[test]
+    fn retry_notice_custom_retry_text() {
+        let area = Rect::new(0, 0, 40, 1);
+        let mut buf = Buffer::empty(area);
+        let deadline = Instant::now() + Duration::from_secs(5);
+
+        RetryNotice::new()
+            .reason("test")
+            .compact(true)
+            .retry_text("réessayer 1/3 dans 5s")
+            .deadline(deadline)
+            .render(area, &mut buf);
+
+        let row: String = (0..40).map(|x| buf[(x, 0)].symbol()).collect();
+        assert!(row.contains("réessayer"), "custom retry text should appear");
+    }
+
+    #[test]
+    fn changeset_activation_returns_submitted() {
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+        let mut state = ChangeSetState::default();
+        state.files.push(FileChange::new("a.rs", ChangeKind::Added));
+        state.cursor = 0;
+
+        let k = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+        let outcome = state.handle_key(k);
+        assert_eq!(outcome, Outcome::Submitted, "Enter should return Submitted");
+        assert_eq!(state.activated, Some(0));
+    }
+
+    #[test]
+    fn widgets_draw_at_minimum_and_refuse_below() {
+        let th = Theme::default();
+
+        // EditPreview: min is (8, 2)
+        let (w, h) = (8u16, 2u16);
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = EditPreviewState::default();
+        let lines = vec![DiffLine {
+            kind: DiffKind::Add,
+            text: "new".into(),
+        }];
+        EditPreview::new()
+            .theme(&th)
+            .lines(&lines)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "EditPreview should draw at its minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h.saturating_sub(1)));
+        EditPreview::new()
+            .theme(&th)
+            .lines(&lines)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
+
+        // RetryNotice compact: min is (10, 1)
+        let (w, h) = (10u16, 1u16);
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        RetryNotice::new()
+            .theme(&th)
+            .compact(true)
+            .reason("test")
+            .render(buf.area, &mut buf);
+        assert!(painted(&buf), "RetryNotice compact should draw at minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w.saturating_sub(1), h));
+        RetryNotice::new()
+            .theme(&th)
+            .compact(true)
+            .reason("test")
+            .render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one cell short must refuse visibly"
+        );
+
+        // RetryNotice card: min is (10, 3)
+        let (w, h) = (10u16, 3u16);
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        RetryNotice::new()
+            .theme(&th)
+            .compact(false)
+            .reason("test")
+            .render(buf.area, &mut buf);
+        assert!(painted(&buf), "RetryNotice card should draw at minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h.saturating_sub(1)));
+        RetryNotice::new()
+            .theme(&th)
+            .compact(false)
+            .reason("test")
+            .render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
     }
 }

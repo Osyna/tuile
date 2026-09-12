@@ -354,15 +354,21 @@ impl Default for Toaster {
 }
 
 pub struct ToastStack {
+    corner: Option<ToastCorner>,
     theme: Option<Theme>,
     now: Option<Instant>,
 }
 impl ToastStack {
     pub fn new() -> Self {
         Self {
+            corner: None,
             theme: None,
             now: None,
         }
+    }
+    pub fn corner(mut self, c: ToastCorner) -> Self {
+        self.corner = Some(c);
+        self
     }
     pub fn theme(mut self, th: &Theme) -> Self {
         self.theme = Some(*th);
@@ -396,6 +402,10 @@ impl StatefulWidget for ToastStack {
         }
         let th = self.theme.unwrap_or_else(theme::current);
         let now = self.now.unwrap_or_else(Instant::now);
+        if let Some(c) = self.corner {
+            state.corner = c;
+            state.position = c.into();
+        }
         state.tick(now);
         let bar = state.bar;
         let position = state.position;
@@ -919,7 +929,38 @@ mod tests {
         assert_eq!(toaster.toasts.len(), 1);
         toaster.toasts[0].progress_value = 1.0;
         toaster.tick(now + Duration::from_millis(300));
+
         toaster.tick(now + Duration::from_millis(500));
         assert_eq!(toaster.toasts.len(), 0);
+    }
+
+    #[test]
+    fn corner_builder_writes_through() {
+        let mut toaster = Toaster::new();
+        let mut buf = Buffer::empty(Rect::new(0, 0, 80, 24));
+
+        ToastStack::new()
+            .corner(ToastCorner::TopLeft)
+            .render(buf.area, &mut buf, &mut toaster);
+
+        assert_eq!(
+            toaster.corner,
+            ToastCorner::TopLeft,
+            "corner builder should write through to state"
+        );
+    }
+
+    #[test]
+    fn corner_state_setter_still_works() {
+        let mut toaster = Toaster::new().corner(ToastCorner::BottomLeft);
+        let mut buf = Buffer::empty(Rect::new(0, 0, 80, 24));
+
+        ToastStack::new().render(buf.area, &mut buf, &mut toaster);
+
+        assert_eq!(
+            toaster.corner,
+            ToastCorner::BottomLeft,
+            "state corner setter should still work"
+        );
     }
 }

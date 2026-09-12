@@ -1,4 +1,4 @@
-//! Tables and digits: sortable data table, cell navigation, key-value list, big digits.
+//! Tables and catalogs: sortable data table, cell navigation, key-value list, big digits, and generic catalogues.
 
 use std::time::Instant;
 
@@ -7,7 +7,8 @@ use tuile::prelude::*;
 use tuile::ratatui_core::layout::{Alignment, Constraint};
 use tuile::ratatui_core::style::Modifier;
 use tuile::widgets::{
-    DataTable, DataTableState, Digits, KeyValueList, TableCell, TableColumn, TableCursor, TableRow,
+    Catalog, CatalogState, DataTable, DataTableState, Digits, KeyValueList, TableCell, TableColumn,
+    TableCursor, TableRow,
 };
 
 use super::{Ctx, Page};
@@ -17,11 +18,15 @@ enum Id {
     MainTable,
     CellTable,
     Counter,
+    McpCatalog,
+    RecordCatalog,
 }
 
 pub struct DataPage {
     main_table: DataTableState,
     cell_table: DataTableState,
+    mcp_catalog: CatalogState,
+    record_catalog: CatalogState,
     focus: Option<Focus<Id>>,
     counter: u32,
     filter_mode: bool,
@@ -33,6 +38,8 @@ impl Default for DataPage {
         Self {
             main_table: DataTableState::new(),
             cell_table: DataTableState::new(),
+            mcp_catalog: CatalogState::new(),
+            record_catalog: CatalogState::new(),
             focus: None,
             counter: 0,
             filter_mode: false,
@@ -75,7 +82,7 @@ impl Page for DataPage {
     }
 
     fn subtitle(&self) -> &'static str {
-        "Sortable tables, cell navigation, key-value lists, and big digits"
+        "Sortable tables, cell navigation, key-value lists, and generic catalogs"
     }
 
     fn icon(&self) -> &'static str {
@@ -83,21 +90,30 @@ impl Page for DataPage {
     }
 
     fn draw(&mut self, area: Rect, buf: &mut Buffer, ctx: &mut Ctx) {
-        let focus = self
-            .focus
-            .get_or_insert_with(|| Focus::new([Id::MainTable, Id::CellTable, Id::Counter]));
+        let focus = self.focus.get_or_insert_with(|| {
+            Focus::new([
+                Id::MainTable,
+                Id::CellTable,
+                Id::Counter,
+                Id::McpCatalog,
+                Id::RecordCatalog,
+            ])
+        });
 
         let th = &ctx.theme;
-        let rows = tuile::layout::stack(area, &[area.height.saturating_sub(11), 10], 1);
-        if rows.len() < 2 {
-            return;
-        }
+        let [main_area, middle_area, bottom_area] = tuile::layout::rows(
+            area,
+            [
+                Constraint::Fill(1),
+                Constraint::Length(10),
+                Constraint::Length(10),
+            ],
+        );
 
         // main table card
-        let main_card = rows[0];
         let main_inner = Border::Round.draw_titled_with(
             buf,
-            main_card,
+            main_area,
             th.border_blurred,
             th.background,
             "Server Status",
@@ -204,14 +220,13 @@ impl Page for DataPage {
                 status_y,
                 &filter_prompt,
                 main_inner.width,
-                st(th.text, th.focus_bg()),
+                st(th.text, th.background),
             );
         }
 
-        // bottom row: cell table + kvlist + digits
-        let bottom_area = rows[1];
-        let bottom_cols = tuile::layout::cols(
-            bottom_area,
+        // middle row: cell table + kvlist + digits
+        let [cell_card, kv_card, digits_card] = tuile::layout::cols(
+            middle_area,
             [
                 Constraint::Percentage(35),
                 Constraint::Percentage(30),
@@ -220,7 +235,6 @@ impl Page for DataPage {
         );
 
         // Cell navigation table
-        let cell_card = bottom_cols[0];
         let cell_inner = Border::Round.draw_titled_with(
             buf,
             cell_card,
@@ -277,7 +291,6 @@ impl Page for DataPage {
             .render(cell_inner, buf, &mut self.cell_table);
 
         // Key-value list
-        let kv_card = bottom_cols[1];
         let kv_inner = Border::Round.draw_titled_with(
             buf,
             kv_card,
@@ -297,7 +310,6 @@ impl Page for DataPage {
         KeyValueList::new(kv_items).theme(th).render(kv_inner, buf);
 
         // Digits
-        let digits_card = bottom_cols[2];
         let digits_inner = Border::Round.draw_titled_with(
             buf,
             digits_card,
@@ -344,6 +356,78 @@ impl Page for DataPage {
                 .theme(th)
                 .render(counter_rect, buf);
         }
+
+        // bottom row: two catalogs (MCP servers and saved records)
+        let [mcp_card, record_card] = tuile::layout::cols(
+            bottom_area,
+            [Constraint::Percentage(50), Constraint::Fill(1)],
+        );
+
+        // MCP Server Catalog
+        let mcp_inner = Border::Round.draw_titled_with(
+            buf,
+            mcp_card,
+            if focus.is(Id::McpCatalog) {
+                th.border
+            } else {
+                th.border_blurred
+            },
+            th.background,
+            "MCP Servers",
+            Alignment::Left,
+            st(th.text, th.background).add_modifier(Modifier::BOLD),
+        );
+
+        let mcp_cols = vec![
+            TableColumn::new("Name").width(Constraint::Fill(1)),
+            TableColumn::new("Status").width(Constraint::Length(8)),
+        ];
+        let mcp_rows = vec![
+            TableRow::from(vec!["aisandbox", "enabled"]),
+            TableRow::from(vec!["context-mode", "enabled"]),
+            TableRow::from(vec!["mcp-manager", "enabled"]),
+            TableRow::from(vec!["tanuki-context", "enabled"]),
+        ];
+
+        Catalog::new(mcp_cols, mcp_rows)
+            .focused(focus.is(Id::McpCatalog))
+            .theme(th)
+            .render(mcp_inner, buf, &mut self.mcp_catalog);
+
+        // Saved Records Catalog (different schema)
+        let record_inner = Border::Round.draw_titled_with(
+            buf,
+            record_card,
+            if focus.is(Id::RecordCatalog) {
+                th.border
+            } else {
+                th.border_blurred
+            },
+            th.background,
+            "Recent Records",
+            Alignment::Left,
+            st(th.text, th.background).add_modifier(Modifier::BOLD),
+        );
+
+        let record_cols = vec![
+            TableColumn::new("ID").width(Constraint::Length(6)),
+            TableColumn::new("Title").width(Constraint::Fill(1)),
+            TableColumn::new("Size")
+                .width(Constraint::Length(8))
+                .align(Alignment::Right),
+        ];
+        let record_rows = vec![
+            TableRow::from(vec!["r-001", "Project setup", "2.4 KB"]),
+            TableRow::from(vec!["r-002", "API design", "5.1 KB"]),
+            TableRow::from(vec!["r-003", "Implementation", "12.8 KB"]),
+            TableRow::from(vec!["r-004", "Review notes", "3.2 KB"]),
+            TableRow::from(vec!["r-005", "Final report", "8.7 KB"]),
+        ];
+
+        Catalog::new(record_cols, record_rows)
+            .focused(focus.is(Id::RecordCatalog))
+            .theme(th)
+            .render(record_inner, buf, &mut self.record_catalog);
     }
 
     fn event(&mut self, ev: &Event, ctx: &mut Ctx) -> Outcome {
@@ -353,11 +437,23 @@ impl Page for DataPage {
                     return self.handle_filter_key(*k);
                 }
 
-                let Some(focus) = self.focus.as_mut() else {
-                    return Outcome::Ignored;
-                };
+                let focus = self.focus.as_mut().unwrap();
 
                 match k.code {
+                    KeyCode::Char('/') => {
+                        if focus.is(Id::MainTable) {
+                            self.filter_mode = true;
+                            return Outcome::Consumed;
+                        }
+                    }
+                    KeyCode::Char('+') if focus.is(Id::Counter) => {
+                        self.counter = self.counter.saturating_add(1);
+                        return Outcome::Consumed;
+                    }
+                    KeyCode::Char('-') if focus.is(Id::Counter) => {
+                        self.counter = self.counter.saturating_sub(1);
+                        return Outcome::Consumed;
+                    }
                     KeyCode::Tab => {
                         focus.next();
                         return Outcome::Consumed;
@@ -366,56 +462,109 @@ impl Page for DataPage {
                         focus.prev();
                         return Outcome::Consumed;
                     }
-                    KeyCode::Char('/') => {
-                        self.filter_mode = true;
-                        return Outcome::Consumed;
-                    }
-                    KeyCode::Char(' ') if focus.is(Id::Counter) => {
-                        self.counter = (self.counter + 1) % 1000;
-                        return Outcome::Changed;
-                    }
                     _ => {}
                 }
 
                 if focus.is(Id::MainTable) {
                     let out = self.main_table.handle_key(*k);
-                    if out.is_changed()
-                        && let Some(act) = self.main_table.activated.take()
-                    {
-                        ctx.notify(format!("Activated row {}", act), Variant::Primary);
+                    if out.is_consumed() {
+                        return out;
                     }
-                    return out;
                 } else if focus.is(Id::CellTable) {
-                    return self.cell_table.handle_key(*k);
+                    let out = self.cell_table.handle_key(*k);
+                    if out.is_consumed() {
+                        return out;
+                    }
+                } else if focus.is(Id::McpCatalog) {
+                    let out = self.mcp_catalog.handle_key(*k);
+                    if out.is_submitted()
+                        && let Some(idx) = self.mcp_catalog.take_activated()
+                    {
+                        let servers =
+                            ["aisandbox", "context-mode", "mcp-manager", "tanuki-context"];
+                        if let Some(name) = servers.get(idx) {
+                            ctx.notify(format!("MCP server: {}", name), Variant::Default);
+                        }
+                    }
+                    if out.is_consumed() {
+                        return out;
+                    }
+                } else if focus.is(Id::RecordCatalog) {
+                    let out = self.record_catalog.handle_key(*k);
+                    if out.is_submitted()
+                        && let Some(idx) = self.record_catalog.take_activated()
+                    {
+                        let records = ["r-001", "r-002", "r-003", "r-004", "r-005"];
+                        if let Some(id) = records.get(idx) {
+                            ctx.notify(format!("Record: {}", id), Variant::Default);
+                        }
+                    }
+                    if out.is_consumed() {
+                        return out;
+                    }
                 }
+
+                Outcome::Ignored
             }
             Event::Mouse(m) => {
                 let mut out = Outcome::Ignored;
+                let focus = self.focus.as_mut().unwrap();
+
                 out |= self.main_table.handle_mouse(*m);
-                out |= self.cell_table.handle_mouse(*m);
-                if out.is_changed()
-                    && let Some(act) = self.main_table.activated.take()
-                {
-                    ctx.notify(format!("Clicked row {}", act), Variant::Primary);
+                if out.is_changed() {
+                    focus.set(Id::MainTable);
                 }
-                return out;
+
+                out |= self.cell_table.handle_mouse(*m);
+                if out.is_changed() {
+                    focus.set(Id::CellTable);
+                }
+
+                let mcp_out = self.mcp_catalog.handle_mouse(*m);
+                if mcp_out.is_submitted()
+                    && let Some(idx) = self.mcp_catalog.take_activated()
+                {
+                    let servers = ["aisandbox", "context-mode", "mcp-manager", "tanuki-context"];
+                    if let Some(name) = servers.get(idx) {
+                        ctx.notify(format!("MCP server: {}", name), Variant::Default);
+                    }
+                }
+                if mcp_out.is_changed() {
+                    focus.set(Id::McpCatalog);
+                }
+                out |= mcp_out;
+
+                let record_out = self.record_catalog.handle_mouse(*m);
+                if record_out.is_submitted()
+                    && let Some(idx) = self.record_catalog.take_activated()
+                {
+                    let records = ["r-001", "r-002", "r-003", "r-004", "r-005"];
+                    if let Some(id) = records.get(idx) {
+                        ctx.notify(format!("Record: {}", id), Variant::Default);
+                    }
+                }
+                if record_out.is_changed() {
+                    focus.set(Id::RecordCatalog);
+                }
+                out |= record_out;
+
+                out
             }
-            _ => {}
+            _ => Outcome::Ignored,
         }
-        Outcome::Ignored
     }
 
     fn animating(&self, _now: Instant) -> bool {
-        true // clock updates every second
+        false
     }
 
     fn bindings(&self) -> &'static [(&'static str, &'static str)] {
         &[
-            ("Tab", "focus"),
+            ("Tab", "next"),
+            ("↑↓", "move"),
             ("/", "filter"),
-            ("s", "sort"),
-            ("Space", "select / +1"),
             ("Enter", "activate"),
+            ("Space", "select"),
         ]
     }
 }
@@ -429,318 +578,13 @@ fn fake_server_data() -> Vec<(
     &'static str,
 )> {
     vec![
-        (
-            "srv-web-01",
-            "us-west",
-            "online",
-            45.2,
-            "23d 4h",
-            "web,nginx",
-        ),
-        (
-            "srv-web-02",
-            "us-west",
-            "online",
-            38.7,
-            "23d 4h",
-            "web,nginx",
-        ),
-        (
-            "srv-db-01",
-            "us-east",
-            "online",
-            62.3,
-            "45d 2h",
-            "db,postgres",
-        ),
-        (
-            "srv-db-02",
-            "us-east",
-            "warning",
-            78.1,
-            "45d 2h",
-            "db,postgres",
-        ),
-        (
-            "srv-cache-01",
-            "eu-central",
-            "online",
-            12.8,
-            "12d 8h",
-            "cache,redis",
-        ),
-        (
-            "srv-cache-02",
-            "eu-central",
-            "online",
-            15.3,
-            "12d 8h",
-            "cache,redis",
-        ),
-        (
-            "srv-app-01",
-            "ap-south",
-            "online",
-            51.0,
-            "8d 16h",
-            "app,node",
-        ),
-        ("srv-app-02", "ap-south", "offline", 0.0, "0h", "app,node"),
-        (
-            "srv-queue-01",
-            "us-west",
-            "online",
-            22.4,
-            "30d 1h",
-            "queue,rabbitmq",
-        ),
-        (
-            "srv-monitor-01",
-            "us-east",
-            "online",
-            8.5,
-            "60d 5h",
-            "monitor,grafana",
-        ),
-        (
-            "srv-web-03",
-            "us-west",
-            "online",
-            41.2,
-            "15d 3h",
-            "web,nginx",
-        ),
-        (
-            "srv-web-04",
-            "us-west",
-            "online",
-            39.8,
-            "15d 3h",
-            "web,nginx",
-        ),
-        (
-            "srv-db-03",
-            "eu-west",
-            "online",
-            55.6,
-            "28d 7h",
-            "db,postgres",
-        ),
-        (
-            "srv-db-04",
-            "eu-west",
-            "warning",
-            72.9,
-            "28d 7h",
-            "db,postgres",
-        ),
-        (
-            "srv-worker-01",
-            "us-east",
-            "online",
-            33.1,
-            "18d 12h",
-            "worker,python",
-        ),
-        (
-            "srv-worker-02",
-            "us-east",
-            "online",
-            31.7,
-            "18d 12h",
-            "worker,python",
-        ),
-        (
-            "srv-worker-03",
-            "us-east",
-            "online",
-            35.4,
-            "18d 12h",
-            "worker,python",
-        ),
-        (
-            "srv-lb-01",
-            "us-west",
-            "online",
-            18.9,
-            "40d 3h",
-            "lb,haproxy",
-        ),
-        (
-            "srv-lb-02",
-            "us-east",
-            "online",
-            17.2,
-            "40d 3h",
-            "lb,haproxy",
-        ),
-        (
-            "srv-search-01",
-            "eu-central",
-            "online",
-            48.3,
-            "22d 9h",
-            "search,elastic",
-        ),
-        (
-            "srv-search-02",
-            "eu-central",
-            "online",
-            46.7,
-            "22d 9h",
-            "search,elastic",
-        ),
-        (
-            "srv-metrics-01",
-            "us-west",
-            "online",
-            14.5,
-            "55d 2h",
-            "metrics,prometheus",
-        ),
-        (
-            "srv-backup-01",
-            "us-east",
-            "online",
-            6.2,
-            "90d 1h",
-            "backup,rsync",
-        ),
-        (
-            "srv-backup-02",
-            "eu-west",
-            "online",
-            5.8,
-            "90d 1h",
-            "backup,rsync",
-        ),
-        (
-            "srv-cdn-01",
-            "ap-northeast",
-            "online",
-            28.3,
-            "35d 6h",
-            "cdn,nginx",
-        ),
-        (
-            "srv-cdn-02",
-            "ap-northeast",
-            "online",
-            27.1,
-            "35d 6h",
-            "cdn,nginx",
-        ),
-        (
-            "srv-mail-01",
-            "us-west",
-            "online",
-            9.7,
-            "120d 4h",
-            "mail,postfix",
-        ),
-        (
-            "srv-dns-01",
-            "us-east",
-            "online",
-            3.2,
-            "150d 8h",
-            "dns,bind",
-        ),
-        (
-            "srv-dns-02",
-            "eu-west",
-            "online",
-            3.5,
-            "150d 8h",
-            "dns,bind",
-        ),
-        (
-            "srv-vpn-01",
-            "us-west",
-            "online",
-            11.4,
-            "80d 11h",
-            "vpn,wireguard",
-        ),
-        (
-            "srv-proxy-01",
-            "us-east",
-            "online",
-            24.6,
-            "50d 7h",
-            "proxy,squid",
-        ),
-        (
-            "srv-git-01",
-            "us-west",
-            "online",
-            19.8,
-            "65d 9h",
-            "git,gitlab",
-        ),
-        (
-            "srv-ci-01",
-            "us-west",
-            "online",
-            42.7,
-            "25d 5h",
-            "ci,jenkins",
-        ),
-        (
-            "srv-ci-02",
-            "us-west",
-            "warning",
-            68.9,
-            "25d 5h",
-            "ci,jenkins",
-        ),
-        (
-            "srv-log-01",
-            "us-east",
-            "online",
-            31.2,
-            "45d 3h",
-            "log,fluentd",
-        ),
-        (
-            "srv-log-02",
-            "eu-central",
-            "online",
-            29.8,
-            "45d 3h",
-            "log,fluentd",
-        ),
-        (
-            "srv-registry-01",
-            "us-west",
-            "online",
-            16.3,
-            "70d 2h",
-            "registry,harbor",
-        ),
-        (
-            "srv-vault-01",
-            "us-east",
-            "online",
-            7.9,
-            "100d 6h",
-            "vault,hashicorp",
-        ),
-        (
-            "srv-k8s-master-01",
-            "us-west",
-            "online",
-            54.2,
-            "20d 4h",
-            "k8s,master",
-        ),
-        (
-            "srv-k8s-node-01",
-            "us-west",
-            "online",
-            61.7,
-            "20d 4h",
-            "k8s,node",
-        ),
+        ("server-01", "us-east", "online", 45.2, "2d 4h", "web,api"),
+        ("server-02", "us-west", "online", 12.8, "5d 12h", "db"),
+        ("server-03", "eu-west", "warning", 87.3, "1d 2h", "cache"),
+        ("server-04", "ap-south", "online", 23.5, "8d 6h", "web"),
+        ("server-05", "us-east", "offline", 0.0, "—", "backup"),
+        ("server-06", "eu-north", "online", 56.1, "3d 8h", "api,cdn"),
+        ("server-07", "ap-east", "online", 34.7, "12d 4h", "web"),
+        ("server-08", "us-west", "warning", 91.2, "6h", "ml"),
     ]
 }

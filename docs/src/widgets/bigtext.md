@@ -235,7 +235,9 @@ A settings menu with grouped rows, in-place value cycling, and a group index for
 
 An `OptionListState` owns a `Vec<OptionGroup>`. Each group has a title and a `Vec<OptionItem>`. Each item has a stable `key`, a visible `label`, a value, and an optional hint.
 
-Values can be Bool, Choice (one of N strings), Int (with min/max/step), Text (read-only, app edits it elsewhere), or Action (a command that reports changed when Enter is pressed).
+Values can be Bool, Choice (one of N strings), Int (with min/max/step), Text (read-only, the app edits it elsewhere), or Action (a command). Left/Right, h/l and Space cycle the value at the cursor and report the key through `take_changed`; Enter reports it through `take_activated` instead, so the app can open a dropdown or a field for it. `Text` and `Action` never cycle.
+
+Each row can carry `trail` cells - where the value came from, when a change takes effect - which are drawn as aligned columns after the value, and `dim(true)` for a row showing something the user did not choose, which mutes the value and the trail. `value_rect(row)` gives back the cell the value was drawn in, so an editor can be placed over it.
 
 ```rust
 # extern crate tuile;
@@ -246,7 +248,9 @@ use tuile::prelude::*;
 let mut state = OptionListState::new(vec![
     OptionGroup::new("Theme", vec![
         OptionItem::choice("theme", "Dark Theme", &["titanium", "nord", "dracula"], 0),
-        OptionItem::bool("colorblind", "Color-Blind Mode", false),
+        OptionItem::bool("colorblind", "Color-Blind Mode", false)
+            .trail(["default", "next session"])
+            .dim(true),
     ]),
     OptionGroup::new("Display", vec![
         OptionItem::int("fps", "Frame rate", 60, 15, 120, 15),
@@ -255,6 +259,9 @@ let mut state = OptionListState::new(vec![
 OptionList::new().focused(true).render(area, buf, &mut state);
 if let Some(key) = state.take_changed() {
     let theme = state.choice("theme");
+}
+if let Some(key) = state.take_activated() {
+    // open an editor for `key`
 }
 # }
 # fn main() {}

@@ -21,7 +21,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{blink, elapsed};
 use crate::core::*;
-use crate::draw::{FieldShape, fill, put, st};
+use crate::draw::{FieldShape, fill, put, refuse, st};
 use crate::layout::pad;
 use crate::theme::{self, Theme};
 
@@ -151,8 +151,12 @@ impl Input {
         self
     }
 
+    /// 1-row field, no frame.
     pub fn compact(mut self, v: bool) -> Self {
         self.compact = v;
+        if v {
+            self.shape = FieldShape::None;
+        }
         self
     }
 
@@ -207,6 +211,13 @@ impl Input {
 impl Default for Input {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl MinSize for Input {
+    /// Config-dependent: `(width, height)` in cells.
+    fn min_size(&self) -> (u16, u16) {
+        (7, 1 + self.shape.vertical_chrome())
     }
 }
 
@@ -435,7 +446,7 @@ impl Interactive for InputState {
         if k.code == KeyCode::Enter {
             self.save_history();
             self.submitted = true;
-            return Outcome::Changed;
+            return Outcome::Submitted;
         }
 
         // Tab accepts suggestion
@@ -639,10 +650,11 @@ impl StatefulWidget for Input {
 
         // Compact mode: 1 row no border
         if self.compact {
-            state.hit.set_area(area);
-            if area.width < 2 || area.height == 0 {
+            if refuse(buf, area, self.min_size(), th.text_disabled) {
+                state.hit.set_area(Rect::default());
                 return;
             }
+            state.hit.set_area(area);
             let bg = if look.focused {
                 th.focus_bg()
             } else {
@@ -712,13 +724,12 @@ impl StatefulWidget for Input {
             return;
         }
 
-        // Full mode: frame per `shape` (Textual tall by default), 1 content row
-        let chrome = self.shape.vertical_chrome();
-        if area.height < 1 + chrome || area.width < 7 {
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             state.hit.set_area(Rect::default());
             return;
         }
 
+        let chrome = self.shape.vertical_chrome();
         state.hit.set_area(area);
         let bg = if look.focused {
             th.focus_bg()
@@ -872,7 +883,7 @@ fn render_text(
         .iter()
         .map(|g| if password { 1 } else { g.width() })
         .collect();
-    let _total: usize = widths.iter().sum();
+    let total: usize = widths.iter().sum();
     let cursor_col: usize = widths.iter().take(state.cursor).sum();
 
     // Scroll to keep cursor visible
@@ -882,6 +893,11 @@ fn render_text(
     if cursor_col < state.scroll {
         state.scroll = cursor_col;
     }
+    // ...and never further right than the text needs. A value that shrank - select-all then
+    // retype, `set_value`, a clear - otherwise keeps the offset the longer one had, every
+    // grapheme is skipped for sitting left of the scroll, and the field renders blank while
+    // holding a value. One cell past the end is the cursor's own column.
+    state.scroll = state.scroll.min((total + 1).saturating_sub(max_w));
 
     let bg = if focused { th.focus_bg() } else { th.surface };
     let fg = th.text;
@@ -984,5 +1000,89 @@ mod tests {
         let s = InputState::with_value("hello world");
         assert_eq!(s.word_boundary(5, true), 11);
         assert_eq!(s.word_boundary(7, false), 6);
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| c.symbol() != " ")
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        let (w, h) = Input::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        Input::new().render(buf.area, &mut buf, &mut InputState::default());
+        assert!(painted(&buf), "should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h.saturating_sub(1)));
+        Input::new().render(buf.area, &mut buf, &mut InputState::default());
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
+    }
+
+    #[test]
+    fn compact_renders_at_height_one() {
+        let mut buf = Buffer::empty(Rect::new(0, 0, 20, 1));
+        let mut state = InputState::new();
+        Input::new()
+            .compact(true)
+            .placeholder("test")
+            .render(buf.area, &mut buf, &mut state);
+        let text: String = buf
+            .content()
+            .iter()
+            .map(|c| c.symbol())
+            .collect::<Vec<_>>()
+            .join("");
+        assert!(
+            text.contains("test"),
+            "compact Input should show placeholder at height 1"
+        );
+    }
+
+    #[test]
+    fn edit_vs_submit() {
+        let mut s = InputState::new();
+        let outcome = s.handle_key(KeyEvent::from(KeyCode::Char('a')));
+        assert!(outcome.is_changed());
+        assert!(!outcome.is_submitted());
+
+        let outcome = s.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert!(outcome.is_submitted());
+        assert!(s.take_submitted());
+        assert!(!s.take_submitted());
+    }
+
+    /// A field whose value shrinks must still show it: the offset the longer value needed would
+    /// otherwise scroll every grapheme off the left and draw an empty field over real state.
+    #[test]
+    fn a_value_that_shrank_is_not_scrolled_off() {
+        let area = Rect::new(0, 0, 20, 1);
+        let mut buf = Buffer::empty(area);
+        let mut st = InputState::with_value("/a/long/path/that/will/not/fit/in/this/field");
+        let row = |buf: &Buffer| -> String { (0..20).map(|x| buf[(x, 0)].symbol()).collect() };
+
+        Input::new()
+            .shape(FieldShape::None)
+            .focused(true)
+            .render(area, &mut buf, &mut st);
+        assert!(
+            st.scroll > 0,
+            "a long value scrolls to keep the cursor in view"
+        );
+
+        st.select_all();
+        st.handle_key(KeyEvent::from(KeyCode::Char('8')));
+        Input::new()
+            .shape(FieldShape::None)
+            .focused(true)
+            .render(area, &mut buf, &mut st);
+        assert_eq!(st.scroll, 0, "nothing left to scroll past");
+        assert!(
+            row(&buf).contains('8'),
+            "the value is on screen: {:?}",
+            row(&buf)
+        );
     }
 }

@@ -14,7 +14,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-const FOUNDATION: [&str; 7] = ["theme", "draw", "core", "anim", "layout", "fuzzy", "runtime"];
+const FOUNDATION: [&str; 8] = ["term", "theme", "draw", "core", "anim", "layout", "fuzzy", "runtime"];
 
 pub fn run() -> Result<(), String> {
     let src = crate::root().join("tuile/src");

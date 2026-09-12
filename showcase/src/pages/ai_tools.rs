@@ -379,6 +379,8 @@ impl Page for AiToolsPage {
                 .started(started)
                 .now(ctx.now)
                 .lps(24.0)
+                .accept_text("[y] Apply")
+                .reject_text("[n] Skip")
                 .render(inner, buf, &mut self.edit_preview);
 
             if let Some(decision) = self.edit_preview.take_decision() {
@@ -461,6 +463,7 @@ impl Page for AiToolsPage {
                 .deadline(deadline)
                 .now(ctx.now)
                 .compact(true)
+                .retrying_text("reconnecting…")
                 .render(right_rects[4], buf);
         }
     }

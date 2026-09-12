@@ -18,8 +18,8 @@ use ratatui_core::layout::Rect;
 use ratatui_core::style::Modifier;
 
 use crate::anim::{Easing, Tween};
-use crate::core::{Hit, HitBox, Outcome, is_activate, is_press};
-use crate::draw::{Border, fill, put, st};
+use crate::core::{Hit, HitBox, MinSize, Outcome, is_activate, is_press};
+use crate::draw::{self, Border, fill, put, st};
 use crate::theme::{self, Theme};
 
 /// Collapsible header style.
@@ -199,6 +199,12 @@ impl Collapsible {
         let th = self.theme.unwrap_or_else(theme::current);
 
         if area.width == 0 || area.height == 0 {
+            state.hit.set_area(Rect::default());
+            return 0;
+        }
+
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hit.set_area(Rect::default());
             return 0;
         }
 
@@ -512,6 +518,20 @@ impl Accordion {
 impl Default for Accordion {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl MinSize for Collapsible {
+    /// Collapsible header is always 1 row minimum.
+    fn min_size(&self) -> (u16, u16) {
+        (8, 1)
+    }
+}
+
+impl MinSize for Accordion {
+    /// Accordion minimum height = number of headers.
+    fn min_size(&self) -> (u16, u16) {
+        (8, self.titles.len() as u16)
     }
 }
 

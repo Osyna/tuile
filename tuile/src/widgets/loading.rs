@@ -26,7 +26,8 @@ use ratatui_core::widgets::Widget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{blink, ease_in_out_cubic, pulse, since};
-use crate::draw::{LOWER_BLOCKS, blend_area, fill, hbar, put, put_centered, st};
+use crate::core::MinSize;
+use crate::draw::{self, LOWER_BLOCKS, blend_area, fill, hbar, put, put_centered, st};
 use crate::theme::{self, Rgb, Theme};
 
 fn phase(elapsed: Option<f32>, now: Option<Instant>) -> f32 {
@@ -237,6 +238,13 @@ impl Loader {
     }
 }
 
+impl MinSize for Loader {
+    /// (3, 1) for all styles.
+    fn min_size(&self) -> (u16, u16) {
+        (3, 1)
+    }
+}
+
 struct Palette {
     color: Rgb,
     color2: Rgb,
@@ -251,7 +259,8 @@ struct Palette {
 
 impl Widget for Loader {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 3 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
@@ -818,6 +827,17 @@ impl Default for Skeleton {
     }
 }
 
+impl MinSize for Skeleton {
+    /// Config-dependent: Chart shape degrades to a single bar, reports (3, 1).
+    /// Other shapes need more height.
+    fn min_size(&self) -> (u16, u16) {
+        match self.shape {
+            SkeletonShape::Chart => (3, 1), // degrades rather than refuses
+            _ => (3, 2),
+        }
+    }
+}
+
 struct Shimmer {
     base: Rgb,
     hl: Rgb,
@@ -1214,6 +1234,69 @@ mod tests {
                 assert_eq!(rows_used, 1, "{style:?} stays on one row, used {rows_used}");
             }
         }
+    }
+
+    /// Filled areas are painted as background colour on a space (contract rule 15), so a
+    /// symbol-only check reads "nothing drawn" for a loader that did draw.
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
+
+    #[test]
+    fn draws_at_minimum_and_refuses_below() {
+        let (w, h) = Loader::new(LoaderStyle::Scanner).min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        Loader::new(LoaderStyle::Scanner)
+            .elapsed(0.0)
+            .render(buf.area, &mut buf);
+        assert!(painted(&buf), "should draw at stated minimum");
+
+        let (sw, sh) = if h > 1 { (w, h - 1) } else { (w - 1, h) };
+        let mut buf = Buffer::empty(Rect::new(0, 0, sw, sh));
+        Loader::new(LoaderStyle::Scanner)
+            .elapsed(0.0)
+            .render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
+    }
+
+    #[test]
+    fn skeleton_chart_degrades_instead_of_refusing() {
+        // Bars are painted as background colour, not glyphs (contract rule 15).
+        let filled = |buf: &Buffer, y: u16, w: u16| {
+            (0..w)
+                .filter(|&x| buf[(x, y)].bg != ratatui_core::style::Color::Reset)
+                .count()
+        };
+
+        // At height 2 the chart plots a row of separate bars
+        let mut buf = Buffer::empty(Rect::new(0, 0, 30, 2));
+        Skeleton::new()
+            .shape(SkeletonShape::Chart)
+            .elapsed(0.0)
+            .render(buf.area, &mut buf);
+        assert!(
+            filled(&buf, 0, 30) > 5,
+            "chart at height 2 should plot bars across the row"
+        );
+
+        // At height 1 it degrades to a single bar rather than refusing
+        let mut buf = Buffer::empty(Rect::new(0, 0, 30, 1));
+        Skeleton::new()
+            .shape(SkeletonShape::Chart)
+            .elapsed(0.0)
+            .render(buf.area, &mut buf);
+        assert!(filled(&buf, 0, 30) > 5, "chart at height 1 should degrade");
+        assert!(
+            !buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "a widget that can still say something true degrades instead of refusing"
+        );
     }
 
     #[test]

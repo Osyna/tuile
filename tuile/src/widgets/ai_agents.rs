@@ -19,8 +19,8 @@ use ratatui_core::layout::Rect;
 use ratatui_core::widgets::{StatefulWidget, Widget};
 
 use crate::anim::{self, Easing, Tween};
-use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
-use crate::draw::{Border, bold, fill, hbar, put, put_right, st, truncate};
+use crate::core::{Hit, HitBox, Interactive, MinSize, Outcome, is_press, wheel_delta};
+use crate::draw::{self, Border, bold, fill, hbar, put, put_right, st, truncate};
 use crate::fuzzy;
 use crate::theme::{self, Rgb, Theme};
 use crate::widgets::ai::fmt_tokens;
@@ -487,6 +487,18 @@ impl AgentTree {
         self.theme = Some(*th);
         self
     }
+
+    /// Rows per agent: the task line doubles it.
+    fn row_height(&self) -> usize {
+        if self.show_tasks { 2 } else { 1 }
+    }
+}
+
+impl MinSize for AgentTree {
+    /// One agent row, plus its task line when tasks are shown.
+    fn min_size(&self) -> (u16, u16) {
+        (8, self.row_height() as u16)
+    }
 }
 
 impl Default for AgentTree {
@@ -506,16 +518,20 @@ impl StatefulWidget for AgentTree {
         if rows.is_empty() {
             return;
         }
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hit.set_area(Rect::default());
+            return;
+        }
 
-        let row_height = if self.show_tasks { 2 } else { 1 };
-        let visible = area.height as usize / row_height;
+        let row_height = self.row_height();
+        let visible = (area.height as usize / row_height).max(1);
 
         if state.cursor >= rows.len() {
             state.cursor = rows.len().saturating_sub(1);
         }
 
         if state.cursor >= state.offset + visible {
-            state.offset = state.cursor.saturating_sub(visible - 1);
+            state.offset = state.cursor + 1 - visible;
         } else if state.cursor < state.offset {
             state.offset = state.cursor;
         }
@@ -751,22 +767,33 @@ impl<'a> AgentLanes<'a> {
     }
 }
 
+impl MinSize for AgentLanes<'_> {
+    /// The name column plus a 10-cell track, and 2 rows (ruler + one lane).
+    fn min_size(&self) -> (u16, u16) {
+        (self.name_width() + 10, 2)
+    }
+}
+
+impl AgentLanes<'_> {
+    /// Width reserved for lane names, capped so a long name cannot eat the track.
+    fn name_width(&self) -> u16 {
+        let max_name = self.lanes.iter().map(|l| l.name.len()).max().unwrap_or(0);
+        (max_name.min(14) + 1) as u16
+    }
+}
+
 impl Widget for AgentLanes<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.height < 2 || self.lanes.is_empty() {
+        if self.lanes.is_empty() {
             return;
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
-
-        // Name column width
-        let max_name = self.lanes.iter().map(|l| l.name.len()).max().unwrap_or(0);
-        let name_width = (max_name.min(14) + 1) as u16;
-
-        if area.width < name_width + 10 {
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
+        let name_width = self.name_width();
         let track_width = area.width - name_width;
 
         // Auto-scroll: keep clock at 80% position
@@ -1152,13 +1179,20 @@ impl Default for CostMeter {
     }
 }
 
+impl MinSize for CostMeter {
+    /// Minimum size: (8, 2).
+    fn min_size(&self) -> (u16, u16) {
+        (8, 2)
+    }
+}
+
 impl StatefulWidget for CostMeter {
     type State = CostMeterState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let th = self.theme.unwrap_or_else(theme::current);
 
-        if area.height < 2 {
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
@@ -1264,6 +1298,8 @@ pub struct ContextMap<'a> {
     limit: u32,
     hover: Option<usize>,
     compact: bool,
+    used_text: Option<String>,
+    free_text: Option<String>,
     theme: Option<Theme>,
 }
 
@@ -1274,6 +1310,8 @@ impl<'a> ContextMap<'a> {
             limit,
             hover: None,
             compact: false,
+            used_text: None,
+            free_text: None,
             theme: None,
         }
     }
@@ -1285,6 +1323,20 @@ impl<'a> ContextMap<'a> {
 
     pub fn compact(mut self, c: bool) -> Self {
         self.compact = c;
+        self
+    }
+
+    /// Used text as the caller's own formatted string (e.g., `"42% benutzt"` for German).
+    /// Overrides the default `"42% used"`.
+    pub fn used_text(mut self, s: impl Into<String>) -> Self {
+        self.used_text = Some(s.into());
+        self
+    }
+
+    /// Free text as the caller's own formatted string (e.g., `"libre 58%"` for French).
+    /// Overrides the default `"free 58%"`.
+    pub fn free_text(mut self, s: impl Into<String>) -> Self {
+        self.free_text = Some(s.into());
         self
     }
 
@@ -1332,12 +1384,16 @@ impl Widget for ContextMap<'_> {
         }
 
         if self.compact {
-            let used_pct = if self.limit > 0 {
-                (used as f32 / self.limit as f32 * 100.0) as u32
+            let text = if let Some(t) = &self.used_text {
+                t.clone()
             } else {
-                0
+                let used_pct = if self.limit > 0 {
+                    (used as f32 / self.limit as f32 * 100.0) as u32
+                } else {
+                    0
+                };
+                format!("{}% used", used_pct)
             };
-            let text = format!("{}% used", used_pct);
             put_right(
                 buf,
                 Rect::new(area.x, area.y, area.width, 1),
@@ -1444,11 +1500,18 @@ impl CompactionBanner {
     }
 }
 
+impl MinSize for CompactionBanner {
+    /// Minimum size: (20, 2).
+    fn min_size(&self) -> (u16, u16) {
+        (20, 2)
+    }
+}
+
 impl Widget for CompactionBanner {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let th = self.theme.unwrap_or_else(theme::current);
 
-        if area.height < 2 {
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
@@ -1523,6 +1586,7 @@ pub struct TurnStats {
     input: Option<u32>,
     output: Option<u32>,
     cache_hit: Option<f32>,
+    cache_text: Option<String>,
     tool_calls: Option<u32>,
     duration: Option<Duration>,
     cost: Option<f32>,
@@ -1535,6 +1599,7 @@ impl TurnStats {
             input: None,
             output: None,
             cache_hit: None,
+            cache_text: None,
             tool_calls: None,
             duration: None,
             cost: None,
@@ -1554,6 +1619,13 @@ impl TurnStats {
 
     pub fn cache_hit(mut self, f: f32) -> Self {
         self.cache_hit = Some(f);
+        self
+    }
+
+    /// Cache hit text as the caller's own formatted string (e.g., `"cache 42%"` or `"42% im Cache"`).
+    /// Overrides [`Self::cache_hit`], which formats `"42%"`.
+    pub fn cache_text(mut self, s: impl Into<String>) -> Self {
+        self.cache_text = Some(s.into());
         self
     }
 
@@ -1584,11 +1656,18 @@ impl Default for TurnStats {
     }
 }
 
+impl MinSize for TurnStats {
+    /// Minimum size: (12, 2).
+    fn min_size(&self) -> (u16, u16) {
+        (12, 2)
+    }
+}
+
 impl Widget for TurnStats {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let th = self.theme.unwrap_or_else(theme::current);
 
-        if area.height < 2 {
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
@@ -1597,7 +1676,11 @@ impl Widget for TurnStats {
             ("output", self.output.map(fmt_tokens), None),
             (
                 "cache",
-                self.cache_hit.map(|f| format!("{}%", (f * 100.0) as u32)),
+                if let Some(t) = &self.cache_text {
+                    Some(t.clone())
+                } else {
+                    self.cache_hit.map(|f| format!("{}%", (f * 100.0) as u32))
+                },
                 self.cache_hit
                     .map(|f| if f > 0.5 { th.success } else { th.warning }),
             ),
@@ -1683,11 +1766,21 @@ impl<'a> RateGraph<'a> {
     }
 }
 
+impl MinSize for RateGraph<'_> {
+    /// Minimum size: (10, 2).
+    fn min_size(&self) -> (u16, u16) {
+        (10, 2)
+    }
+}
+
 impl Widget for RateGraph<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let th = self.theme.unwrap_or_else(theme::current);
+        if self.values.is_empty() {
+            return;
+        }
 
-        if area.height < 2 || self.values.is_empty() {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
@@ -1761,6 +1854,12 @@ impl SessionEntry {
         self.fact(fmt_usd(c))
     }
 
+    /// Cost as the caller's own text, for a non-USD currency or a different precision.
+    /// Overrides [`Self::cost`], which formats `$1.23`.
+    pub fn cost_text(self, s: impl Into<String>) -> Self {
+        self.fact(s.into())
+    }
+
     pub fn model(self, m: &str) -> Self {
         self.fact(m)
     }
@@ -1827,7 +1926,7 @@ impl Interactive for SessionListState {
             }
             KeyCode::Enter => {
                 self.activated = true;
-                Outcome::Changed
+                Outcome::Submitted
             }
             KeyCode::Backspace => {
                 if !self.filter.is_empty() {
@@ -2804,5 +2903,172 @@ mod tests {
                 .theme(&th)
                 .render(area, &mut buf, &mut model_state);
         }
+    }
+
+    #[test]
+    fn vocabulary_overrides_ride_through_to_buffer() {
+        let th = Theme::default();
+        let area = Rect::new(0, 0, 80, 10);
+        let mut buf = Buffer::empty(area);
+
+        // SessionEntry with EUR cost
+        let entry = SessionEntry::new("Test", "now").cost_text("€12,34");
+        assert!(entry.facts.contains(&"€12,34".to_string()));
+
+        // ContextMap with German text
+        let seg = ContextSegment::new("test", 4200);
+        ContextMap::new(&[seg], 10000)
+            .compact(true)
+            .used_text("42% benutzt")
+            .theme(&th)
+            .render(area, &mut buf);
+        let row: String = (0..area.width)
+            .filter_map(|x| buf.cell((x, 0)).map(|c| c.symbol().to_string()))
+            .collect();
+        assert!(row.contains("42% benutzt"), "German used text: {row}");
+
+        // TurnStats with cache text override
+        buf = Buffer::empty(area);
+        TurnStats::new()
+            .cache_text("cache 42%")
+            .theme(&th)
+            .render(area, &mut buf);
+        let row: String = (0..area.width)
+            .filter_map(|x| buf.cell((x, 1)).map(|c| c.symbol().to_string()))
+            .collect();
+        assert!(row.contains("cache 42%"), "cache text override: {row}");
+    }
+
+    #[test]
+    fn default_vocabulary_unchanged() {
+        let th = Theme::default();
+        let area = Rect::new(0, 0, 80, 10);
+        let mut buf = Buffer::empty(area);
+
+        // ContextMap default "% used"
+        let seg = ContextSegment::new("test", 4200);
+        ContextMap::new(&[seg], 10000)
+            .compact(true)
+            .theme(&th)
+            .render(area, &mut buf);
+        let row: String = (0..area.width)
+            .filter_map(|x| buf.cell((x, 0)).map(|c| c.symbol().to_string()))
+            .collect();
+        assert!(row.contains("42% used"), "default used text: {row}");
+
+        // TurnStats default cache "%"
+        buf = Buffer::empty(area);
+        TurnStats::new()
+            .cache_hit(0.42)
+            .theme(&th)
+            .render(area, &mut buf);
+        let cache_row: String = (0..area.width)
+            .filter_map(|x| buf.cell((x, 1)).map(|c| c.symbol().to_string()))
+            .collect();
+        assert!(cache_row.contains("42%"), "default cache text: {cache_row}");
+
+        // SessionEntry default cost with $
+        let entry = SessionEntry::new("Test", "now").cost(12.34);
+        assert_eq!(entry.facts, vec!["$12".to_string()]);
+    }
+
+    #[test]
+    fn session_list_commit_returns_submitted() {
+        let mut state = SessionListState::new();
+        state.entries = vec![
+            SessionEntry::new("Session 1", "2h ago"),
+            SessionEntry::new("Session 2", "5h ago"),
+        ];
+
+        // Cursor movement returns Consumed
+        let outcome = state.handle_key(KeyEvent::from(KeyCode::Down));
+        assert_eq!(outcome, Outcome::Consumed);
+        assert_eq!(state.cursor, 1);
+
+        // Enter returns Submitted
+        let outcome = state.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert_eq!(outcome, Outcome::Submitted);
+        assert_eq!(state.take_activated(), Some(1));
+    }
+
+    /// Filled areas are painted as background colour on a space (contract rule 15), so a
+    /// symbol-only check reads "nothing drawn" for a widget that did draw.
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
+
+    #[test]
+    fn draws_at_minimum_and_refuses_visibly_below_it() {
+        let th = Theme::default();
+        let now = Instant::now();
+
+        // AgentLanes
+        let lanes = [Lane::new("Test")];
+        let (w, h) = AgentLanes::new(&lanes).min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        AgentLanes::new(&lanes)
+            .clock(5.0)
+            .now(now)
+            .render(buf.area, &mut buf);
+        assert!(
+            painted(&buf),
+            "AgentLanes should draw at its stated minimum"
+        );
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h.saturating_sub(1)));
+        AgentLanes::new(&lanes)
+            .clock(5.0)
+            .now(now)
+            .render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
+
+        // CostMeter
+        let (w, h) = CostMeter::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = CostMeterState::new();
+        CostMeter::new()
+            .spent(1.23)
+            .budget(10.0)
+            .theme(&th)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "CostMeter should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h.saturating_sub(1)));
+        CostMeter::new()
+            .spent(1.23)
+            .budget(10.0)
+            .theme(&th)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
+
+        // TurnStats
+        let (w, h) = TurnStats::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        TurnStats::new()
+            .cache_hit(0.42)
+            .theme(&th)
+            .render(buf.area, &mut buf);
+        assert!(painted(&buf), "TurnStats should draw at its stated minimum");
+
+        // Shrink height (h=2, so h-1=1 is testable)
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h.saturating_sub(1)));
+        TurnStats::new()
+            .cache_hit(0.42)
+            .theme(&th)
+            .render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
     }
 }

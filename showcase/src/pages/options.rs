@@ -388,7 +388,14 @@ impl Page for OptionsPage {
 
 impl OptionsPage {
     /// React to changed rows: the theme switches live, actions toast.
+    ///
+    /// Enter no longer cycles a value, it activates the row, and a page that ignored that would
+    /// look broken on the one key most people press. Here the natural answer is to cycle it -
+    /// there is no separate editor to open - so activation is routed straight into `cycle`.
     fn apply(&mut self, ctx: &mut Ctx) {
+        if self.options.take_activated().is_some() {
+            self.options.cycle(1);
+        }
         let Some(key) = self.options.take_changed() else {
             return;
         };

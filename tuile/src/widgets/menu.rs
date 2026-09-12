@@ -19,8 +19,8 @@ use ratatui_core::layout::{Position, Rect};
 use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
-use crate::core::{Interactive, Outcome, is_press, mouse_pos};
-use crate::draw::{Border, fill, put, st};
+use crate::core::{Interactive, MinSize, Outcome, is_press, mouse_pos};
+use crate::draw::{self, Border, fill, put, st};
 use crate::layout::popup_below;
 use crate::theme::{self, Theme};
 
@@ -128,6 +128,13 @@ impl MenuBar {
     pub fn theme(mut self, t: &Theme) -> Self {
         self.theme = Some(*t);
         self
+    }
+}
+
+impl MinSize for MenuBar {
+    /// Menu bar is always 1 row.
+    fn min_size(&self) -> (u16, u16) {
+        (8, 1)
     }
 }
 
@@ -265,7 +272,7 @@ impl Interactive for MenuBarState {
                     {
                         self.action = Some(*id);
                         self.close();
-                        return Outcome::Changed;
+                        return Outcome::Submitted;
                     }
                 } else {
                     if let Some(h) = self.highlight {
@@ -278,7 +285,7 @@ impl Interactive for MenuBarState {
                             if let Some((id, _)) = self.item_hits.get(h) {
                                 self.action = Some(*id);
                                 self.close();
-                                return Outcome::Changed;
+                                return Outcome::Submitted;
                             }
                         }
                     }
@@ -395,10 +402,20 @@ impl StatefulWidget for MenuBar {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         if area.width == 0 || area.height == 0 {
+            state.title_hits.clear();
+            state.item_hits.clear();
+            state.sub_hits.clear();
             return;
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.title_hits.clear();
+            state.item_hits.clear();
+            state.sub_hits.clear();
+            return;
+        }
+
         let bg = th.panel;
         fill(buf, area, bg);
 
@@ -658,7 +675,7 @@ impl Interactive for ContextMenuState {
                 {
                     self.action = Some(*id);
                     self.close();
-                    return Outcome::Changed;
+                    return Outcome::Submitted;
                 }
             }
             KeyCode::Esc => {
@@ -697,7 +714,7 @@ impl Interactive for ContextMenuState {
                 if let Some((id, _)) = self.hits.get(h) {
                     self.action = Some(*id);
                     self.close();
-                    return Outcome::Changed;
+                    return Outcome::Submitted;
                 }
             } else if !self.area.contains(pos) {
                 self.close();

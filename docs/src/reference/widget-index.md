@@ -24,6 +24,7 @@ This table lists every public widget in tuile. Widgets with no state type are pl
 | Button | ButtonState | button | [Controls](../widgets/controls.md) |
 | Calendar | CalendarState | calendar | [Content](../widgets/content.md) |
 | Callout | CalloutState | toast | [Notifications](../widgets/notifications.md) |
+| Catalog | CatalogState | catalog | [Tables and data](../widgets/data.md) |
 | ChangeSet | ChangeSetState | ai_tools | [The AI harness](../widgets/ai.md) |
 | ChatView | ChatState | ai | [The AI harness](../widgets/ai.md) |
 | CheckList | CheckListState | toggle | [Controls](../widgets/controls.md) |

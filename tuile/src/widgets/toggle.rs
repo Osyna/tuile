@@ -23,8 +23,8 @@ use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{Easing, Tween};
-use crate::core::{Hit, HitBox, Interactive, Look, Outcome, is_activate, is_press};
-use crate::draw::{Border, LEFT_BLOCKS, fill, put, st};
+use crate::core::{Hit, HitBox, Interactive, Look, MinSize, Outcome, is_activate, is_press};
+use crate::draw::{Border, LEFT_BLOCKS, fill, put, refuse, st};
 use crate::theme::{self, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
@@ -116,12 +116,19 @@ impl Checkbox {
     }
 }
 
+impl MinSize for Checkbox {
+    fn min_size(&self) -> (u16, u16) {
+        (3, 1)
+    }
+}
+
 impl StatefulWidget for Checkbox {
     type State = CheckboxState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         state.hit.set_area(area);
-        if area.width < 3 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
@@ -535,6 +542,19 @@ impl Default for Switch {
         Self::new()
     }
 }
+impl MinSize for Switch {
+    fn min_size(&self) -> (u16, u16) {
+        match self.style {
+            SwitchStyle::Pill if self.compact => (SWITCH_W - 2, 1),
+            SwitchStyle::Pill => (SWITCH_W, 3),
+            SwitchStyle::Slim => (3, 1),
+            SwitchStyle::Line => (3, 1),
+            SwitchStyle::Round => (5, 1),
+            SwitchStyle::Text => (6, 1),
+            SwitchStyle::Check => (1, 1),
+        }
+    }
+}
 
 impl StatefulWidget for Switch {
     type State = SwitchState;
@@ -551,17 +571,7 @@ impl StatefulWidget for Switch {
         };
         let t = state.anim.value(self.now.unwrap_or_else(Instant::now));
 
-        let (min_w, min_h) = match self.style {
-            SwitchStyle::Pill if self.compact => (SWITCH_W - 2, 1),
-            SwitchStyle::Pill => (SWITCH_W, 3),
-            SwitchStyle::Slim => (3, 1),
-            SwitchStyle::Line => (3, 1),
-            SwitchStyle::Round => (5, 1),
-            SwitchStyle::Text => (6, 1),
-            SwitchStyle::Check => (1, 1),
-        };
-
-        if area.width < min_w || area.height < min_h {
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
@@ -884,12 +894,19 @@ impl RadioGroup {
     }
 }
 
+impl MinSize for RadioGroup {
+    fn min_size(&self) -> (u16, u16) {
+        (3, 1)
+    }
+}
+
 impl StatefulWidget for RadioGroup {
     type State = RadioState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         state.hits.clear();
-        if area.width < 3 || area.height == 0 || self.options.is_empty() {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if self.options.is_empty() || refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
@@ -1128,6 +1145,10 @@ impl RadioState {
         self.selected = Some(idx);
         self.cursor = idx;
     }
+
+    pub fn take_activated(&mut self) -> Option<usize> {
+        self.selected.take()
+    }
 }
 
 impl Interactive for RadioState {
@@ -1155,7 +1176,7 @@ impl Interactive for RadioState {
             _ if is_activate(&key) => {
                 if self.selected != Some(self.cursor) {
                     self.selected = Some(self.cursor);
-                    Outcome::Changed
+                    Outcome::Submitted
                 } else {
                     Outcome::Consumed
                 }
@@ -1175,7 +1196,7 @@ impl Interactive for RadioState {
                     self.cursor = idx;
                     if self.selected != Some(idx) {
                         self.selected = Some(idx);
-                        Outcome::Changed
+                        Outcome::Submitted
                     } else {
                         Outcome::Consumed
                     }
@@ -1239,12 +1260,19 @@ impl CheckList {
     }
 }
 
+impl MinSize for CheckList {
+    fn min_size(&self) -> (u16, u16) {
+        (5, 3)
+    }
+}
+
 impl StatefulWidget for CheckList {
     type State = CheckListState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         state.hits.clear();
-        if area.width < 5 || area.height < 3 || self.options.is_empty() {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if self.options.is_empty() || refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
@@ -1587,12 +1615,19 @@ impl Segmented {
     }
 }
 
+impl MinSize for Segmented {
+    fn min_size(&self) -> (u16, u16) {
+        (3, 1)
+    }
+}
+
 impl StatefulWidget for Segmented {
     type State = SegmentedState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         state.hits.clear();
-        if area.width < 3 || area.height == 0 || self.options.is_empty() {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if self.options.is_empty() || refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
@@ -2017,5 +2052,40 @@ mod tests {
                 .style(style)
                 .render(area, &mut buf, &mut state);
         }
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| c.symbol() != " ")
+    }
+
+    #[test]
+    fn checkbox_draws_at_minimum_and_refuses_below_it() {
+        let cb = Checkbox::new("");
+        let (w, h) = cb.min_size();
+        assert_eq!((w, h), (3, 1));
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = CheckboxState::new(CheckState::On);
+        Checkbox::new("").render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "should draw at minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        Checkbox::new("").render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one col short must refuse"
+        );
+    }
+
+    #[test]
+    fn radio_activation_returns_submitted() {
+        let mut state = RadioState {
+            hits: vec![Rect::new(0, 0, 5, 1)],
+            ..Default::default()
+        };
+
+        let out = state.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert!(out.is_submitted());
+        assert_eq!(state.take_activated(), Some(0));
     }
 }

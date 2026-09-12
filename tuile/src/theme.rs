@@ -36,7 +36,7 @@ impl Rgb {
     }
 
     pub fn color(self) -> Color {
-        Color::Rgb(self.0, self.1, self.2)
+        crate::term::caps().color.resolve(self.0, self.1, self.2)
     }
 
     pub fn from_color(c: Color) -> Option<Self> {

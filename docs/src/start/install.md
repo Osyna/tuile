@@ -2,7 +2,7 @@
 
 ```toml
 [dependencies]
-tuile = "0.2"
+tuile = "0.3"
 ```
 
 To track main instead of a release, depend on the repository:

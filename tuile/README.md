@@ -1,6 +1,6 @@
 # tuile
 
-Widget library and design system for [ratatui](https://ratatui.rs): 108 widget types, a
+Widget library and design system for [ratatui](https://ratatui.rs): 109 widget types, a
 colour system that expands ten colours into thirty semantic roles, tweened animation, mouse
 handling with cached hit rectangles, and overlays.
 
@@ -10,7 +10,7 @@ handling with cached hit rectangles, and overlays.
 
 ```toml
 [dependencies]
-tuile = "0.1"
+tuile = "0.3"
 ```
 
 ```rust

@@ -187,3 +187,30 @@ Acceptance: one test showing a non-USD, non-English label riding through; no sig
 1 and 3 first — they change the contract, and every later item inherits from them. 4 and 7 are
 the two that make the library fit new cases rather than merely fit better. 2, 6, 8 are
 correctness-of-API. 5, 9, 10 are honesty sweeps and can go in any order.
+
+---
+
+## Already landed, by the consumer (uncommitted in this tree)
+
+Three of these items have a first slice in the working tree, driven by rebuilding the harness's
+settings screen on `OptionList`. They are noted here so the next pass extends them rather than
+reverting them.
+
+* **Item 3 (edit vs commit), for `OptionList` only.** Left/Right, `h`/`l` and Space cycle the value
+  and report through `take_changed`; Enter no longer cycles, it reports the row through the new
+  `take_activated`, which is how an app opens a dropdown or a field for the row. `OptionValue::Text`
+  and `Action` stopped claiming `changed` for a Left press - they have nothing to cycle. The general
+  `Outcome` variant this item asks for is still open; this is one widget's version of it.
+* **Item 7 (pickers baking one schema), for `OptionList` only.** `OptionItem::trail([..])` takes
+  caller-defined trailing columns, aligned to their widest cell across rows, and `dim(true)` marks a
+  row showing something the user did not choose, muting the value and the trail. That was enough for
+  a settings surface to show provenance (`global`/`default`) and effect (`now`/`next session`)
+  without the widget knowing what either means.
+* **New, and needed by any in-place editor:** `row_rect(i)` and `value_rect(i)` hand back the cells a
+  row drew in, so an app can put an `Input` or a compact `Select` exactly over the value it edits
+  instead of opening a pane elsewhere. The widget-contract line "every state caches the rects it
+  drew" only helps a consumer if the rects are reachable.
+
+And one bug, fixed with a test that fails without it: `Input` kept the horizontal scroll a longer
+value needed, so a field whose value shrank - select-all then retype, `set_value`, a clear - skipped
+every grapheme as being left of the scroll and drew an empty field while holding a value.

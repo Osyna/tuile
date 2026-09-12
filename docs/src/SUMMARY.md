@@ -17,6 +17,7 @@
 - [The app loop](concepts/app-loop.md)
 - [Animation](concepts/animation.md)
 - [Overlays](concepts/overlays.md)
+- [Terminal capabilities](concepts/capabilities.md)
 
 # Theming
 
@@ -43,6 +44,7 @@
 
 - [A settings form](recipes/form.md)
 - [A dashboard](recipes/dashboard.md)
+- [Modal dialogs and overlays](recipes/modal.md)
 - [Writing your own widget](recipes/custom-widget.md)
 - [Custom spinners](recipes/spinners.md)
 - [Testing a terminal UI](recipes/testing.md)

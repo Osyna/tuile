@@ -56,7 +56,7 @@ let msg = ChatMessage::new(Role::User, "Add retry logic")
 # fn main() {}
 ```
 
-For richer content use `.block()` or `.with_blocks()` with `ChatBlock` variants. When blocks are present, the `text` field is ignored.
+For richer content use `.block()` or `.with_blocks()` with `ChatBlock` variants. **When blocks are non-empty, the `text` field is ignored**: a message with both `text` and `blocks` renders only the blocks.
 
 ### ChatBlock
 
@@ -69,6 +69,8 @@ Content blocks inside a message.
 | `Thinking { text, secs, collapsed, streaming }` | An expandable thinking block with elapsed time. Clicking the header toggles `collapsed` in place |
 | `ToolCall { name, summary, status, duration_ms }` | An inline tool-call badge. `status` is `Pending`, `Running`, `Done` or `Error`; the duration is optional |
 | `Divider(String)` | A horizontal rule with a centred label, for timestamps or turn markers |
+| `Facts(Vec<(String, String)>)` | Aligned key/value pairs rendered with the `KeyValueList` layout. Keys are column-aligned within each block |
+| `Alert { level, title, text }` | An inline alert rendered with the `InlineAlert` look. `level` is a `Variant` (Default, Success, Warning, Error) |
 
 ```rust
 # extern crate tuile;
@@ -198,6 +200,32 @@ Approval::new("Allow write to README.md?")
 ```
 
 The state owns `focus: usize` and `choice: Option<ApprovalChoice>`. Keys: arrow keys or `1`/`2`/`3` to pick, `Enter` to confirm. Read `state.choice` after render to see if the user decided. Methods: `.command()`, `.detail()`, `.style()`, `.danger(bool)`.
+
+### PromptComposer
+
+Prompt input field with model pill, send/newline hints, attachments, and optional token count in a hint row below the text area.
+
+```rust
+# extern crate tuile;
+# extern crate ratatui_core;
+# use tuile::prelude::*;
+# use tuile::widgets::ai::{PromptComposer, ComposerState};
+# fn demo(area: Rect, buf: &mut Buffer) {
+let mut state = ComposerState::default();
+PromptComposer::new()
+    .model("claude-sonnet-4")
+    .tokens(1234)
+    .render(area, buf, &mut state);
+# }
+# fn main() {}
+```
+
+The state owns `editor: TextAreaState` and `submitted: Option<String>`. Call `state.take_submitted()` to drain the submitted text after the user presses Enter.
+
+**Token count**: By default, no token figure is shown. Pass `.tokens(n)` for an exact count from the caller's tokenizer (drawn as `1234 tokens`) or `.estimate_tokens(chars_per_token)` for an estimate (drawn as `~1234 tokens` with tilde prefix). Showing an invented estimate next to a model that bills by tokens is a confident wrong number—only show a count when you have one.
+
+Methods: `.model(String)`, `.placeholder(String)`, `.shape(FieldShape)`, `.attachments(&[String])`, `.focused(bool)`, `.tokens(u32)`, `.estimate_tokens(f32)`.
+
 
 ### ContextGauge
 

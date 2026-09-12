@@ -20,7 +20,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{self, Easing};
 use crate::core::*;
-use crate::draw::{Border, bold, fill, hbar, put, put_centered, st, truncate, wrap};
+use crate::draw::{self, Border, bold, fill, hbar, put, put_centered, st, truncate, wrap};
 use crate::fuzzy;
 use crate::theme::{self, Rgb, Theme};
 use crate::widgets::ai::fmt_tokens;
@@ -217,15 +217,24 @@ impl<'a> Default for SlashMenu<'a> {
         Self::new()
     }
 }
+impl<'a> MinSize for SlashMenu<'a> {
+    /// Popup minimum: `(width, height)` in cells.
+    fn min_size(&self) -> (u16, u16) {
+        (10, 3)
+    }
+}
 
 impl<'a> StatefulWidget for SlashMenu<'a> {
     type State = SlashMenuState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if !state.open || area.width < 10 || area.height < 3 {
+        if !state.open {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
+            return;
+        }
 
         // rank
         let names: Vec<&str> = self.commands.iter().map(|c| c.name.as_str()).collect();
@@ -662,15 +671,24 @@ impl<'a> Default for MentionPicker<'a> {
         Self::new()
     }
 }
+impl<'a> MinSize for MentionPicker<'a> {
+    /// Minimum size: `(width, height)` in cells.
+    fn min_size(&self) -> (u16, u16) {
+        (10, 3)
+    }
+}
 
 impl<'a> StatefulWidget for MentionPicker<'a> {
     type State = MentionPickerState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if !state.open || area.width < 10 || area.height < 3 {
+        if !state.open {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
+            return;
+        }
 
         // rank, then reorder into display order (RECENT first) so cursor == display row
         let labels: Vec<&str> = self.items.iter().map(|i| i.label.as_str()).collect();
@@ -1014,15 +1032,21 @@ impl<'a> Default for AttachmentChips<'a> {
         Self::new()
     }
 }
+impl<'a> MinSize for AttachmentChips<'a> {
+    /// Minimum size: `(width, height)` in cells.
+    fn min_size(&self) -> (u16, u16) {
+        (5, 1)
+    }
+}
 
 impl<'a> StatefulWidget for AttachmentChips<'a> {
     type State = AttachmentChipsState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 5 || area.height < 1 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
 
         fill(buf, area, th.background);
 
@@ -1202,13 +1226,19 @@ impl Default for ModeBadge {
         Self::new()
     }
 }
+impl MinSize for ModeBadge {
+    /// Minimum size: `(width, height)` in cells.
+    fn min_size(&self) -> (u16, u16) {
+        (4, 1)
+    }
+}
 
 impl Widget for ModeBadge {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 4 || area.height < 1 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let now = self.now.unwrap_or_else(Instant::now);
 
         let target_color = self.mode.color(&th);
@@ -1273,12 +1303,20 @@ pub struct HarnessStatus {
     /// Fraction of the context window in use, 0.0..=1.0. `None` when the provider manages its
     /// own window and reports nothing: the segment and its bar are then not drawn at all.
     context_pct: Option<f32>,
+    /// Caller-supplied context percentage text, overriding the default `"{}%"` formatting.
+    context_pct_text: Option<String>,
     tokens: u32,
     /// `None` when nobody reported a cost. `Some(0.0)` is a real, reported zero.
     cost: Option<f32>,
+    /// Caller-supplied cost text, overriding the default `"${:.2}"` formatting.
+    cost_text: Option<String>,
     elapsed: std::time::Duration,
+    /// Caller-supplied elapsed text, overriding the default `"{}s"` formatting.
+    elapsed_text: Option<String>,
     busy: bool,
     queued: u32,
+    /// Caller-supplied queued text, overriding the default `"{} queued"` formatting.
+    queued_text: Option<String>,
     now: Option<Instant>,
     theme: Option<Theme>,
 }
@@ -1292,11 +1330,15 @@ impl HarnessStatus {
             branch: String::new(),
             dirty: false,
             context_pct: None,
+            context_pct_text: None,
             tokens: 0,
             cost: None,
+            cost_text: None,
             elapsed: std::time::Duration::ZERO,
+            elapsed_text: None,
             busy: false,
             queued: 0,
+            queued_text: None,
             now: None,
             theme: None,
         }
@@ -1326,6 +1368,12 @@ impl HarnessStatus {
         self.context_pct = Some(fraction);
         self
     }
+    /// Context percentage as the caller's own text, for a different precision or unit.
+    /// Overrides [`Self::context_pct`], which formats `"{}%"`.
+    pub fn context_pct_text(mut self, s: impl Into<String>) -> Self {
+        self.context_pct_text = Some(s.into());
+        self
+    }
     /// Set tokens.
     pub fn tokens(mut self, t: u32) -> Self {
         self.tokens = t;
@@ -1336,9 +1384,21 @@ impl HarnessStatus {
         self.cost = Some(c);
         self
     }
+    /// Cost as the caller's own text, for a non-USD currency or a different precision.
+    /// Overrides [`Self::cost`], which formats `"${:.2}"`.
+    pub fn cost_text(mut self, s: impl Into<String>) -> Self {
+        self.cost_text = Some(s.into());
+        self
+    }
     /// Set elapsed.
     pub fn elapsed(mut self, e: std::time::Duration) -> Self {
         self.elapsed = e;
+        self
+    }
+    /// Elapsed as the caller's own text, for a different unit or precision.
+    /// Overrides [`Self::elapsed`], which formats `"{}s"` (seconds).
+    pub fn elapsed_text(mut self, s: impl Into<String>) -> Self {
+        self.elapsed_text = Some(s.into());
         self
     }
     /// Set busy.
@@ -1349,6 +1409,12 @@ impl HarnessStatus {
     /// Set queued count.
     pub fn queued(mut self, q: u32) -> Self {
         self.queued = q;
+        self
+    }
+    /// Queued count as the caller's own text, for a different unit or language.
+    /// Overrides [`Self::queued`], which formats `"{} queued"`.
+    pub fn queued_text(mut self, s: impl Into<String>) -> Self {
+        self.queued_text = Some(s.into());
         self
     }
     /// Set time.
@@ -1368,13 +1434,19 @@ impl Default for HarnessStatus {
         Self::new()
     }
 }
+impl MinSize for HarnessStatus {
+    /// Minimum size: `(width, height)` in cells.
+    fn min_size(&self) -> (u16, u16) {
+        (10, 1)
+    }
+}
 
 impl Widget for HarnessStatus {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 10 || area.height < 1 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let now = self.now.unwrap_or_else(Instant::now);
 
         fill(buf, area, th.panel);
@@ -1398,7 +1470,9 @@ impl Widget for HarnessStatus {
         }
 
         // context bar + pct, drawn only when a fraction was actually reported
-        if let Some(fraction) = self.context_pct {
+        if let Some(text) = self.context_pct_text {
+            parts.push(text);
+        } else if let Some(fraction) = self.context_pct {
             parts.push(format!("{}%", (fraction * 100.0) as u32));
         }
 
@@ -1408,7 +1482,9 @@ impl Widget for HarnessStatus {
         }
 
         // cost
-        if let Some(c) = self.cost {
+        if let Some(text) = self.cost_text {
+            parts.push(text);
+        } else if let Some(c) = self.cost {
             parts.push(format!("${:.2}", c));
         }
 
@@ -1423,13 +1499,17 @@ impl Widget for HarnessStatus {
         }
 
         // elapsed
-        if !self.elapsed.is_zero() {
+        if let Some(text) = self.elapsed_text {
+            parts.push(text);
+        } else if !self.elapsed.is_zero() {
             let secs = self.elapsed.as_secs();
             parts.push(format!("{}s", secs));
         }
 
         // queued
-        if self.queued > 0 {
+        if let Some(text) = self.queued_text {
+            parts.push(text);
+        } else if self.queued > 0 {
             parts.push(format!("{} queued", self.queued));
         }
 
@@ -1579,7 +1659,7 @@ impl Interactive for QuestionCardState {
                     .filter_map(|(i, &s)| if s { Some(i) } else { None })
                     .collect();
                 self.submitted = Some(indices);
-                Outcome::Changed
+                Outcome::Submitted
             }
             KeyCode::Esc => {
                 self.cancelled = true;
@@ -1594,7 +1674,7 @@ impl Interactive for QuestionCardState {
                             // single mode: submit
                             self.selected[idx] = true;
                             self.submitted = Some(vec![idx]);
-                            return Outcome::Changed;
+                            return Outcome::Submitted;
                         } else {
                             // multi mode: toggle
                             self.selected[idx] = !self.selected[idx];
@@ -1616,7 +1696,7 @@ impl Interactive for QuestionCardState {
                     if self.selected.len() == 1 {
                         self.selected[i] = true;
                         self.submitted = Some(vec![i]);
-                        return Outcome::Changed;
+                        return Outcome::Submitted;
                     } else {
                         self.selected[i] = !self.selected[i];
                         return Outcome::Consumed;
@@ -1692,15 +1772,21 @@ impl<'a> Default for QuestionCard<'a> {
         Self::new()
     }
 }
+impl<'a> MinSize for QuestionCard<'a> {
+    /// Minimum size: `(width, height)` in cells.
+    fn min_size(&self) -> (u16, u16) {
+        (10, 3)
+    }
+}
 
 impl<'a> StatefulWidget for QuestionCard<'a> {
     type State = QuestionCardState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 10 || area.height < 3 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
 
         // ensure selected matches options
         if state.selected.len() != self.options.len() {
@@ -2071,15 +2157,21 @@ impl<'a> Default for PlanView<'a> {
         Self::new()
     }
 }
+impl<'a> MinSize for PlanView<'a> {
+    /// Minimum size: `(width, height)` in cells.
+    fn min_size(&self) -> (u16, u16) {
+        (10, 2)
+    }
+}
 
 impl<'a> StatefulWidget for PlanView<'a> {
     type State = PlanViewState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 10 || area.height < 2 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let now = self.now.unwrap_or_else(Instant::now);
 
         fill(buf, area, th.background);
@@ -2340,15 +2432,21 @@ impl<'a> Default for MessageQueue<'a> {
         Self::new()
     }
 }
+impl<'a> MinSize for MessageQueue<'a> {
+    /// Minimum size: `(width, height)` in cells.
+    fn min_size(&self) -> (u16, u16) {
+        (10, 2)
+    }
+}
 
 impl<'a> StatefulWidget for MessageQueue<'a> {
     type State = MessageQueueState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 10 || area.height < 2 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
 
         fill(buf, area, th.background);
 
@@ -2470,7 +2568,7 @@ impl Interactive for SuggestionsState {
             KeyCode::Enter => {
                 if self.cursor < self.hits.len() {
                     self.activated = Some(self.cursor);
-                    return Outcome::Changed;
+                    return Outcome::Submitted;
                 }
                 Outcome::Ignored
             }
@@ -2479,7 +2577,7 @@ impl Interactive for SuggestionsState {
                     let digit = digit as usize;
                     if digit > 0 && digit <= self.hits.len() {
                         self.activated = Some(digit - 1);
-                        return Outcome::Changed;
+                        return Outcome::Submitted;
                     }
                 }
                 Outcome::Ignored
@@ -2494,7 +2592,7 @@ impl Interactive for SuggestionsState {
                 Hit::Press => {
                     self.cursor = i;
                     self.activated = Some(i);
-                    return Outcome::Changed;
+                    return Outcome::Submitted;
                 }
                 Hit::HoverChanged if hit.hover => {
                     self.cursor = i;
@@ -2539,15 +2637,21 @@ impl<'a> Default for Suggestions<'a> {
         Self::new()
     }
 }
+impl<'a> MinSize for Suggestions<'a> {
+    /// Minimum size: `(width, height)` in cells.
+    fn min_size(&self) -> (u16, u16) {
+        (5, 1)
+    }
+}
 
 impl<'a> StatefulWidget for Suggestions<'a> {
     type State = SuggestionsState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 5 || area.height < 1 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
 
         fill(buf, area, th.background);
 
@@ -2678,7 +2782,7 @@ mod tests {
             ..Default::default()
         };
         let outcome = state.handle_key(KeyEvent::from(KeyCode::Char('1')));
-        assert_eq!(outcome, Outcome::Changed);
+        assert_eq!(outcome, Outcome::Submitted);
         assert_eq!(state.submitted, Some(vec![0]));
     }
 
@@ -2819,5 +2923,157 @@ mod tests {
             let mut state = SuggestionsState::default();
             Suggestions::new().render(area, &mut buf, &mut state);
         }
+    }
+
+    #[test]
+    fn harness_status_vocabulary_overrides() {
+        let mut buf = Buffer::empty(Rect::new(0, 0, 120, 1));
+        HarnessStatus::new()
+            .mode(HarnessMode::Act)
+            .context_pct_text("47% (cached)")
+            .cost_text("€0.42")
+            .elapsed_text("10min")
+            .queued_text("2 en attente")
+            .render(buf.area, &mut buf);
+        let row: String = (0..120).map(|x| buf[(x, 0)].symbol().to_string()).collect();
+        assert!(row.contains("47% (cached)"), "custom context text: {row:?}");
+        assert!(row.contains("€0.42"), "custom cost text: {row:?}");
+        assert!(row.contains("10min"), "custom elapsed text: {row:?}");
+        assert!(row.contains("2 en attente"), "custom queued text: {row:?}");
+    }
+
+    #[test]
+    fn harness_status_default_formatting_unchanged() {
+        let mut buf = Buffer::empty(Rect::new(0, 0, 120, 1));
+        HarnessStatus::new()
+            .mode(HarnessMode::Act)
+            .context_pct(0.47)
+            .cost(1.23)
+            .elapsed(std::time::Duration::from_secs(42))
+            .queued(3)
+            .render(buf.area, &mut buf);
+        let row: String = (0..120).map(|x| buf[(x, 0)].symbol().to_string()).collect();
+        assert!(row.contains("47%"), "percentage formatting: {row:?}");
+        assert!(row.contains("$1.23"), "cost formatting: {row:?}");
+        assert!(row.contains("42s"), "elapsed formatting: {row:?}");
+        assert!(row.contains("3 queued"), "queued formatting: {row:?}");
+    }
+
+    #[test]
+    fn question_card_edit_vs_commit() {
+        let mut state = QuestionCardState {
+            selected: vec![false, false],
+            ..Default::default()
+        };
+        // Space toggles in multi mode → Changed
+        let outcome = state.handle_key(KeyEvent::from(KeyCode::Char(' ')));
+        assert_eq!(outcome, Outcome::Consumed);
+        assert!(state.selected[0]);
+        assert!(state.submitted.is_none());
+
+        // Enter commits → Submitted
+        let outcome = state.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert_eq!(outcome, Outcome::Submitted);
+        assert!(outcome.is_submitted());
+        assert_eq!(state.submitted, Some(vec![0]));
+
+        // Esc cancels → Changed, not Submitted
+        let mut state = QuestionCardState {
+            selected: vec![false],
+            ..Default::default()
+        };
+        let outcome = state.handle_key(KeyEvent::from(KeyCode::Esc));
+        assert_eq!(outcome, Outcome::Changed);
+        assert!(!outcome.is_submitted(), "cancel is not a commit");
+        assert!(state.take_cancelled(), "cancelled flag must be set");
+        assert!(state.submitted.is_none(), "no answer on cancel");
+    }
+    #[test]
+    fn suggestions_move_vs_activate() {
+        let mut state = SuggestionsState {
+            hits: vec![HitBox::default(), HitBox::default()],
+            ..Default::default()
+        };
+        // Arrow moves cursor → Consumed
+        let outcome = state.handle_key(KeyEvent::from(KeyCode::Right));
+        assert_eq!(outcome, Outcome::Consumed);
+        assert_eq!(state.cursor, 1);
+        assert!(state.activated.is_none());
+
+        // Enter activates → Submitted
+        let outcome = state.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert_eq!(outcome, Outcome::Submitted);
+        assert_eq!(state.activated, Some(1));
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| c.symbol() != " ")
+    }
+
+    #[test]
+    fn ai_compose_draws_at_minimum_and_refuses_visibly_below() {
+        // Test 1-row widget (HarnessStatus) on width axis
+        let (w, h) = HarnessStatus::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        HarnessStatus::new().render(buf.area, &mut buf);
+        assert!(
+            painted(&buf),
+            "HarnessStatus draws at its stated minimum {w}×{h}"
+        );
+
+        let (sw, sh) = if h > 1 { (w, h - 1) } else { (w - 1, h) };
+        let mut buf = Buffer::empty(Rect::new(0, 0, sw, sh));
+        HarnessStatus::new().render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one cell short on shrinkable axis must refuse visibly with ⋯"
+        );
+
+        // Test multi-row widget (QuestionCard) on height axis
+        let opts = [QuestionOption::new("A", "opt")];
+        let (w, h) = QuestionCard::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = QuestionCardState::default();
+        QuestionCard::new()
+            .question("Test")
+            .options(&opts)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(
+            painted(&buf),
+            "QuestionCard draws at its stated minimum {w}×{h}"
+        );
+
+        let (sw, sh) = if h > 1 { (w, h - 1) } else { (w - 1, h) };
+        let mut buf = Buffer::empty(Rect::new(0, 0, sw, sh));
+        let mut state = QuestionCardState::default();
+        QuestionCard::new()
+            .question("Test")
+            .options(&opts)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one cell short on shrinkable axis must refuse visibly with ⋯"
+        );
+    }
+
+    #[test]
+    fn closed_popup_paints_nothing() {
+        let mut buf = Buffer::empty(Rect::new(0, 0, 1, 1));
+        let mut state = SlashMenuState {
+            open: false,
+            ..Default::default()
+        };
+        SlashMenu::new().render(buf.area, &mut buf, &mut state);
+        assert!(
+            !painted(&buf),
+            "closed popup draws nothing, not even a refusal marker"
+        );
+
+        let mut state = MentionPickerState {
+            open: false,
+            ..Default::default()
+        };
+        MentionPicker::new().render(buf.area, &mut buf, &mut state);
+        assert!(!painted(&buf), "closed mention picker draws nothing");
     }
 }

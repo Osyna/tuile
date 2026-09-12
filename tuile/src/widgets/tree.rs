@@ -21,8 +21,8 @@ use ratatui_core::style::Modifier;
 use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
-use crate::core::{Interactive, Outcome, is_press, mouse_in, mouse_pos, wheel_delta};
-use crate::draw::{Border, fill, put, put_right, st};
+use crate::core::{Interactive, MinSize, Outcome, is_press, mouse_in, mouse_pos, wheel_delta};
+use crate::draw::{Border, fill, put, put_right, refuse, st};
 use crate::layout::pad;
 use crate::theme::{self, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
@@ -207,6 +207,17 @@ impl TreeView {
     }
 }
 
+impl MinSize for TreeView {
+    /// (3, 3) with border (default), (1, 1) without.
+    fn min_size(&self) -> (u16, u16) {
+        if self.border.is_some() {
+            (3, 3)
+        } else {
+            (1, 1)
+        }
+    }
+}
+
 // state
 
 /// Tree view state: cursor (visible row index), expanded set, scroll, hover, activation.
@@ -221,6 +232,7 @@ pub struct TreeViewState {
     pub activated: Option<TreeId>,
     pub row_ids: Vec<TreeId>,
     marker_hits: Vec<Rect>,
+    last_click: Option<(usize, Instant)>,
 }
 
 impl TreeViewState {
@@ -235,6 +247,7 @@ impl TreeViewState {
             activated: None,
             row_ids: Vec::new(),
             marker_hits: Vec::new(),
+            last_click: None,
         }
     }
 
@@ -367,10 +380,13 @@ impl Interactive for TreeViewState {
             KeyCode::Enter | KeyCode::Char(' ') => {
                 if let Some(id) = current_id {
                     self.toggle(id);
-                    if matches!(k.code, KeyCode::Enter) {
+                    let outcome = if matches!(k.code, KeyCode::Enter) {
                         self.activated = Some(id);
-                    }
-                    return Outcome::Changed;
+                        Outcome::Submitted
+                    } else {
+                        Outcome::Changed
+                    };
+                    return outcome;
                 }
             }
             KeyCode::Char('*') => {
@@ -432,8 +448,19 @@ impl Interactive for TreeViewState {
                     return Outcome::Changed;
                 }
 
-                // click row
+                // click row: double-click activates
                 if row < self.row_ids.len() {
+                    let now = Instant::now();
+                    if let Some((last_row, last_time)) = self.last_click
+                        && last_row == row
+                        && now.duration_since(last_time).as_millis() < 400
+                        && let Some(id) = self.row_ids.get(row)
+                    {
+                        self.activated = Some(*id);
+                        self.last_click = None;
+                        return Outcome::Submitted;
+                    }
+                    self.last_click = Some((row, now));
                     self.cursor = row;
                     return Outcome::Changed;
                 }
@@ -472,6 +499,9 @@ impl StatefulWidget for TreeView {
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
+            return;
+        }
         let bg = th.surface;
         fill(buf, area, bg);
 
@@ -698,5 +728,110 @@ mod tests {
         assert!(state.expanded.contains(&id));
         state.toggle(id);
         assert!(!state.expanded.contains(&id));
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        let mut roots = vec![TreeNode::new("root")];
+        TreeNode::assign_ids(&mut roots);
+
+        // With border (default): minimum is (3, 3)
+        let with_border = TreeView::new(roots.clone());
+        let (w, h) = with_border.min_size();
+        assert_eq!((w, h), (3, 3), "TreeView with border should be (3, 3)");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = TreeViewState::new();
+        TreeView::new(roots.clone()).render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "should draw at minimum with border");
+
+        // One cell short
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        let mut state = TreeViewState::new();
+        TreeView::new(roots.clone()).render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one cell short must refuse visibly with border"
+        );
+
+        // Without border: minimum is (1, 1)
+        let mut no_border_tree = TreeView::new(roots.clone());
+        no_border_tree.border = None;
+        let (w2, h2) = no_border_tree.min_size();
+        assert_eq!((w2, h2), (1, 1), "TreeView without border should be (1, 1)");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w2, h2));
+        let mut state = TreeViewState::new();
+        let mut tree = TreeView::new(roots.clone());
+        tree.border = None;
+        tree.render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "should draw at minimum without border");
+
+        // Zero area refuses
+        let mut buf = Buffer::empty(Rect::new(0, 0, 0, 1));
+        let mut state = TreeViewState::new();
+        let mut tree = TreeView::new(roots);
+        tree.border = None;
+        tree.render(buf.area, &mut buf, &mut state);
+        // Empty buffer with 0 width can't paint ⋯, but painted() will be false
+        assert!(!painted(&buf), "zero width draws nothing");
+    }
+
+    #[test]
+    fn activation_is_a_commit_and_motion_is_not() {
+        use crossterm::event::{MouseButton, MouseEventKind};
+        let mut roots = vec![TreeNode::new("a"), TreeNode::new("b")];
+        TreeNode::assign_ids(&mut roots);
+        let mut state = TreeViewState::new();
+
+        // First render to populate row_ids
+        let area = Rect::new(0, 0, 20, 10);
+        let mut buf = Buffer::empty(area);
+        TreeView::new(roots.clone()).render(area, &mut buf, &mut state);
+
+        // Arrow movement is changed, not submitted
+        let moved = state.handle_key(KeyEvent::from(KeyCode::Down));
+        assert!(moved.is_changed() && !moved.is_submitted(), "{moved:?}");
+
+        // Space toggles but doesn't activate
+        state.cursor = 0;
+        let toggled = state.handle_key(KeyEvent::from(KeyCode::Char(' ')));
+        assert!(
+            toggled.is_changed() && !toggled.is_submitted(),
+            "{toggled:?}"
+        );
+        assert_eq!(state.take_activated(), None);
+
+        // Enter toggles AND activates
+        let out = state.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert!(out.is_submitted(), "{out:?}");
+        assert_eq!(state.take_activated(), Some(TreeId(0)));
+        assert_eq!(state.take_activated(), None, "drains once");
+
+        // Double-click activates: render again to cache rects
+        TreeView::new(roots.clone()).render(area, &mut buf, &mut state);
+
+        // First click on row: changed
+        let m1 = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: area.x + 2,
+            row: area.y + 1, // inside border
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        let click1 = state.handle_mouse(m1);
+        assert!(click1.is_changed() && !click1.is_submitted(), "{click1:?}");
+
+        // Second click within 400ms: submitted
+        let click2 = state.handle_mouse(m1);
+        assert!(click2.is_submitted(), "{click2:?}");
+        assert_eq!(state.take_activated(), Some(TreeId(0)));
     }
 }

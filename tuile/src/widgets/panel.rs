@@ -12,7 +12,8 @@
 use ratatui_core::buffer::Buffer;
 use ratatui_core::layout::{Alignment, Rect};
 
-use crate::draw::{Border, fill, put, put_aligned, shadow, st};
+use crate::core::MinSize;
+use crate::draw::{self, Border, fill, put, put_aligned, shadow, st};
 use crate::theme::{self, Rgb, Theme, Variant};
 use ratatui_core::style::Modifier;
 
@@ -160,7 +161,7 @@ impl Panel {
     pub fn render(self, area: Rect, buf: &mut Buffer) -> Rect {
         let th = self.theme.unwrap_or_else(theme::current);
 
-        if area.width == 0 || area.height == 0 {
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return Rect::default();
         }
 
@@ -418,6 +419,14 @@ impl Placeholder {
 impl Default for Placeholder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl MinSize for Panel {
+    /// Minimum panel: 1 cell (borders add to this).
+    fn min_size(&self) -> (u16, u16) {
+        let chrome = if self.border.is_some() { 2 } else { 0 };
+        (1 + chrome, 1 + chrome)
     }
 }
 

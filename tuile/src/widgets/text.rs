@@ -16,8 +16,8 @@ use ratatui_core::text::{Line, Span, Text};
 use ratatui_core::widgets::{StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
-use crate::core::{Hit, HitBox, Interactive, Outcome, is_activate, is_press};
-use crate::draw::{LOWER_BLOCKS, fill, put, put_aligned, put_centered, st};
+use crate::core::{Hit, HitBox, Interactive, MinSize, Outcome, is_activate, is_press};
+use crate::draw::{self, LOWER_BLOCKS, fill, put, put_aligned, put_centered, st};
 use crate::theme::{self, Rgb, Theme, Variant};
 
 // Label
@@ -380,9 +380,17 @@ impl Badge {
     }
 }
 
+impl MinSize for Badge {
+    /// (2, 1) minimum for badge.
+    fn min_size(&self) -> (u16, u16) {
+        (2, 1)
+    }
+}
+
 impl Widget for Badge {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 2 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
@@ -445,12 +453,19 @@ impl Pill {
     }
 }
 
+impl MinSize for Pill {
+    /// (3, 1) minimum for pill.
+    fn min_size(&self) -> (u16, u16) {
+        (3, 1)
+    }
+}
+
 impl Widget for Pill {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 3 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let variant_color = th.variant(self.variant);
         let fg = th.variant(self.variant).text_on(0.9);
 
@@ -486,12 +501,19 @@ impl KeyCap {
     }
 }
 
+impl MinSize for KeyCap {
+    /// (3, 1) minimum for keycap.
+    fn min_size(&self) -> (u16, u16) {
+        (3, 1)
+    }
+}
+
 impl Widget for KeyCap {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 3 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         fill(buf, area, th.panel);
         let display = crate::draw::fit(&self.key, area.width.saturating_sub(2) as usize);
         let style = st(th.footer_key, th.panel).add_modifier(Modifier::BOLD);
@@ -683,12 +705,19 @@ impl StatCard {
     }
 }
 
+impl MinSize for StatCard {
+    /// (6, 2) minimum for stat card.
+    fn min_size(&self) -> (u16, u16) {
+        (6, 2)
+    }
+}
+
 impl Widget for StatCard {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 6 || area.height < 2 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let bg = th.background;
         fill(buf, area, bg);
 
@@ -919,12 +948,19 @@ impl<'a> StatusLine<'a> {
     }
 }
 
+impl MinSize for StatusLine<'_> {
+    /// (4, 1) minimum for status line.
+    fn min_size(&self) -> (u16, u16) {
+        (4, 1)
+    }
+}
+
 impl Widget for StatusLine<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 4 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let bg = self.bg.unwrap_or(th.background);
         let row = Rect { height: 1, ..area };
         fill(buf, row, bg);
@@ -1272,5 +1308,89 @@ mod tests {
     fn badge_width_correct() {
         assert_eq!(Badge::width("NEW"), 5);
         assert_eq!(Badge::width(""), 2);
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        // Badge (2, 1) - smallest
+        let (w, h) = Badge::new("OK").min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        Badge::new("OK").render(buf.area, &mut buf);
+        assert!(painted(&buf), "Badge should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        Badge::new("OK").render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "Badge one cell short must refuse visibly"
+        );
+
+        // Pill (3, 1)
+        let (w, h) = Pill::new("OK").min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        Pill::new("OK").render(buf.area, &mut buf);
+        assert!(painted(&buf), "Pill should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        Pill::new("OK").render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "Pill one cell short must refuse visibly"
+        );
+
+        // KeyCap (3, 1)
+        let (w, h) = KeyCap::new("A").min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        KeyCap::new("A").render(buf.area, &mut buf);
+        assert!(painted(&buf), "KeyCap should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        KeyCap::new("A").render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "KeyCap one cell short must refuse visibly"
+        );
+
+        // StatCard (6, 2) - largest
+        let (w, h) = StatCard::new("Val", "10").min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        StatCard::new("Val", "10").render(buf.area, &mut buf);
+        assert!(painted(&buf), "StatCard should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        StatCard::new("Val", "10").render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "StatCard one cell short must refuse visibly"
+        );
+
+        // StatusLine (4, 1)
+        const SEG: StatusSegment = StatusSegment {
+            icon: None,
+            text: "OK",
+            color: None,
+        };
+        let (w, h) = StatusLine::new(&[SEG]).min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        StatusLine::new(&[SEG]).render(buf.area, &mut buf);
+        assert!(
+            painted(&buf),
+            "StatusLine should draw at its stated minimum"
+        );
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        StatusLine::new(&[SEG]).render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "StatusLine one cell short must refuse visibly"
+        );
     }
 }

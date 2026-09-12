@@ -38,7 +38,7 @@
 <br/>
 
 **Textual-grade components for [ratatui](https://ratatui.rs).** tuile is a widget library and
-design system for animated, mouse-aware terminal UIs in Rust: 108 widget types, a colour
+design system for animated, mouse-aware terminal UIs in Rust: 109 widget types, a colour
 system that expands ten colours into thirty semantic roles, tweened animation, overlays, and
 a 22-page `showcase` app that exercises every one of them. It ports the parts of
 [Textual](https://textual.textualize.io) that make building a TUI pleasant into plain ratatui
@@ -49,7 +49,7 @@ is still warm. Both fit: the library tiles a terminal, and it is shaped over rat
 
 ## 🚀 Features
 
-- **108 widgets across 15 families**: controls, text entry, navigation, tables, nine chart
+- **109 widgets across 15 families**: controls, text entry, navigation, tables, nine chart
   types, feedback, notifications, loaders, layout, menus, content, and a full AI chat harness
 - **Focus, hover and mouse hit-testing built in.** Every state caches the rects it drew, so
   clicks resolve without recomputing layout
@@ -70,7 +70,7 @@ As a library, from [crates.io](https://crates.io/crates/tuile):
 
 ```toml
 [dependencies]
-tuile = "0.2"                                  # re-exports ratatui-core + crossterm
+tuile = "0.3"                                  # re-exports ratatui-core + crossterm
 ```
 
 Or track main:
@@ -175,7 +175,7 @@ Twelve palettes ship: `textual-dark`, `textual-light`, `nord`, `gruvbox`, `catpp
 ## 🧩 Widget catalogue
 
 <details>
-<summary><b>108 widget types across 42 modules. Click to expand.</b></summary>
+<summary><b>109 widget types across 43 modules. Click to expand.</b></summary>
 
 <br/>
 
@@ -184,7 +184,7 @@ Twelve palettes ship: `textual-dark`, `textual-light`, `nord`, `gruvbox`, `catpp
 | Controls | `Button` (3D / flat / outline / ghost, compact, icon), `Checkbox` + `CheckList` (tri-state; `CheckStyle`: pill / `[x]` / `☑` / `●` / `✓` / `■`), `Switch` (animated; `SwitchStyle`: pill / slim / line / round / `ON`·`OFF` / `✓`·`✗`), `RadioGroup` (`RadioStyle`: dot / `(•)` / `✓` / `❯`), `Segmented` (filled / outline / underline / text), `Slider` + `RangeSlider`, `Stepper`, `Rating` |
 | Text entry | `Input` (selection, validation, restrict, suggester, password, prefix/suffix), `TextArea` (line numbers, undo/redo, highlighter hook, `CursorStyle` block / bar / underline / outline, blink, `Ln, Col`, click-to-position, wheel), `Select`, `Combobox` (fuzzy), `MultiSelect` (`DropdownWidth::Auto / Field / Fixed`), all with `.shape(FieldShape)`: Textual `Tall`, thin side `Bars`/`Bar` of any `Edge` thickness, `Rule`, `Round`, `Prompt`, `Band`, `None` |
 | Navigation | `TabBar` (underline / boxed / pills / segmented / minimal, closable, animated), `TabbedContent`, `ListView` (filter, multi-select, details), `TreeView` (guides, expand/collapse), `MenuBar` + `ContextMenu` (submenus, shortcuts), `Breadcrumbs`, `Paginator` |
-| Data | `DataTable` (sortable, zebra, row/cell cursor, multi-select, column resize, filter), `KeyValueList`, `Digits` (Textual big numerals) |
+| Data | `DataTable` (sortable, zebra, row/cell cursor, multi-select, column resize, filter), `Catalog` (caller-defined columns, marks, filter, cursor — the generic picker behind the AI presets), `KeyValueList`, `Digits` (Textual big numerals) |
 | Charts | `SparkChart` (bars, braille line/area, btop dot `Field`, `mirrored`), `BarGraph` (grouped, horizontal), `LineGraph` (braille, area, grid, legend), `ScatterPlot`, `Heatmap`, `ActivityGraph`, `Meter` (line / block / segments / LED / dots, gradient, suffix), `RadialGauge`, `BrailleCanvas` |
 | Feedback | `ProgressBar` (tweened, ETA, indeterminate), `StepProgress`, `Spinner` + `spinners::*`, `LoadingIndicator`, `Marquee`, `Blinker`, `Callout` (`LeftBar` / `Bar(Edge)` / `Round`), `Modal` (confirm / alert / prompt), `CommandPalette` (fuzzy), `Tooltip` |
 | Notifications | `Toaster` / `ToastStack` × 10 styles (`Card`, `Flat`, `Minimal`, `Pill`, `Outline`, `Banner`, `Glass`, `Progress` with a live value, `Action` with inline buttons, `Grouped` `+N more`), 6 positions, slide / fade / pop, pause-on-hover; `NotificationCenter` (grouped inbox, unread dots, filter, scroll), `Banner`, `InlineAlert`, `count_badge` |

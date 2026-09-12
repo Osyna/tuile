@@ -42,7 +42,7 @@ impl Default for AiAgentsPage {
                 .model("haiku"),
             SessionEntry::new("Implement search", "1d ago")
                 .messages(67)
-                .cost(2.10)
+                .cost_text("€1,89") // Demonstrates cost_text override for EUR
                 .model("opus"),
             SessionEntry::new("Refactor API", "2d ago")
                 .messages(25)

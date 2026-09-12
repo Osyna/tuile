@@ -23,8 +23,8 @@ use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::Tween;
-use crate::core::{Interactive, Look, Outcome, ctrl, is_press, mouse_pos, wheel_delta};
-use crate::draw::{Border, fill, hline, put, put_centered, st};
+use crate::core::{Interactive, Look, MinSize, Outcome, ctrl, is_press, mouse_pos, wheel_delta};
+use crate::draw::{self, Border, fill, hline, put, put_centered, st};
 use crate::layout::pad;
 use crate::theme::{self, Theme};
 
@@ -74,6 +74,43 @@ impl From<&str> for TabItem {
     }
 }
 
+// key groups
+
+/// Which key groups a `TabBar` claims. Union with `|`-style `with`, not bitflags (no new deps).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TabKeys(u8);
+
+impl TabKeys {
+    /// Left / Right arrow keys.
+    pub const ARROWS: Self = Self(1 << 0);
+    /// Home / End keys.
+    pub const HOME_END: Self = Self(1 << 1);
+    /// Digit keys '1'..='9' for direct tab selection.
+    pub const DIGITS: Self = Self(1 << 2);
+    /// Enter / Space for activation.
+    pub const ACTIVATE: Self = Self(1 << 3);
+    /// Ctrl+W / Delete for closing tabs.
+    pub const CLOSE: Self = Self(1 << 4);
+    /// All key groups (today's default behavior).
+    pub const ALL: Self = Self(0b11111);
+
+    /// Combine this key group with another.
+    pub fn with(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
+    /// Check if this set contains the given key group.
+    pub fn has(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+}
+
+impl Default for TabKeys {
+    fn default() -> Self {
+        Self::ALL
+    }
+}
+
 // style
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -101,6 +138,7 @@ pub struct TabBar {
     enabled: bool,
     now: Option<Instant>,
     theme: Option<Theme>,
+    keys: Option<TabKeys>,
 }
 
 impl TabBar {
@@ -116,6 +154,7 @@ impl TabBar {
             enabled: true,
             now: None,
             theme: None,
+            keys: None,
         }
     }
 
@@ -163,6 +202,27 @@ impl TabBar {
         self.theme = Some(*t);
         self
     }
+
+    /// Which key groups to claim. Default `TabKeys::ALL`. Narrowing lets a tab bar coexist
+    /// with a focused text field: `.keys(TabKeys::ARROWS)` keeps arrow navigation, returns
+    /// `Outcome::Ignored` for digits/Enter/Space so they reach the text input.
+    pub fn keys(mut self, k: TabKeys) -> Self {
+        self.keys = Some(k);
+        self
+    }
+}
+
+impl MinSize for TabBar {
+    /// Style-dependent: `Underline` needs a row for the sliding rule, `Boxed` needs top and
+    /// bottom box rows around the labels, the rest fit on one row.
+    fn min_size(&self) -> (u16, u16) {
+        let h = match self.style {
+            TabStyle::Underline => 2,
+            TabStyle::Boxed => 3,
+            TabStyle::Pills | TabStyle::Segmented | TabStyle::Minimal => 1,
+        };
+        (8, h)
+    }
 }
 
 impl<T: Into<Vec<TabItem>>> From<T> for TabBar {
@@ -184,6 +244,7 @@ pub struct TabBarState {
     pub hits: Vec<Rect>,
     pub close_hits: Vec<Rect>,
     pub closed: Option<usize>,
+    pub keys: TabKeys,
 }
 
 impl TabBarState {
@@ -197,6 +258,7 @@ impl TabBarState {
             hits: Vec::new(),
             close_hits: Vec::new(),
             closed: None,
+            keys: TabKeys::ALL,
         }
     }
 
@@ -208,6 +270,12 @@ impl TabBarState {
 
     pub fn take_closed(&mut self) -> Option<usize> {
         self.closed.take()
+    }
+
+    /// Which key groups this tab bar claims. Union with `TabKeys::with`.
+    pub fn keys(mut self, k: TabKeys) -> Self {
+        self.keys = k;
+        self
     }
 }
 
@@ -223,41 +291,41 @@ impl Interactive for TabBarState {
             return Outcome::Ignored;
         }
         match k.code {
-            KeyCode::Left => {
+            KeyCode::Left if self.keys.has(TabKeys::ARROWS) => {
                 if self.active > 0 {
                     self.active -= 1;
                     return Outcome::Changed;
                 }
             }
-            KeyCode::Right => {
+            KeyCode::Right if self.keys.has(TabKeys::ARROWS) => {
                 self.active += 1;
                 return Outcome::Changed;
             }
-            KeyCode::Home => {
+            KeyCode::Home if self.keys.has(TabKeys::HOME_END) => {
                 if self.active != 0 {
                     self.active = 0;
                     return Outcome::Changed;
                 }
             }
-            KeyCode::End => {
+            KeyCode::End if self.keys.has(TabKeys::HOME_END) => {
                 self.active = usize::MAX;
                 return Outcome::Changed;
             }
-            KeyCode::Char(c @ '1'..='9') => {
+            KeyCode::Char(c @ '1'..='9') if self.keys.has(TabKeys::DIGITS) => {
                 let i = (c as usize) - ('1' as usize);
                 if i != self.active {
                     self.active = i;
                     return Outcome::Changed;
                 }
             }
-            KeyCode::Char(' ') | KeyCode::Enter => {
+            KeyCode::Char(' ') | KeyCode::Enter if self.keys.has(TabKeys::ACTIVATE) => {
                 return Outcome::Changed;
             }
-            KeyCode::Char('w') if ctrl(&k, 'w') => {
+            KeyCode::Char('w') if ctrl(&k, 'w') && self.keys.has(TabKeys::CLOSE) => {
                 self.closed = Some(self.active);
                 return Outcome::Changed;
             }
-            KeyCode::Delete => {
+            KeyCode::Delete if self.keys.has(TabKeys::CLOSE) => {
                 self.closed = Some(self.active);
                 return Outcome::Changed;
             }
@@ -323,11 +391,24 @@ impl StatefulWidget for TabBar {
     type State = TabBarState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width == 0 || area.height == 0 || self.items.is_empty() {
+        if self.items.is_empty() {
+            state.hits.clear();
+            state.close_hits.clear();
             return;
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hits.clear();
+            state.close_hits.clear();
+            return;
+        }
+
+        // mirror keys from builder to state
+        if let Some(k) = self.keys {
+            state.keys = k;
+        }
+
         let bg = th.surface;
         let now = self.now.unwrap_or_else(Instant::now);
 
@@ -773,6 +854,15 @@ pub struct TabbedContent {
     bordered: bool,
 }
 
+impl MinSize for TabbedContent {
+    /// The bar's own minimum plus one content row, and two more each way when bordered.
+    fn min_size(&self) -> (u16, u16) {
+        let (w, bar_h) = self.bar.min_size();
+        let chrome = if self.bordered { 2 } else { 0 };
+        (w + chrome, bar_h + 1 + chrome)
+    }
+}
+
 impl TabbedContent {
     pub fn new(items: impl Into<Vec<TabItem>>) -> Self {
         Self {
@@ -812,17 +902,17 @@ impl TabbedContent {
     }
 
     /// Render the tab bar and return the content rect.
+    ///
+    /// Below [`MinSize::min_size`] it paints the refusal marker and returns `Rect::ZERO`, so a
+    /// caller that draws into the returned rect draws nothing instead of over the bar.
     pub fn render(self, area: Rect, buf: &mut Buffer, state: &mut TabBarState) -> Rect {
-        if area.height < 2 {
+        let th = self.bar.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return Rect::ZERO;
         }
-        let bar_h = if matches!(self.bar.style, TabStyle::Underline) {
-            2
-        } else {
-            1
-        };
+        // the bar asks for the rows its style needs; `Boxed` wants three, not one
+        let bar_h = self.bar.min_size().1;
         let bar_area = Rect::new(area.x, area.y, area.width, bar_h);
-        let th = self.bar.theme.unwrap_or_else(theme::current);
         self.bar.render(bar_area, buf, state);
 
         let content_area = Rect::new(
@@ -884,5 +974,144 @@ mod tests {
             .render(buf.area, &mut buf, &mut state);
         assert!(content.height < buf.area.height);
         assert!(content.y > buf.area.y);
+    }
+
+    #[test]
+    fn tabbed_content_refuses_visibly_instead_of_returning_a_silent_zero_rect() {
+        let items: Vec<TabItem> = vec!["A".into(), "B".into()];
+        let (w, h) = TabbedContent::new(items.clone()).min_size();
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = TabBarState::new(0);
+        let content = TabbedContent::new(items.clone()).render(buf.area, &mut buf, &mut state);
+        assert!(
+            !content.is_empty(),
+            "the stated minimum yields a usable rect"
+        );
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        let content = TabbedContent::new(items).render(buf.area, &mut buf, &mut state);
+        assert!(
+            content.is_empty(),
+            "too small still yields no content rect, so a caller draws nothing"
+        );
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "and the squeeze is visible instead of silent"
+        );
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| c.symbol() != " ")
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        let items: Vec<TabItem> = vec!["A".into(), "B".into()];
+        let (w, h) = TabBar::new(items.clone()).min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = TabBarState::new(0);
+        TabBar::new(items.clone()).render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "should draw at its stated minimum");
+
+        // one cell short on whichever axis can shrink
+        let (sw, sh) = if h > 1 { (w, h - 1) } else { (w - 1, h) };
+        let mut buf = Buffer::empty(Rect::new(0, 0, sw, sh));
+        TabBar::new(items.clone()).render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one cell short must refuse visibly, not silently draw nothing"
+        );
+    }
+
+    #[test]
+    fn narrowed_keys_ignores_unclaimed_groups() {
+        let mut state = TabBarState::new(0).keys(TabKeys::ARROWS);
+
+        // ARROWS group is claimed - should work
+        assert_eq!(
+            state.handle_key(KeyEvent::new(
+                KeyCode::Right,
+                crossterm::event::KeyModifiers::NONE
+            )),
+            Outcome::Changed,
+            "Right arrow should switch tabs when ARROWS is claimed"
+        );
+        assert_eq!(state.active, 1);
+
+        // ACTIVATE group is not claimed - should ignore
+        assert_eq!(
+            state.handle_key(KeyEvent::new(
+                KeyCode::Enter,
+                crossterm::event::KeyModifiers::NONE
+            )),
+            Outcome::Ignored,
+            "Enter should be ignored when ACTIVATE is not claimed"
+        );
+
+        // DIGITS group is not claimed - should ignore
+        assert_eq!(
+            state.handle_key(KeyEvent::new(
+                KeyCode::Char('3'),
+                crossterm::event::KeyModifiers::NONE
+            )),
+            Outcome::Ignored,
+            "Digit '3' should be ignored when DIGITS is not claimed"
+        );
+    }
+
+    #[test]
+    fn default_keys_claims_all_groups() {
+        let mut state = TabBarState::new(0); // default is TabKeys::ALL
+
+        // ARROWS
+        assert_eq!(
+            state.handle_key(KeyEvent::new(
+                KeyCode::Right,
+                crossterm::event::KeyModifiers::NONE
+            )),
+            Outcome::Changed,
+            "Right arrow should work with default keys"
+        );
+        state.active = 0; // reset
+
+        // DIGITS
+        assert_eq!(
+            state.handle_key(KeyEvent::new(
+                KeyCode::Char('3'),
+                crossterm::event::KeyModifiers::NONE
+            )),
+            Outcome::Changed,
+            "Digit '3' should work with default keys"
+        );
+        state.active = 0; // reset
+
+        // ACTIVATE
+        assert_eq!(
+            state.handle_key(KeyEvent::new(
+                KeyCode::Enter,
+                crossterm::event::KeyModifiers::NONE
+            )),
+            Outcome::Changed,
+            "Enter should work with default keys"
+        );
+    }
+
+    #[test]
+    fn builder_keys_mirrors_to_state_through_render() {
+        let items: Vec<TabItem> = vec!["A".into(), "B".into()];
+        let mut state = TabBarState::new(0);
+        assert_eq!(state.keys, TabKeys::ALL, "state starts with ALL");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, 20, 2));
+        TabBar::new(items.clone())
+            .keys(TabKeys::ARROWS)
+            .render(buf.area, &mut buf, &mut state);
+
+        assert_eq!(
+            state.keys,
+            TabKeys::ARROWS,
+            "builder setting mirrored to state"
+        );
     }
 }

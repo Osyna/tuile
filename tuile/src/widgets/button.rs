@@ -18,8 +18,8 @@ use ratatui_core::style::{Modifier, Style};
 use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
-use crate::core::{Hit, HitBox, Interactive, Look, Outcome, is_activate, is_press};
-use crate::draw::{Border, fill, put_centered, st};
+use crate::core::{Hit, HitBox, Interactive, Look, MinSize, Outcome, is_activate, is_press};
+use crate::draw::{Border, fill, put_centered, refuse, st};
 use crate::theme::{self, Theme, Variant};
 
 const BUTTON_MIN_W: u16 = 16;
@@ -137,12 +137,19 @@ impl Button {
     }
 }
 
+impl MinSize for Button {
+    fn min_size(&self) -> (u16, u16) {
+        (3, 1)
+    }
+}
+
 impl StatefulWidget for Button {
     type State = ButtonState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         state.hit.set_area(area);
-        if area.width < 3 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
@@ -387,12 +394,15 @@ impl ButtonState {
         Self::default()
     }
 
+    pub fn take_activated(&mut self) -> Option<Instant> {
+        self.pressed_at.take()
+    }
+
     pub fn animating(&self, now: Instant) -> bool {
         self.pressed_at
             .is_some_and(|t| now.duration_since(t).as_millis() < 120)
     }
 }
-
 impl Interactive for ButtonState {
     fn handle_key(&mut self, key: KeyEvent) -> Outcome {
         if !is_press(&key) {
@@ -400,7 +410,7 @@ impl Interactive for ButtonState {
         }
         if is_activate(&key) {
             self.pressed_at = Some(Instant::now());
-            Outcome::Changed
+            Outcome::Submitted
         } else {
             Outcome::Ignored
         }
@@ -410,7 +420,7 @@ impl Interactive for ButtonState {
         match self.hit.mouse(&m) {
             Hit::Click => {
                 self.pressed_at = Some(Instant::now());
-                Outcome::Changed
+                Outcome::Submitted
             }
             Hit::Press | Hit::Cancel | Hit::HoverChanged => Outcome::Consumed,
             Hit::Drag | Hit::Wheel(_) | Hit::None => Outcome::Ignored,
@@ -453,8 +463,8 @@ impl ButtonGroup {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crossterm::event::KeyCode;
     use ratatui_core::buffer::Buffer;
-    use ratatui_core::layout::Rect;
 
     #[test]
     fn button_renders_at_minimum_size() {
@@ -498,6 +508,34 @@ mod tests {
         let rects = ButtonGroup::layout(area, &["One", "Two", "Three"], 2, false);
         assert_eq!(rects.len(), 3);
         assert!(rects[0].x < rects[1].x);
+
         assert!(rects[1].x < rects[2].x);
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| c.symbol() != " ")
+    }
+
+    #[test]
+    fn draws_at_minimum_and_refuses_below_it() {
+        let btn = Button::new("X");
+        assert_eq!(btn.min_size(), (3, 1));
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, 3, 1));
+        let mut state = ButtonState::default();
+        Button::new("X").render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf));
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, 2, 1));
+        Button::new("X").render(buf.area, &mut buf, &mut state);
+        assert!(buf.content().iter().any(|c| c.symbol() == "⋯"));
+    }
+
+    #[test]
+    fn activation_returns_submitted() {
+        let mut state = ButtonState::default();
+        let out = state.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert!(out.is_submitted());
+        assert!(state.take_activated().is_some());
     }
 }

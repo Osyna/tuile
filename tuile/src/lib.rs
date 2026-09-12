@@ -1,7 +1,7 @@
 //! # tuile
 //!
 //! Textual-grade building blocks for [ratatui]: a ported design system (themes to derived
-//! colour roles), 108 widget types with keyboard and mouse handling built in, tweened
+//! colour roles), 109 widget types with keyboard and mouse handling built in, tweened
 //! animation, overlays (modals, toasts, palettes, dropdowns), AI/LLM chat components, a
 //! 102-spinner catalog and an app runtime that only redraws when something moves.
 //!
@@ -9,7 +9,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! tuile = { git = "https://github.com/irvin/tuile" }
+//! tuile = "0.3"
 //! ```
 //!
 //! `use tuile::prelude::*;` is the one import: every widget, `Theme`/`theme`, `draw`/`layout`
@@ -70,6 +70,7 @@ pub mod draw;
 pub mod fuzzy;
 pub mod layout;
 pub mod runtime;
+pub mod term;
 pub mod theme;
 pub mod widgets;
 
@@ -105,6 +106,7 @@ pub mod prelude {
     };
     pub use crate::layout::{Overlay, center, center_h, columns, pad, popup_below, stack};
     pub use crate::runtime::{App, Flow, RunOptions, run, run_with};
+    pub use crate::term::{self, ColorDepth, TermCaps, UnicodeLevel};
     pub use crate::theme::{self, Rgb, Theme, ThemeSpec, Variant};
     pub use crate::widgets::*;
 }

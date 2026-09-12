@@ -34,7 +34,7 @@ The helper `is_activate(key)` recognizes both. Buttons flash for 120 ms on activ
 
 Type-ahead resets after a second of inactivity. In `ListView` it is fuzzy; in `Select` and `CommandPalette` it matches prefixes.
 
-`OptionList` has a special value-cycling mode: Left/Right or h/l adjusts the value at the cursor (cycles choices, toggles bools, steps numbers). Enter and Space also step the value forward.
+`OptionList` has a special value-cycling mode: Left/Right, h/l or Space adjusts the value at the cursor (cycles choices, toggles bools, steps numbers) and reports it through `take_changed`. Enter never cycles: it reports the row through `take_activated`, which is how an app opens a dropdown, a text field, or runs a command for the row the cursor is on. A `Text` or `Action` row has nothing to cycle and only ever activates.
 
 ## Text fields
 

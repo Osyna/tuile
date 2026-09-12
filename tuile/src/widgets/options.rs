@@ -1,6 +1,12 @@
 //! Settings menu: grouped `label  value` rows with a cursor, in-place value cycling and a group
 //! index for a sidebar - the shape of omp's settings screen.
 //!
+//! Left/Right (or `h`/`l`, or Space) cycle the value at the cursor and report it through
+//! [`OptionListState::take_changed`]. Enter never cycles: it reports the row through
+//! [`OptionListState::take_activated`], which is how an app opens a dropdown, a text field or
+//! runs a command for the row the user is on. A row whose value the widget cannot cycle -
+//! [`OptionValue::Text`], [`OptionValue::Action`] - only ever activates.
+//!
 //! ```no_run
 //! use tuile::prelude::*;
 //! # let area = Rect::new(0, 0, 60, 20);
@@ -8,12 +14,15 @@
 //! let mut state = OptionListState::new(vec![
 //!     OptionGroup::new("Theme", vec![
 //!         OptionItem::choice("theme", "Dark Theme", &["titanium", "nord", "dracula"], 0),
-//!         OptionItem::bool("colorblind", "Color-Blind Mode", false),
+//!         OptionItem::bool("colorblind", "Color-Blind Mode", false)
+//!             .trail(["default", "next session"])
+//!             .dim(true),
 //!     ]),
 //!     OptionGroup::new("Display", vec![OptionItem::int("fps", "Frame rate", 60, 15, 120, 15)]),
 //! ]);
 //! OptionList::new().focused(true).render(area, &mut buf, &mut state);
 //! if let Some(key) = state.take_changed() { let _ = state.choice("theme"); }
+//! if let Some(key) = state.take_activated() { /* open the editor for `key` */ }
 //! ```
 
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
@@ -23,8 +32,10 @@ use ratatui_core::style::Modifier;
 use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
-use crate::core::{HitBox, Interactive, Outcome, is_left_down, is_press, mouse_pos, wheel_delta};
-use crate::draw::{fill, put, put_right, st, truncate};
+use crate::core::{
+    HitBox, Interactive, MinSize, Outcome, is_left_down, is_press, mouse_pos, wheel_delta,
+};
+use crate::draw::{fill, put, put_right, refuse, st, truncate};
 use crate::theme::{self, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
@@ -43,9 +54,10 @@ pub enum OptionValue {
         max: i64,
         step: i64,
     },
-    /// Read-only text (the app edits it elsewhere; Enter reports `changed`).
+    /// Read-only text: the widget never cycles it, Enter activates the row and the app opens
+    /// whatever editor the value needs.
     Text(String),
-    /// A command; Enter reports `changed`.
+    /// A command. Enter activates the row; there is nothing to cycle.
     Action,
 }
 
@@ -86,7 +98,7 @@ impl OptionValue {
                 *value = next;
                 moved
             }
-            OptionValue::Text(_) | OptionValue::Action => true,
+            OptionValue::Text(_) | OptionValue::Action => false,
             OptionValue::Choice { .. } => false,
         }
     }
@@ -100,6 +112,12 @@ pub struct OptionItem {
     pub value: OptionValue,
     /// Muted help text shown after the value on the cursor row.
     pub hint: Option<String>,
+    /// Trailing columns - where a value came from, when a change takes effect - as wide as
+    /// their widest cell across every row, so they read as columns and not as trailing words.
+    pub trail: Vec<String>,
+    /// This row is showing something the user did not choose: a default, an unset key, a
+    /// placeholder. The value and the trailing columns are drawn muted.
+    pub dim: bool,
 }
 
 impl OptionItem {
@@ -109,6 +127,8 @@ impl OptionItem {
             label: label.to_string(),
             value,
             hint: None,
+            trail: Vec::new(),
+            dim: false,
         }
     }
     pub fn bool(key: &str, label: &str, v: bool) -> Self {
@@ -146,6 +166,22 @@ impl OptionItem {
         self.hint = Some(h.to_string());
         self
     }
+
+    /// Trailing metadata columns, aligned with every other row's.
+    pub fn trail<I, S>(mut self, cells: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.trail = cells.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Draw the value and the trail muted: this row is at its default, not at a choice.
+    pub fn dim(mut self, v: bool) -> Self {
+        self.dim = v;
+        self
+    }
 }
 
 /// A titled group of rows.
@@ -175,7 +211,12 @@ pub struct OptionListState {
     pub scrollbar_state: ScrollbarState,
     rows_visible: usize,
     row_hits: Vec<(Rect, usize)>,
+    /// Where the value column started and ended in the last draw, so an app can put an
+    /// in-place editor exactly over the cell it is editing.
+    value_col: u16,
+    value_end: u16,
     changed: Option<String>,
+    activated: Option<String>,
 }
 
 impl OptionListState {
@@ -184,6 +225,26 @@ impl OptionListState {
             groups,
             ..Default::default()
         }
+    }
+
+    /// Screen rect of row `flat` as last drawn.
+    pub fn row_rect(&self, flat: usize) -> Option<Rect> {
+        self.row_hits
+            .iter()
+            .find(|&&(_, i)| i == flat)
+            .map(|&(r, _)| r)
+    }
+
+    /// Screen rect of row `flat`'s value cell as last drawn: where an app draws the field that
+    /// edits it, so the editor replaces the value instead of opening somewhere else.
+    pub fn value_rect(&self, flat: usize) -> Option<Rect> {
+        let row = self.row_rect(flat)?;
+        Some(Rect {
+            x: self.value_col,
+            y: row.y,
+            width: self.value_end.saturating_sub(self.value_col),
+            height: 1,
+        })
     }
 
     pub fn len(&self) -> usize {
@@ -197,6 +258,11 @@ impl OptionListState {
     /// Key of the row whose value changed (or whose action fired) since the last call.
     pub fn take_changed(&mut self) -> Option<String> {
         self.changed.take()
+    }
+
+    /// Key of the row the user asked to open (Enter, or a second click on the cursor row).
+    pub fn take_activated(&mut self) -> Option<String> {
+        self.activated.take()
     }
 
     pub fn get(&self, key: &str) -> Option<&OptionValue> {
@@ -284,7 +350,9 @@ impl OptionListState {
         self.groups.iter().map(|g| g.items.len() + 1).sum()
     }
 
-    fn step_value(&mut self, dir: i64) -> Outcome {
+    /// Cycle the value at the cursor by `dir` (+1 / -1); reports the key through
+    /// [`Self::take_changed`]. Rows the widget cannot cycle are left alone.
+    pub fn cycle(&mut self, dir: i64) -> Outcome {
         let cursor = self.cursor;
         let Some(item) = self.item_mut(cursor) else {
             return Outcome::Ignored;
@@ -295,6 +363,17 @@ impl OptionListState {
             Outcome::Changed
         } else {
             Outcome::Consumed
+        }
+    }
+
+    /// Hand the cursor row to the app to open. Reported by [`Self::take_activated`].
+    fn activate(&mut self) -> Outcome {
+        match self.groups.iter().flat_map(|g| &g.items).nth(self.cursor) {
+            Some(item) => {
+                self.activated = Some(item.key.clone());
+                Outcome::Changed
+            }
+            None => Outcome::Ignored,
         }
     }
 
@@ -322,10 +401,9 @@ impl Interactive for OptionListState {
             KeyCode::PageDown => self.move_cursor(page),
             KeyCode::Home => self.move_cursor(i64::MIN / 2),
             KeyCode::End => self.move_cursor(i64::MAX / 2),
-            KeyCode::Left | KeyCode::Char('h') => self.step_value(-1),
-            KeyCode::Right | KeyCode::Char('l') | KeyCode::Enter | KeyCode::Char(' ') => {
-                self.step_value(1)
-            }
+            KeyCode::Left | KeyCode::Char('h') => self.cycle(-1),
+            KeyCode::Right | KeyCode::Char('l') | KeyCode::Char(' ') => self.cycle(1),
+            KeyCode::Enter => self.activate(),
             _ => Outcome::Ignored,
         }
     }
@@ -356,7 +434,7 @@ impl Interactive for OptionListState {
                 let was = self.cursor;
                 self.cursor = i;
                 if was == i {
-                    self.step_value(1)
+                    self.activate()
                 } else {
                     Outcome::Consumed
                 }
@@ -420,16 +498,43 @@ impl Default for OptionList {
     }
 }
 
+impl MinSize for OptionList {
+    /// Minimum size: 8 wide (label + value), 1 tall (one row).
+    fn min_size(&self) -> (u16, u16) {
+        (8, 1)
+    }
+}
+
+/// Gap before each trailing column.
+const TRAIL_GAP: u16 = 2;
+/// Cells the value is guaranteed before the trail is dropped for being too expensive.
+const MIN_VALUE_W: u16 = 6;
+
+/// Width of each trailing column: its widest cell over every row, so the columns line up.
+fn trail_widths(state: &OptionListState) -> Vec<u16> {
+    let mut w: Vec<u16> = Vec::new();
+    for item in state.groups.iter().flat_map(|g| &g.items) {
+        for (i, cell) in item.trail.iter().enumerate() {
+            let cw = cell.width() as u16;
+            match w.get_mut(i) {
+                Some(slot) => *slot = (*slot).max(cw),
+                None => w.push(cw),
+            }
+        }
+    }
+    w
+}
+
 impl StatefulWidget for OptionList {
     type State = OptionListState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         state.hit.set_area(area);
         state.row_hits.clear();
-        if area.width < 8 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let bg = th.background;
         fill(buf, area, bg);
 
@@ -449,6 +554,26 @@ impl StatefulWidget for OptionList {
         let value_x = area.x + self.value_column.unwrap_or(label_w + 4).min(area.width / 2);
         let has_sb = total > viewport;
         let right = area.right() - u16::from(has_sb);
+
+        // Every trailing column is as wide as its widest cell, so they read as columns down the
+        // pane rather than as words trailing each value. The block starts just past the widest
+        // value instead of flush right: columns that are read together belong together, and a
+        // pane 110 cells wide would otherwise leave 45 blank ones between a value and where it
+        // came from. It slides left only when the row cannot hold both.
+        let cols = trail_widths(state);
+        let trail_w: u16 = cols.iter().map(|w| w + TRAIL_GAP).sum();
+        let value_w = state
+            .groups
+            .iter()
+            .flat_map(|g| &g.items)
+            .map(|i| i.value.display().width())
+            .max()
+            .unwrap_or(0) as u16;
+        let trail_x = (value_x + value_w + TRAIL_GAP).min(right.saturating_sub(trail_w));
+        let trailing = trail_w > 0 && trail_x >= value_x + MIN_VALUE_W;
+        let value_right = if trailing { trail_x } else { right };
+        state.value_col = value_x;
+        state.value_end = value_right;
 
         let mut row = 0usize;
         let mut flat = 0usize;
@@ -476,13 +601,22 @@ impl StatefulWidget for OptionList {
                         height: 1,
                     };
                     let is_cursor = flat == state.cursor;
-                    let (label_fg, value_fg) = if is_cursor && self.focused {
-                        (th.text_primary, th.text_primary)
-                    } else if is_cursor {
-                        (th.text, th.text)
-                    } else {
-                        (th.text, th.text_muted)
+                    // A row the user never set reads muted - the value is a default, and so is
+                    // whatever the trail says about where it came from.
+                    let (row_bg, label_fg, value_fg, trail_fg) = match (is_cursor, self.focused) {
+                        (true, true) => (
+                            th.cursor_bg,
+                            th.cursor_fg,
+                            th.cursor_fg,
+                            th.cursor_fg.blend(th.cursor_bg, 0.4),
+                        ),
+                        (true, false) => (th.selection_bg, th.text, th.text, th.text_muted),
+                        _ if item.dim => (bg, th.text_muted, th.text_disabled, th.text_disabled),
+                        _ => (bg, th.text, th.text, th.text_muted),
                     };
+                    if row_bg != bg {
+                        fill(buf, line, row_bg);
+                    }
                     if is_cursor {
                         put(
                             buf,
@@ -490,13 +624,13 @@ impl StatefulWidget for OptionList {
                             y,
                             self.cursor_glyph,
                             1,
-                            st(th.primary, bg).add_modifier(Modifier::BOLD),
+                            st(label_fg, row_bg).add_modifier(Modifier::BOLD),
                         );
                     }
                     let label_style = if is_cursor {
-                        st(label_fg, bg).add_modifier(Modifier::BOLD)
+                        st(label_fg, row_bg).add_modifier(Modifier::BOLD)
                     } else {
-                        st(label_fg, bg)
+                        st(label_fg, row_bg)
                     };
                     put(
                         buf,
@@ -513,16 +647,31 @@ impl StatefulWidget for OptionList {
                             buf,
                             value_x,
                             y,
-                            &truncate(&value, right.saturating_sub(value_x) as usize),
-                            right.saturating_sub(value_x),
-                            st(value_fg, bg),
+                            &truncate(&value, value_right.saturating_sub(value_x) as usize),
+                            value_right.saturating_sub(value_x),
+                            st(value_fg, row_bg),
                         );
+                    }
+                    if trailing {
+                        let mut x = trail_x;
+                        for (cell, &w) in item.trail.iter().zip(&cols) {
+                            x += TRAIL_GAP;
+                            put(
+                                buf,
+                                x,
+                                y,
+                                &truncate(cell, w as usize),
+                                w,
+                                st(trail_fg, row_bg),
+                            );
+                            x += w;
+                        }
                     }
                     if let (true, Some(h)) = (is_cursor, &item.hint) {
                         let slot = Rect {
                             x: vx + 2,
                             y,
-                            width: right.saturating_sub(vx + 2),
+                            width: value_right.saturating_sub(vx + 2),
                             height: 1,
                         };
                         if slot.width > 4 {
@@ -530,7 +679,7 @@ impl StatefulWidget for OptionList {
                                 buf,
                                 slot,
                                 &truncate(h, slot.width as usize),
-                                st(th.text_muted, bg),
+                                st(trail_fg, row_bg),
                             );
                         }
                     }
@@ -611,5 +760,87 @@ mod tests {
         assert_eq!(buf[(0, 1)].symbol(), "❯");
         let row: String = (0..40).map(|x| buf[(x, 1)].symbol().to_string()).collect();
         assert!(row.contains("Shape") && row.contains("field"), "{row}");
+    }
+
+    #[test]
+    fn enter_opens_the_row_and_never_cycles_it() {
+        let mut s = state();
+        assert!(s.handle_key(KeyEvent::from(KeyCode::Enter)).is_changed());
+        assert_eq!(s.take_activated().as_deref(), Some("shape"));
+        assert_eq!(
+            s.choice("shape"),
+            Some("field"),
+            "Enter left the value alone"
+        );
+        assert_eq!(s.take_changed(), None, "activation is not a write");
+        assert_eq!(s.take_activated(), None, "taken once");
+    }
+
+    #[test]
+    fn a_row_with_nothing_to_cycle_reports_no_change() {
+        let mut s = OptionListState::new(vec![OptionGroup::new(
+            "A",
+            vec![
+                OptionItem::text("path", "Path", "~/skills"),
+                OptionItem::action("login", "Log in"),
+            ],
+        )]);
+        for row in 0..2 {
+            s.cursor = row;
+            for key in [KeyCode::Left, KeyCode::Right, KeyCode::Char(' ')] {
+                assert!(
+                    s.handle_key(KeyEvent::from(key)).is_consumed(),
+                    "row {row} claimed {key:?} changed something"
+                );
+                assert_eq!(s.take_changed(), None, "row {row}, {key:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn trailing_columns_line_up_and_defaults_read_muted() {
+        let th = Theme::default();
+        let mut s = OptionListState::new(vec![OptionGroup::new(
+            "A",
+            vec![
+                OptionItem::choice("provider", "Provider", &["claude"], 0)
+                    .trail(["project", "next session"]),
+                OptionItem::text("timeout", "Timeout", "900")
+                    .trail(["default", "now"])
+                    .dim(true),
+            ],
+        )]);
+        let mut buf = Buffer::empty(Rect::new(0, 0, 60, 3));
+        OptionList::new()
+            .focused(true)
+            .theme(&th)
+            .render(buf.area, &mut buf, &mut s);
+
+        let row = |y: u16| -> String { (0..60).map(|x| buf[(x, y)].symbol()).collect() };
+        let (top, bottom) = (row(1), row(2));
+        let at = |line: &str, word: &str| line.find(word).map(|b| line[..b].chars().count());
+        assert_eq!(
+            at(&top, "project"),
+            at(&bottom, "default"),
+            "first trail column is one column: {top}|{bottom}"
+        );
+        assert_eq!(
+            at(&top, "next session"),
+            at(&bottom, "now"),
+            "second trail column is one column: {top}|{bottom}"
+        );
+
+        let value_at = at(&bottom, "900").expect("the value drew") as u16;
+        assert_eq!(
+            buf[(value_at, 2)].fg,
+            ratatui_core::style::Color::from(th.text_disabled),
+            "a default value is muted, not stated as a choice"
+        );
+        let chosen = at(&top, "claude").expect("the value drew") as u16;
+        assert_ne!(
+            buf[(chosen, 1)].fg,
+            ratatui_core::style::Color::from(th.text_disabled),
+            "a value the user set is not muted"
+        );
     }
 }

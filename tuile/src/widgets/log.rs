@@ -17,8 +17,8 @@ use ratatui_core::layout::{Alignment, Rect};
 use ratatui_core::style::Modifier;
 use ratatui_core::widgets::StatefulWidget;
 
-use crate::core::{HitBox, Interactive, Outcome, is_press, wheel_delta};
-use crate::draw::{Border, fill, put, st};
+use crate::core::{HitBox, Interactive, MinSize, Outcome, is_press, wheel_delta};
+use crate::draw::{self, Border, fill, put, st};
 use crate::runtime::local_hms;
 use crate::theme::{self, Theme, Variant};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
@@ -314,13 +314,20 @@ impl Default for LogView {
     }
 }
 
+impl MinSize for LogView {
+    /// (5, 2) minimum for log view.
+    fn min_size(&self) -> (u16, u16) {
+        (5, 2)
+    }
+}
+
 impl StatefulWidget for LogView {
     type State = LogViewState;
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 5 || area.height < 2 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         fill(buf, area, th.surface);
 
         state.hit.set_area(area);
@@ -524,5 +531,30 @@ mod tests {
         state.filter = "hello".to_string();
         state.filter_mode = LogFilter::Only;
         assert_eq!(state.visible_count(), 2);
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        let (w, h) = LogView::new().min_size();
+        let mut state = LogViewState::new();
+        state.push(LogLevel::Info, "test");
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        LogView::new().render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "LogView should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        LogView::new().render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "LogView one cell short must refuse visibly"
+        );
     }
 }

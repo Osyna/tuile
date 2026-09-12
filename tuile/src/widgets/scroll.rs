@@ -13,7 +13,7 @@
 use std::time::{Duration, Instant};
 
 use crate::anim::{Easing, Tween};
-use crate::core::{Outcome, is_press, wheel_delta};
+use crate::core::{MinSize, Outcome, is_press, wheel_delta};
 use crate::draw::{Border, blit, st};
 use crate::theme::{self, Theme};
 use crate::widgets::scrollbar::{ScrollAxis, Scrollbar, ScrollbarState};
@@ -379,6 +379,13 @@ impl ScrollView {
 impl Default for ScrollView {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl MinSize for ScrollView {
+    /// Minimum viewport: 1 cell.
+    fn min_size(&self) -> (u16, u16) {
+        (1, 1)
     }
 }
 

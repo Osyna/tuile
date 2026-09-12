@@ -32,6 +32,10 @@ pub struct LayoutPage {
     header2: AppHeaderState,
     footer: KeyFooterState,
     footer2: KeyFooterState,
+    compact_field: InputState,
+    squeezed_field: InputState,
+    squeezed_tabs: TabBarState,
+    squeezed_tabs2: TabBarState,
 }
 
 impl Default for LayoutPage {
@@ -50,6 +54,10 @@ impl Default for LayoutPage {
             header2: AppHeaderState::new(),
             footer: KeyFooterState::new(),
             footer2: KeyFooterState::new(),
+            compact_field: InputState::new(),
+            squeezed_field: InputState::new(),
+            squeezed_tabs: TabBarState::new(0),
+            squeezed_tabs2: TabBarState::new(0),
         }
     }
 }
@@ -79,7 +87,7 @@ impl Page for LayoutPage {
         let now = ctx.now;
         let inner = pad(area, 1, 0);
         let [main, strip] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Length(4)]).areas(inner);
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(7)]).areas(inner);
 
         // ── outer split: scroll view | right column ──
         let (left, right) = SplitPane::new()
@@ -235,8 +243,11 @@ impl Page for LayoutPage {
                 .render(rows[5], buf, &mut self.footer2);
         }
 
-        // ── placeholders strip ──
-        let s_in = card(buf, strip, &th, "Placeholder");
+        // ── bottom strip: placeholders, plus a column squeezed under the widgets' minimums ──
+        let [ph, squeeze] =
+            Layout::horizontal([Constraint::Fill(1), Constraint::Length(30)]).areas(strip);
+
+        let s_in = card(buf, ph, &th, "Placeholder");
         let cells = columns(s_in, 6, 1);
         for (i, c) in cells.iter().enumerate() {
             let v = [
@@ -249,6 +260,62 @@ impl Page for LayoutPage {
                 buf,
                 ["hero", "nav", "aside", "main", "footer", "ad"][i],
             );
+        }
+
+        // Each row allocates from `min_size()` on the left and one row less on the right, so the
+        // refusal marker is visible instead of the widget silently painting nothing.
+        let sq = pad(card(buf, squeeze, &th, "Squeezed (min | min-1)"), 1, 0);
+        let label = st(th.text_muted, th.background);
+        let field = Input::new().placeholder("name");
+        let tabs = TabBar::new(vec![TabItem::new("one"), TabItem::new("two")]);
+        let rows = stack(sq, &[1, 1, 1, 0], 0);
+        if rows.len() >= 3 {
+            let row_for = |r: Rect, w: u16| {
+                let [l, m, rr] = Layout::horizontal([
+                    Constraint::Length(8),
+                    Constraint::Length(w),
+                    Constraint::Fill(1),
+                ])
+                .areas(r);
+                (l, m, rr)
+            };
+
+            let (l, ok, short) = row_for(rows[0], 9);
+            put(buf, l.x, l.y, "field", l.width, label);
+            Input::new()
+                .placeholder("ok")
+                .compact(true)
+                .theme(&th)
+                .render(ok, buf, &mut self.compact_field);
+            field
+                .theme(&th)
+                .render(short, buf, &mut self.squeezed_field);
+
+            let (l, ok, short) = row_for(rows[1], 9);
+            put(buf, l.x, l.y, "tabs", l.width, label);
+            let (_, th_min) = tabs.min_size();
+            TabBar::new(vec![TabItem::new("a"), TabItem::new("b")])
+                .theme(&th)
+                .render(
+                    Rect {
+                        height: th_min,
+                        ..ok
+                    },
+                    buf,
+                    &mut self.squeezed_tabs,
+                );
+            TabBar::new(vec![TabItem::new("a")]).theme(&th).render(
+                short,
+                buf,
+                &mut self.squeezed_tabs2,
+            );
+
+            let (l, ok, short) = row_for(rows[2], 9);
+            put(buf, l.x, l.y, "digits", l.width, label);
+            Digits::new("12")
+                .theme(&th)
+                .render(Rect { height: 3, ..ok }, buf);
+            Digits::new("12").theme(&th).render(short, buf);
         }
         let _ = now;
     }

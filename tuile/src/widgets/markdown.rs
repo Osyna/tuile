@@ -16,8 +16,8 @@ use ratatui_core::style::Modifier;
 use ratatui_core::text::{Line, Span};
 use ratatui_core::widgets::StatefulWidget;
 
-use crate::core::{Interactive, Outcome, is_press, wheel_delta};
-use crate::draw::{put, st, wrap as text_wrap};
+use crate::core::{Interactive, MinSize, Outcome, is_press, wheel_delta};
+use crate::draw::{self, put, st, wrap as text_wrap};
 use crate::theme::{self, Theme};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
 
@@ -125,13 +125,20 @@ impl Markdown {
     }
 }
 
+impl MinSize for Markdown {
+    /// (5, 2) minimum for markdown view.
+    fn min_size(&self) -> (u16, u16) {
+        (5, 2)
+    }
+}
+
 impl StatefulWidget for Markdown {
     type State = MarkdownState;
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 5 || area.height < 2 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         // Don't fill - let the parent background show through
         let content_w = area.width.saturating_sub(1);
         let lines = self.lines(content_w as usize, &th);
@@ -656,6 +663,30 @@ mod tests {
         assert!(
             lines[0].spans[0].content.contains("Title"),
             "First line should contain 'Title'"
+        );
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        let (w, h) = Markdown::new("test").min_size();
+        let mut state = MarkdownState::default();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        Markdown::new("test").render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "Markdown should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        Markdown::new("test").render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "Markdown one cell short must refuse visibly"
         );
     }
 }

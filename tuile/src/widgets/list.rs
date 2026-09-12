@@ -25,7 +25,7 @@ use crate::core::{
 };
 use crate::draw::{Border, fill, hline, put, put_right, st};
 use crate::fuzzy;
-use crate::layout::pad;
+use crate::layout::{pad, popup_below};
 use crate::theme::{self, Theme, Variant};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
 
@@ -237,6 +237,40 @@ impl ListViewState {
     pub fn take_activated(&mut self) -> Option<usize> {
         self.activated.take()
     }
+
+    /// Render the list as a popup anchored under `anchor` and kept inside `bounds`: a dropdown
+    /// picker, or a list floating over a screen. Call it at the end of the frame, or from a
+    /// [`crate::layout::Overlay`] queue, so it lands on top — a plain `render` is covered by
+    /// whatever draws after it, which is why a picker used to need caller-built z-order.
+    ///
+    /// The popup sizes itself from the entries (at most `max_visible` rows) and then delegates
+    /// to `render`, so the row hit rects are cached exactly where they were painted and mouse
+    /// handling needs nothing extra. To fill a rect you already have — a
+    /// [`crate::widgets::modal::ModalState::body`] — render into it directly instead.
+    pub fn render_overlay(
+        &mut self,
+        view: ListView,
+        buf: &mut Buffer,
+        anchor: Rect,
+        bounds: Rect,
+        max_visible: usize,
+    ) {
+        if view.entries.is_empty() || max_visible == 0 {
+            return;
+        }
+        let chrome = if view.border.is_some() { 2 } else { 0 };
+        let rows = view.entries.len().min(max_visible) as u16;
+        let widest = view
+            .entries
+            .iter()
+            .map(|e| e.label.width())
+            .max()
+            .unwrap_or(10)
+            .min(60) as u16;
+        let w = widest + 2 + chrome;
+        let popup = popup_below(anchor, w, rows + chrome, bounds);
+        view.render(popup, buf, self);
+    }
 }
 
 impl Default for ListViewState {
@@ -281,7 +315,7 @@ impl Interactive for ListViewState {
             }
             KeyCode::Enter => {
                 self.activated = Some(self.cursor);
-                return Outcome::Changed;
+                return Outcome::Submitted;
             }
             KeyCode::Char(' ') => {
                 // toggle in multi-select mode
@@ -329,7 +363,7 @@ impl Interactive for ListViewState {
                 {
                     self.activated = Some(row);
                     self.last_click = None;
-                    return Outcome::Changed;
+                    return Outcome::Submitted;
                 }
                 self.last_click = Some((row, now));
                 return Outcome::Changed;
@@ -679,16 +713,47 @@ mod tests {
     }
 
     #[test]
-    fn list_activates_on_enter() {
+    fn list_activation_is_a_commit_not_an_edit() {
         let mut state = ListViewState::new();
         state.cursor = 5;
-        assert_eq!(
-            state.handle_key(KeyEvent::new(
-                KeyCode::Enter,
-                crossterm::event::KeyModifiers::NONE
-            )),
-            Outcome::Changed
-        );
+        let moved = state.handle_key(KeyEvent::new(
+            KeyCode::Down,
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        assert!(moved.is_changed() && !moved.is_submitted(), "{moved:?}");
+
+        state.cursor = 5;
+        let out = state.handle_key(KeyEvent::new(
+            KeyCode::Enter,
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        assert!(out.is_submitted(), "{out:?}");
         assert_eq!(state.take_activated(), Some(5));
+        assert_eq!(state.take_activated(), None, "drains once");
+    }
+
+    #[test]
+    fn overlay_paints_over_content_already_in_the_buffer() {
+        let area = Rect::new(0, 0, 30, 12);
+        let mut buf = Buffer::empty(area);
+        for y in 0..area.height {
+            for x in 0..area.width {
+                buf[(x, y)].set_symbol("#");
+            }
+        }
+        let entries = vec![ListEntry::new("alpha"), ListEntry::new("beta")];
+        let mut state = ListViewState::new();
+        let anchor = Rect::new(2, 1, 10, 1);
+
+        state.render_overlay(ListView::new(entries), &mut buf, anchor, area, 5);
+
+        let row: String = (0..area.width)
+            .map(|x| buf[(x, 3)].symbol().to_string())
+            .collect();
+        assert!(row.contains("alpha"), "{row:?}");
+        assert!(
+            !row.starts_with("###"),
+            "the popup must cover the content underneath it: {row:?}"
+        );
     }
 }

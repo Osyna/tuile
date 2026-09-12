@@ -12,8 +12,8 @@ use ratatui_core::buffer::Buffer;
 use ratatui_core::layout::Rect;
 use ratatui_core::widgets::StatefulWidget;
 
-use crate::core::{Hit, HitBox, Interactive, Outcome};
-use crate::draw::{fill, put, put_centered, st};
+use crate::core::{Hit, HitBox, Interactive, MinSize, Outcome};
+use crate::draw::{self, fill, put, put_centered, st};
 use crate::theme::{self, Rgb, Theme, Variant};
 use unicode_width::UnicodeWidthStr;
 
@@ -56,7 +56,7 @@ impl Interactive for StepsState {
             match hit.mouse(&m) {
                 Hit::Press => {
                     self.clicked = Some(i);
-                    out = Outcome::Changed;
+                    out = Outcome::Submitted;
                 }
                 Hit::HoverChanged => out |= Outcome::Consumed,
                 _ => {}
@@ -144,13 +144,29 @@ impl Steps {
     }
 }
 
+impl MinSize for Steps {
+    /// Steps take 1 row horizontally, vertical mode varies.
+    fn min_size(&self) -> (u16, u16) {
+        if self.vertical {
+            (8, (self.labels.len() as u16).max(1))
+        } else {
+            (8, 1)
+        }
+    }
+}
+
 impl StatefulWidget for Steps {
     type State = StepsState;
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         if area.width == 0 || area.height == 0 || self.labels.is_empty() {
+            state.hits.clear();
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hits.clear();
+            return;
+        }
         fill(buf, area, th.surface);
 
         state.hits.clear();
@@ -369,12 +385,22 @@ impl Timeline {
     }
 }
 
+impl MinSize for Timeline {
+    /// A timeline entry needs a marker, a gap and a few cells of label.
+    fn min_size(&self) -> (u16, u16) {
+        (10, 1)
+    }
+}
+
 impl ratatui_core::widgets::Widget for Timeline {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 10 || area.height == 0 || self.entries.is_empty() {
+        if self.entries.is_empty() {
             return;
         }
         let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
+            return;
+        }
         fill(buf, area, th.surface);
 
         let entries: Vec<&TimelineEntry> = if self.reverse {

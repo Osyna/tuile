@@ -75,6 +75,7 @@ pub fn run_with<A: App>(app: &mut A, opts: RunOptions) -> io::Result<()> {
 /// The hook runs before the previous one, so a panic prints its message to a restored
 /// terminal instead of into a raw-mode screen that is about to be discarded.
 fn init(mouse: bool) -> io::Result<DefaultTerminal> {
+    crate::term::probe_env();
     let hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         restore(mouse);

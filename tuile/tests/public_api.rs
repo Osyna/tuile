@@ -125,3 +125,72 @@ fn every_widget_survives_a_terminal_too_small_to_draw_in() {
         TabBar::new(vec!["a".into()]).render(area, &mut buf, &mut TabBarState::new(0));
     }
 }
+
+#[test]
+fn a_widget_below_its_minimum_says_so_instead_of_vanishing() {
+    // The consumer symptom of a silent return was "my keystrokes are not arriving": the state
+    // accepts every key while nothing paints. Both halves are reachable from the prelude.
+    let (w, h) = Input::new().min_size();
+    assert!(w > 0 && h > 0);
+
+    // at the stated minimum the field paints its frame (the chrome leaves no room for text,
+    // which is exactly why `min_size` exists: allocate from it, do not guess)
+    let mut buf = buffer(w, h);
+    Input::new()
+        .placeholder("name")
+        .render(buf.area, &mut buf, &mut InputState::new());
+    let reset = tuile::ratatui_core::style::Color::Reset;
+    assert!(
+        buf.content()
+            .iter()
+            .any(|c| c.symbol() != " " || c.bg != reset),
+        "a field at its stated minimum must draw"
+    );
+
+    // given room, the placeholder is there
+    let mut buf = buffer(24, h);
+    Input::new()
+        .placeholder("name")
+        .render(buf.area, &mut buf, &mut InputState::new());
+    assert!(
+        (0..h).any(|y| row(&buf, y).contains("name")),
+        "{:?}",
+        row(&buf, 1)
+    );
+
+    let mut buf = buffer(w, h - 1);
+    Input::new()
+        .placeholder("name")
+        .render(buf.area, &mut buf, &mut InputState::new());
+    assert!(
+        (0..h - 1).any(|y| row(&buf, y).contains('⋯')),
+        "one row short must be visible, not silent: {:?}",
+        row(&buf, 0)
+    );
+
+    // and the one-row escape hatch needs no chrome arithmetic from the caller
+    let mut buf = buffer(20, 1);
+    Input::new().compact(true).placeholder("name").render(
+        buf.area,
+        &mut buf,
+        &mut InputState::new(),
+    );
+    assert!(row(&buf, 0).contains("name"), "{:?}", row(&buf, 0));
+}
+
+#[test]
+fn editing_and_committing_are_different_outcomes() {
+    let mut state = InputState::new();
+    let typed = state.handle_key(KeyEvent::from(KeyCode::Char('a')));
+    assert!(typed.is_changed(), "a keystroke changes the value");
+    assert!(
+        !typed.is_submitted(),
+        "a keystroke must not look like a commit, or a settings screen writes on the first letter"
+    );
+
+    let entered = state.handle_key(KeyEvent::from(KeyCode::Enter));
+    assert!(entered.is_submitted(), "Enter commits");
+    assert!(entered.is_changed(), "a commit is also a change");
+    assert!(state.take_submitted(), "and the drain accessor agrees");
+    assert!(!state.take_submitted(), "draining is one-shot");
+}

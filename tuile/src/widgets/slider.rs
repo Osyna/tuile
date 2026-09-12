@@ -20,11 +20,12 @@ use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{Easing, Tween};
+use crate::core::MinSize;
 use crate::core::{
     Hit, HitBox, Interactive, Look, Outcome, is_left_down, is_press, mouse_in, mouse_pos,
     wheel_delta,
 };
-use crate::draw::{FieldShape, fill, put, st};
+use crate::draw::{FieldShape, fill, put, refuse, st};
 use crate::theme::{self, Theme, Variant};
 
 // slider
@@ -126,12 +127,19 @@ impl Default for Slider {
     }
 }
 
+impl MinSize for Slider {
+    fn min_size(&self) -> (u16, u16) {
+        (10, 1 + self.shape.vertical_chrome())
+    }
+}
+
 impl StatefulWidget for Slider {
     type State = SliderState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         state.duration = self.duration.unwrap_or(Duration::from_millis(150));
-        if area.width < 10 || area.height < 1 + self.shape.vertical_chrome() {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             state.hit.set_area(Rect::default());
             state.track = Rect::default();
             return;
@@ -486,11 +494,18 @@ impl Default for RangeSlider {
     }
 }
 
+impl MinSize for RangeSlider {
+    fn min_size(&self) -> (u16, u16) {
+        (10, 1 + self.shape.vertical_chrome())
+    }
+}
+
 impl StatefulWidget for RangeSlider {
     type State = RangeState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        if area.width < 10 || area.height < 1 + self.shape.vertical_chrome() {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             state.hit.set_area(Rect::default());
             state.track = Rect::default();
             return;
@@ -842,16 +857,26 @@ impl Default for Stepper {
     }
 }
 
+impl MinSize for Stepper {
+    /// `[ - ] 9 [ + ]`: two 5-cell buttons, gaps, and one digit of value. A wider value needs
+    /// more, which `render` refuses visibly rather than dropping.
+    fn min_size(&self) -> (u16, u16) {
+        (15, 1)
+    }
+}
+
 impl StatefulWidget for Stepper {
     type State = StepperState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        state.hit_minus = Rect::default();
-        state.hit_plus = Rect::default();
-        if area.height < 1 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hit_minus = Rect::default();
+            state.hit_plus = Rect::default();
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
+        state.hit_minus = Rect::default();
+        state.hit_plus = Rect::default();
         let look = Look {
             focused: self.focused,
             hover: false,
@@ -866,7 +891,7 @@ impl StatefulWidget for Stepper {
             .max(format!("{}", state.min).width()) as u16;
         let btn_w = 5u16;
         let total_w = btn_w + 1 + max_w + 2 + 1 + btn_w;
-        if total_w > area.width {
+        if refuse(buf, area, (total_w, 1), th.text_disabled) {
             return;
         }
         let x = area.x;
@@ -1075,17 +1100,23 @@ impl Default for Rating {
     }
 }
 
+impl MinSize for Rating {
+    fn min_size(&self) -> (u16, u16) {
+        (self.max as u16 * 2, 1)
+    }
+}
+
 impl StatefulWidget for Rating {
     type State = RatingState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        state.hits.clear();
-        // ★ is an ambiguous-width glyph that overdraws its neighbour in most fonts: 2 cells each
-        if area.width < self.max as u16 * 2 - 1 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hits.clear();
             return;
         }
+        state.hits.clear();
 
-        let th = self.theme.unwrap_or_else(theme::current);
         let look = Look {
             focused: self.focused,
             hover: false,
@@ -1259,5 +1290,77 @@ mod tests {
         assert_eq!(state.value, 3);
         assert!(state.set(3, 5, true)); // allow_clear toggles
         assert_eq!(state.value, 0);
+    }
+
+    /// Filled areas are painted as background colour on a space (contract rule 15), so a
+    /// symbol-only check reads "nothing drawn" for a track that did draw.
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        let (w, h) = Slider::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = SliderState::new(50.0, 0.0, 100.0, 1.0);
+        Slider::new().render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "should draw at its stated minimum");
+
+        // Slider min height is 1, only width is shrinkable
+        let mut buf = Buffer::empty(Rect::new(0, 0, w.saturating_sub(1), h));
+        Slider::new().render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one column short must refuse visibly"
+        );
+
+        // RangeSlider (min height 1, test width)
+        let (w, h) = RangeSlider::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut rstate = RangeState::new(20.0, 80.0, 0.0, 100.0, 1.0);
+        RangeSlider::new().render(buf.area, &mut buf, &mut rstate);
+        assert!(
+            painted(&buf),
+            "RangeSlider should draw at its stated minimum"
+        );
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w.saturating_sub(1), h));
+        RangeSlider::new().render(buf.area, &mut buf, &mut rstate);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "RangeSlider one column short must refuse visibly"
+        );
+
+        // Stepper (min height 1, test width)
+        let (w, h) = Stepper::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut sstate = StepperState::new(5, 0, 10, 1);
+        Stepper::new().render(buf.area, &mut buf, &mut sstate);
+        assert!(painted(&buf), "Stepper should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w.saturating_sub(1), h));
+        Stepper::new().render(buf.area, &mut buf, &mut sstate);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "Stepper one column short must refuse visibly"
+        );
+
+        // Rating (min height 1, test width)
+        let (w, h) = Rating::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut rtstate = RatingState::new(3);
+        Rating::new().render(buf.area, &mut buf, &mut rtstate);
+        assert!(painted(&buf), "Rating should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w.saturating_sub(1), h));
+        Rating::new().render(buf.area, &mut buf, &mut rtstate);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "Rating one column short must refuse visibly"
+        );
     }
 }

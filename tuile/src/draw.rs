@@ -44,6 +44,27 @@ pub fn fill_bg(buf: &mut Buffer, area: Rect, bg: Rgb) {
     }
 }
 
+/// Guard for `render`: paints a refusal marker when `area` is smaller than `min` and returns
+/// `true`, meaning the caller must return immediately.
+///
+/// ```rust,ignore
+/// if draw::refuse(buf, area, self.min_size(), th.text_disabled) { return; }
+/// ```
+///
+/// The marker is a single dim `⋯` (foreground only, so it shows over any background). Drawing
+/// it is the point: a widget that silently drew nothing one row below its minimum reads as a
+/// dead keyboard, because the state still accepts every key. Pair it with
+/// [`crate::core::MinSize`] so layout can allocate the size the widget asks for.
+pub fn refuse(buf: &mut Buffer, area: Rect, min: (u16, u16), fg: Rgb) -> bool {
+    if area.width >= min.0 && area.height >= min.1 {
+        return false;
+    }
+    if !area.is_empty() {
+        put_centered(buf, area, "⋯", Style::new().fg(fg.color()));
+    }
+    true
+}
+
 /// Draw `text` at (x, y) clipped to `max_width` and the buffer; returns the width drawn.
 pub fn put(buf: &mut Buffer, x: u16, y: u16, text: &str, max_width: u16, style: Style) -> u16 {
     if !buf.area.contains(Position { x, y }) || max_width == 0 {
@@ -278,7 +299,9 @@ impl Border {
     }
 
     pub fn glyphs(self) -> [&'static str; 8] {
-        match self {
+        use crate::term::{UnicodeLevel, caps};
+
+        let unicode = match self {
             Border::None => [" "; 8],
             Border::Blank => [" "; 8],
             Border::Ascii => ["+", "-", "+", "|", "|", "+", "-", "+"],
@@ -295,6 +318,15 @@ impl Border {
             Border::Tall => ["█", "▔", "█", "█", "█", "█", "▁", "█"],
             Border::Panel => ["█", "█", "█", "█", "█", "█", "▁", "█"],
             Border::Wide => ["█", "█", "█", "▏", "▕", "█", "█", "█"],
+        };
+
+        // ASCII fallback for terminals without box-drawing support
+        if caps().unicode == UnicodeLevel::Ascii
+            && !matches!(self, Border::None | Border::Blank | Border::Ascii)
+        {
+            ["+", "-", "+", "|", "|", "+", "-", "+"]
+        } else {
+            unicode
         }
     }
 

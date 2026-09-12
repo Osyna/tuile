@@ -185,7 +185,7 @@ impl Interactive for CommandPaletteState {
             }
             KeyCode::Enter => {
                 self.select();
-                Outcome::Changed
+                Outcome::Submitted
             }
             KeyCode::Up => {
                 self.move_up();
@@ -253,7 +253,7 @@ impl Interactive for CommandPaletteState {
             if matches!(h, Hit::Press) {
                 self.highlight = self.scroll + i;
                 self.select();
-                return Outcome::Changed;
+                return Outcome::Submitted;
             }
         }
 
@@ -670,7 +670,7 @@ mod tests {
             row: row.y,
             modifiers: KeyModifiers::NONE,
         };
-        assert_eq!(state.handle_mouse(press), Outcome::Changed);
+        assert_eq!(state.handle_mouse(press), Outcome::Submitted);
         assert_eq!(state.take_selected(), Some(1));
         // a press on the dimmed backdrop closes without selecting
         state.open();
@@ -684,5 +684,17 @@ mod tests {
         state.handle_mouse(outside);
         assert!(!state.open);
         assert_eq!(state.take_selected(), None);
+    }
+
+    #[test]
+    fn selection_returns_submitted() {
+        let items = vec![PaletteItem::new("First"), PaletteItem::new("Second")];
+        let mut state = CommandPaletteState::new();
+        state.set_items(&items);
+        state.open();
+
+        let out = state.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert!(out.is_submitted());
+        assert_eq!(state.take_selected(), Some(0));
     }
 }

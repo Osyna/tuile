@@ -13,8 +13,8 @@ use ratatui_core::buffer::Buffer;
 use ratatui_core::layout::Rect;
 use ratatui_core::style::Modifier;
 
-use crate::core::{Hit, HitBox, Outcome};
-use crate::draw::{fill, put, put_centered, put_right, st};
+use crate::core::{Hit, HitBox, MinSize, Outcome};
+use crate::draw::{self, fill, put, put_centered, put_right, st};
 use crate::runtime::local_hms;
 use crate::theme::{self, Theme};
 
@@ -72,7 +72,7 @@ impl crate::core::Interactive for AppHeaderState {
             let h = hit.mouse(&m);
             if h == Hit::Press {
                 self.pressed = Some(i);
-                out = Outcome::Changed;
+                out = Outcome::Submitted;
             } else if h == Hit::HoverChanged && hit.hover {
                 self.hover = Some(i);
                 out = Outcome::Consumed;
@@ -156,11 +156,12 @@ impl AppHeader {
         self.theme = Some(*t);
         self
     }
-
     pub fn render(self, area: Rect, buf: &mut Buffer, state: &mut AppHeaderState) {
         let th = self.theme.unwrap_or_else(theme::current);
 
-        if area.width == 0 || area.height == 0 {
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hits.clear();
+            state.icon_hit.set_area(Rect::default());
             return;
         }
 
@@ -371,6 +372,13 @@ impl AppHeader {
 impl Default for AppHeader {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl MinSize for AppHeader {
+    /// Compact header is 1 row, tall header is 3 rows.
+    fn min_size(&self) -> (u16, u16) {
+        if self.tall { (8, 3) } else { (8, 1) }
     }
 }
 

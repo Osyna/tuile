@@ -165,8 +165,8 @@ impl Page for AiComposePage {
             .branch("main")
             .dirty(true)
             .context_pct(context_pct)
+            .cost_text(format!("£{:.2}", cost * 0.79)) // Show cost override in GBP
             .tokens(tokens)
-            .cost(cost)
             .elapsed(std::time::Duration::from_secs(elapsed_secs))
             .busy(busy)
             .queued(queued)

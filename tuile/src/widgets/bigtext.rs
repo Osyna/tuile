@@ -20,8 +20,8 @@ use std::time::Instant;
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{self, Tween};
-use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, mouse_in, wheel_delta};
-use crate::draw::{Border, fill, hline, put, put_centered, st};
+use crate::core::{Hit, HitBox, Interactive, MinSize, Outcome, is_press, mouse_in, wheel_delta};
+use crate::draw::{self, Border, fill, hline, put, put_centered, st};
 use crate::theme::{self, Rgb, Theme, gradient as color_gradient};
 
 /// Available big fonts.
@@ -666,7 +666,7 @@ impl Interactive for BigMenuState {
             }
             KeyCode::Enter | KeyCode::Char(' ') => {
                 self.activated = Some(self.selected);
-                Outcome::Changed
+                Outcome::Submitted
             }
             _ => Outcome::Ignored,
         }
@@ -681,9 +681,10 @@ impl Interactive for BigMenuState {
                     out = Outcome::Consumed;
                 }
                 Hit::Press => {
+                    // a full-screen menu item is a button: one click picks it
                     self.selected = i;
                     self.activated = Some(i);
-                    return Outcome::Changed;
+                    return Outcome::Submitted;
                 }
                 _ => {}
             }
@@ -884,9 +885,21 @@ impl<'a> BigMenu<'a> {
     }
 }
 
+impl MinSize for BigMenu<'_> {
+    /// Width: one character + chrome; height: one item (font.rows() + vertical chrome).
+    fn min_size(&self) -> (u16, u16) {
+        let (pad_l, pad_r, top, bottom) = self.chrome();
+        // Minimum text width to show one character
+        let min_text_w = match self.font {
+            BigFont::Block5 | BigFont::Half3 => 5, // px5 width minus trailing gap
+            BigFont::Box3 | BigFont::Thin3 => 1,   // narrowest glyph 'I'
+        };
+        (min_text_w + pad_l + pad_r, self.font.rows() + top + bottom)
+    }
+}
+
 impl StatefulWidget for BigMenu<'_> {
     type State = BigMenuState;
-
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let len = self.len();
         state.len = len;
@@ -894,11 +907,14 @@ impl StatefulWidget for BigMenu<'_> {
         for h in &mut state.hits {
             h.set_area(Rect::default());
         }
-        if area.width < 3 || area.height == 0 || len == 0 {
+        if len == 0 {
+            return;
+        }
+        let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
         state.selected = state.selected.min(len - 1);
-        let th = self.theme.unwrap_or_else(theme::current);
         let now = self.now.unwrap_or_else(Instant::now);
         let elapsed = anim::since(now);
         let rows = self.font.rows();
@@ -1403,5 +1419,108 @@ mod tests {
         );
         assert_eq!(state.take_activated(), Some(0));
         assert_eq!(state.take_activated(), None);
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        let items: &[&str] = &["I"]; // Single narrow character to minimize width
+
+        // Box3 font with Plain style (no chrome): (1, 3)
+        let menu_box3 = BigMenu::new(items).font(BigFont::Box3);
+        let (w, h) = menu_box3.min_size();
+        assert_eq!((w, h), (1, 3), "Box3 Plain: narrowest char 'I' = 1 cell");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = BigMenuState::default();
+        BigMenu::new(items)
+            .font(BigFont::Box3)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "should draw at minimum with Box3");
+
+        // One row short
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        let mut state = BigMenuState::default();
+        BigMenu::new(items)
+            .font(BigFont::Box3)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
+
+        // Block5 font with Plain style (no chrome): (5, 5)
+        let menu_block5 = BigMenu::new(items).font(BigFont::Block5);
+        let (w2, h2) = menu_block5.min_size();
+        assert_eq!(
+            (w2, h2),
+            (5, 5),
+            "Block5 Plain: one char minus trailing gap = 5 cells"
+        );
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w2, h2));
+        let mut state = BigMenuState::default();
+        BigMenu::new(items)
+            .font(BigFont::Block5)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "should draw at minimum with Block5");
+
+        // One row short for Block5
+        let mut buf = Buffer::empty(Rect::new(0, 0, w2, h2 - 1));
+        let mut state = BigMenuState::default();
+        BigMenu::new(items)
+            .font(BigFont::Block5)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "Block5 one row short must refuse visibly"
+        );
+    }
+
+    #[test]
+    fn activation_is_a_commit_and_motion_is_not() {
+        use crossterm::event::{MouseButton, MouseEventKind};
+        let items: &[&str] = &["OPTIONS", "HELP", "QUIT"];
+        let mut state = BigMenuState::default();
+
+        // Render first to populate state.len and hit boxes
+        let area = Rect::new(0, 0, 40, 12);
+        let mut buf = Buffer::empty(area);
+        BigMenu::new(items).render(area, &mut buf, &mut state);
+
+        // Arrow movement is consumed, not submitted
+        let moved = state.handle_key(KeyEvent::from(KeyCode::Down));
+        assert!(moved.is_consumed() && !moved.is_submitted(), "{moved:?}");
+
+        // Enter submits
+        let out = state.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert!(out.is_submitted(), "{out:?}");
+        assert_eq!(state.take_activated(), Some(1));
+        assert_eq!(state.take_activated(), None, "drains once");
+
+        // Space also submits
+        state.selected = 0;
+        let space_out = state.handle_key(KeyEvent::from(KeyCode::Char(' ')));
+        assert!(space_out.is_submitted(), "{space_out:?}");
+        assert_eq!(state.take_activated(), Some(0));
+
+        // one click on a full-screen menu item picks it: this is a button, not a list row
+        let click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: area.x + 20,
+            row: area.y + 1,
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        let out = state.handle_mouse(click);
+        assert!(out.is_submitted(), "{out:?}");
+        assert_eq!(state.take_activated(), Some(0));
+        assert_eq!(state.take_activated(), None, "drains once");
     }
 }

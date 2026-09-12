@@ -23,13 +23,14 @@ use ratatui_core::widgets::{StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
 use crate::anim::{blink, pulse, since};
-use crate::core::{Highlighter, Hit, HitBox, Interactive, Outcome, is_press, wheel_delta};
+use crate::core::{Highlighter, Hit, HitBox, Interactive, MinSize, Outcome, is_press, wheel_delta};
 use crate::draw::{
-    Border, Edge, FieldShape, fill, put, put_centered, put_highlighted, put_right, st, truncate,
-    wrap,
+    Border, Edge, FieldShape, fill, put, put_centered, put_highlighted, put_right, refuse, st,
+    truncate, wrap,
 };
-use crate::theme::{self, Rgb, Theme};
+use crate::theme::{self, Rgb, Theme, Variant};
 use crate::widgets::charts::{Meter, MeterStyle};
+use crate::widgets::notify::InlineAlert;
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState};
 use crate::widgets::spinner::{SpinnerDef, spinners};
 use crate::widgets::textarea::{TextArea, TextAreaState};
@@ -92,6 +93,14 @@ pub enum ChatBlock {
     },
     /// Horizontal divider with label.
     Divider(String),
+    /// Aligned key/value facts, rendered with the `KeyValueList` layout.
+    Facts(Vec<(String, String)>),
+    /// An inline note, rendered with the `InlineAlert` look.
+    Alert {
+        level: Variant,
+        title: String,
+        text: String,
+    },
 }
 
 // ChatMessage
@@ -104,7 +113,8 @@ pub struct ChatMessage {
     pub text: String,
     pub time: Option<String>,
     pub streaming: bool,
-    /// Rich blocks (text, code, thinking, tool calls). When empty, `text` is rendered as plain.
+    /// Rich blocks (text, code, thinking, tool calls, facts, alerts). **Non-empty blocks
+    /// override `text`**: when this list has content, `text` is ignored during render.
     pub blocks: Vec<ChatBlock>,
 }
 
@@ -454,6 +464,11 @@ impl Default for ChatView {
     }
 }
 
+impl MinSize for ChatView {
+    fn min_size(&self) -> (u16, u16) {
+        (8, 2)
+    }
+}
 /// Inline style of a run inside a text row.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Inline {
@@ -611,6 +626,10 @@ struct Row {
     /// Message and block index, for thinking-header clicks.
     msg_idx: usize,
     block_idx: usize,
+    /// Key-value pairs for Facts rows.
+    facts: Vec<(String, String)>,
+    /// Alert level for Alert rows.
+    alert_level: Variant,
 }
 
 impl Row {
@@ -627,10 +646,20 @@ impl Row {
             status: None,
             msg_idx,
             block_idx,
+            facts: Vec::new(),
+            alert_level: Variant::Default,
         }
     }
     fn text(mut self, t: impl Into<String>) -> Self {
         self.text = t.into();
+        self
+    }
+    fn facts(mut self, f: Vec<(String, String)>) -> Self {
+        self.facts = f;
+        self
+    }
+    fn alert_level(mut self, level: Variant) -> Self {
+        self.alert_level = level;
         self
     }
 }
@@ -645,6 +674,8 @@ enum RowKind {
     ThinkingBody,
     ToolCall,
     Divider,
+    Facts,
+    Alert,
 }
 
 /// Hard wrap that keeps indentation (for code); `wrap()` collapses leading spaces.
@@ -824,6 +855,22 @@ impl ChatView {
                             Row::new(x, w, RowKind::Divider, msg.role, mi, bi).text(label.clone()),
                         );
                     }
+                    ChatBlock::Facts(items) => {
+                        for _ in 0..items.len() {
+                            rows.push(
+                                Row::new(x, w, RowKind::Facts, msg.role, mi, bi)
+                                    .facts(items.clone()),
+                            );
+                        }
+                    }
+                    ChatBlock::Alert { level, title, text } => {
+                        rows.push(
+                            Row::new(x, w, RowKind::Alert, msg.role, mi, bi)
+                                .text(title.clone())
+                                .facts(vec![(String::new(), text.clone())])
+                                .alert_level(*level),
+                        );
+                    }
                 }
             }
             if msg.streaming {
@@ -867,10 +914,10 @@ impl StatefulWidget for ChatView {
         state.hit.set_area(area);
         state.row_hits.clear();
         state.pill_hit.set_area(Rect::ZERO);
-        if area.width < 4 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let rows = self.rows(state, area.width.saturating_sub(1)); // last column: scrollbar
         let total = rows.len();
         let viewport = area.height as usize;
@@ -1100,6 +1147,45 @@ impl StatefulWidget for ChatView {
                         format!("{}{}{}", "─".repeat(left), label, "─".repeat(dash_w - left));
                     put(buf, inner.x, y, &text, inner.width, st(th.border, bg));
                 }
+                RowKind::Facts => {
+                    // One fact per row. Every row paints its own background first, so a single
+                    // `KeyValueList` spanning the block would be erased by the next row's fill;
+                    // the key column is sized from the whole block, which is what keeps the
+                    // values aligned.
+                    let idx = rows[..i]
+                        .iter()
+                        .rev()
+                        .take_while(|r| r.kind == RowKind::Facts && r.block_idx == row.block_idx)
+                        .count();
+                    if let Some((key, value)) = row.facts.get(idx) {
+                        let key_w =
+                            row.facts.iter().map(|(k, _)| k.width()).max().unwrap_or(0) as u16;
+                        put(buf, inner.x, y, key, key_w, st(th.text_muted, bg));
+                        let vx = inner.x + key_w + 2;
+                        put(
+                            buf,
+                            vx,
+                            y,
+                            value,
+                            inner.right().saturating_sub(vx),
+                            st(th.text, bg),
+                        );
+                    }
+                }
+                RowKind::Alert => {
+                    let alert_area = Rect {
+                        x: inner.x,
+                        y,
+                        width: inner.width,
+                        height: 1,
+                    };
+                    let message = row.facts.first().map(|(_, v)| v.as_str()).unwrap_or("");
+                    InlineAlert::new(&row.text, message)
+                        .variant(row.alert_level)
+                        .compact(true)
+                        .theme(&th)
+                        .render(alert_area, buf);
+                }
                 RowKind::Blank => {}
             }
         }
@@ -1233,9 +1319,15 @@ impl StreamText {
     }
 }
 
+impl MinSize for StreamText {
+    fn min_size(&self) -> (u16, u16) {
+        (1, 1)
+    }
+}
+
 /// The prefix of `text` revealed `elapsed` seconds into a stream at `cps` chars per second.
 pub fn revealed(text: &str, elapsed: f32, cps: f32) -> &str {
-    let n = (elapsed.max(0.0) * cps).floor() as usize;
+    let n = (elapsed * cps) as usize;
     match text.char_indices().nth(n) {
         Some((i, _)) => &text[..i],
         None => text,
@@ -1256,10 +1348,10 @@ pub fn revealed_words(text: &str, elapsed: f32, cps: f32) -> &str {
 
 impl Widget for StreamText {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 1 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let bg = th.background;
         let rev = if self.word_mode {
             revealed_words(&self.text, self.elapsed, self.cps)
@@ -1491,12 +1583,19 @@ impl Thinking {
     }
 }
 
+impl MinSize for Thinking {
+    /// Spinner + space + label minimum.
+    fn min_size(&self) -> (u16, u16) {
+        (4, 1)
+    }
+}
+
 impl Widget for Thinking {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 4 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let now = self.now.unwrap_or_else(Instant::now);
         let el = since(now);
         let bg = th.background;
@@ -1663,12 +1762,19 @@ impl<'a> ContextGauge<'a> {
     }
 }
 
+impl MinSize for ContextGauge<'_> {
+    /// Compact: bar only; full: text + bar.
+    fn min_size(&self) -> (u16, u16) {
+        (4, if self.compact { 1 } else { 2 })
+    }
+}
+
 impl Widget for ContextGauge<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.height == 0 || area.width < 4 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let frac = self.usage.fraction();
         let level = if frac >= 0.95 {
             th.error
@@ -1699,9 +1805,6 @@ impl Widget for ContextGauge<'_> {
                 area.width,
                 st(th.text, th.background),
             );
-            if area.height < 2 {
-                return;
-            }
             area.y + 1
         };
         let bar = Rect {
@@ -1854,12 +1957,19 @@ impl ToolCall {
     }
 }
 
+impl MinSize for ToolCall {
+    /// Border + header + border minimum.
+    fn min_size(&self) -> (u16, u16) {
+        (4, 3)
+    }
+}
+
 impl Widget for ToolCall {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.width < 4 || area.height < 3 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
 
         let (glyph, color) = match self.status {
             ToolStatus::Pending => ("○", th.text_muted),
@@ -1970,12 +2080,19 @@ impl TokenHeat {
     }
 }
 
+impl MinSize for TokenHeat {
+    /// At least one two-char token.
+    fn min_size(&self) -> (u16, u16) {
+        (2, 1)
+    }
+}
+
 impl Widget for TokenHeat {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.height == 0 || area.width < 2 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
 
         let mut y = area.y;
         let mut x = area.x;
@@ -2174,12 +2291,19 @@ fn hunk_start(header: &str) -> Option<(usize, usize)> {
     Some((old, new))
 }
 
+impl MinSize for DiffView {
+    /// Minimum for truncated diff line.
+    fn min_size(&self) -> (u16, u16) {
+        (4, 1)
+    }
+}
+
 impl Widget for DiffView {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.height == 0 || area.width < 4 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let mut y = area.y;
 
         if let Some(file) = &self.file {
@@ -2348,6 +2472,8 @@ pub struct PromptComposer {
     focused: bool,
     now: Option<Instant>,
     theme: Option<Theme>,
+    tokens: Option<u32>,
+    estimate_chars_per_token: Option<f32>,
 }
 
 impl PromptComposer {
@@ -2361,6 +2487,8 @@ impl PromptComposer {
             focused: false,
             now: None,
             theme: None,
+            tokens: None,
+            estimate_chars_per_token: None,
         }
     }
 
@@ -2406,6 +2534,18 @@ impl PromptComposer {
         self.theme = Some(*th);
         self
     }
+
+    /// Exact token count from caller's tokenizer.
+    pub fn tokens(mut self, n: u32) -> Self {
+        self.tokens = Some(n);
+        self
+    }
+
+    /// Opt-in token estimate; drawn with `~` prefix.
+    pub fn estimate_tokens(mut self, chars_per_token: f32) -> Self {
+        self.estimate_chars_per_token = Some(chars_per_token);
+        self
+    }
 }
 
 impl Default for PromptComposer {
@@ -2414,15 +2554,23 @@ impl Default for PromptComposer {
     }
 }
 
+impl MinSize for PromptComposer {
+    /// Editor height + one hint row.
+    fn min_size(&self) -> (u16, u16) {
+        (8, 2 + self.shape.vertical_chrome())
+    }
+}
+
 impl StatefulWidget for PromptComposer {
     type State = ComposerState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         state.hit.set_area(area);
-        if area.width < 8 || area.height < 2 + self.shape.vertical_chrome() {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hit.set_area(Rect::ZERO);
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
 
         // the editor draws the frame (focus colour included); one hint row sits under it
         let editor_area = Rect {
@@ -2449,20 +2597,30 @@ impl StatefulWidget for PromptComposer {
             bg,
         );
 
-        // right: token estimate (~4 chars per token)
-        let chars: usize = state.editor.lines.iter().map(|l| l.chars().count()).sum();
-        let tokens = format!("~{} tokens", chars.div_ceil(4));
-        let right_w = put_right(
-            buf,
-            Rect {
-                x: area.x,
-                y,
-                width: area.width,
-                height: 1,
-            },
-            &tokens,
-            st(th.text_disabled, bg),
-        );
+        // right: token count or estimate (if set)
+        let token_text = if let Some(n) = self.tokens {
+            Some(format!("{} tokens", n))
+        } else if let Some(ratio) = self.estimate_chars_per_token {
+            let chars: usize = state.editor.lines.iter().map(|l| l.chars().count()).sum();
+            Some(format!("~{} tokens", (chars as f32 / ratio).ceil() as u32))
+        } else {
+            None
+        };
+        let right_w = if let Some(text) = &token_text {
+            put_right(
+                buf,
+                Rect {
+                    x: area.x,
+                    y,
+                    width: area.width,
+                    height: 1,
+                },
+                text,
+                st(th.text_disabled, bg),
+            )
+        } else {
+            0
+        };
         let mut x = area.x + 1;
         let limit = area.right().saturating_sub(right_w + 2);
 
@@ -2766,6 +2924,18 @@ impl Approval {
     }
 }
 
+impl MinSize for Approval {
+    /// Inline: one row; Banner: two rows; Card: border + title + buttons.
+    fn min_size(&self) -> (u16, u16) {
+        let h = match self.style {
+            ApprovalStyle::Inline => 1,
+            ApprovalStyle::Banner => 2,
+            ApprovalStyle::Card => 5,
+        };
+        (12, h)
+    }
+}
+
 impl StatefulWidget for Approval {
     type State = ApprovalState;
 
@@ -2774,10 +2944,10 @@ impl StatefulWidget for Approval {
         if state.no_always && state.focus == 1 {
             state.focus = 0;
         }
-        if area.width < 12 || area.height == 0 {
+        let th = self.theme.unwrap_or_else(theme::current);
+        if refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
-        let th = self.theme.unwrap_or_else(theme::current);
         let accent = self.accent(&th);
         match self.style {
             ApprovalStyle::Inline => {
@@ -2802,9 +2972,6 @@ impl StatefulWidget for Approval {
                 self.buttons(row, buf, &th, state, true, true);
             }
             ApprovalStyle::Banner => {
-                if area.height < 2 {
-                    return;
-                }
                 let tint = accent.blend(th.background, 0.8);
                 let band = Rect { height: 2, ..area };
                 fill(buf, band, tint);
@@ -2843,9 +3010,6 @@ impl StatefulWidget for Approval {
                 self.buttons(row, buf, &th, state, true, true);
             }
             ApprovalStyle::Card => {
-                if area.height < 5 {
-                    return;
-                }
                 let bg = th.background;
                 Border::Round.draw(buf, area, accent, bg);
                 let inner = Border::Round.inner(area);
@@ -2912,6 +3076,16 @@ impl StatefulWidget for Approval {
 mod tests {
     use super::*;
     use crate::theme::Rgb;
+
+    /// Filled areas are painted as background colour on a space (contract rule 15), so a
+    /// symbol-only check reads "nothing drawn" for a widget that did draw.
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
 
     #[test]
     fn chat_append_text_grows_last_message() {
@@ -3136,6 +3310,132 @@ mod tests {
     }
 
     #[test]
+    fn facts_block_aligns_keys_across_rows() {
+        let area = Rect::new(0, 0, 60, 12);
+        let mut buf = Buffer::empty(area);
+        let mut s = ChatState::new();
+        let msg = ChatMessage::new(Role::Assistant, "").block(ChatBlock::Facts(vec![
+            ("model".to_string(), "claude-sonnet-4".to_string()),
+            ("temperature".to_string(), "1.0".to_string()),
+        ]));
+        s.push(msg);
+        ChatView::new().render(area, &mut buf, &mut s);
+        // Find the value columns - they should be aligned
+        let rows: Vec<String> = (0..area.height)
+            .map(|y| {
+                (0..area.width)
+                    .map(|x| buf.cell((x, y)).map(|c| c.symbol()).unwrap_or(" "))
+                    .collect::<String>()
+            })
+            .collect();
+        // Both values should start at the same column (after the longest key + gap)
+        let model_row = rows.iter().find(|r| r.contains("claude-sonnet-4")).unwrap();
+        let temp_row = rows.iter().find(|r| r.contains("1.0")).unwrap();
+        let model_val_col = model_row.find("claude-sonnet-4").unwrap();
+        let temp_val_col = temp_row.find("1.0").unwrap();
+        assert_eq!(
+            model_val_col, temp_val_col,
+            "value columns should be aligned"
+        );
+    }
+
+    #[test]
+    fn alert_block_renders_title_and_text_in_transcript() {
+        let area = Rect::new(0, 0, 60, 12);
+        let mut buf = Buffer::empty(area);
+        let mut s = ChatState::new();
+        let msg = ChatMessage::new(Role::Assistant, "").block(ChatBlock::Alert {
+            level: Variant::Warning,
+            title: "Rate limit".to_string(),
+            text: "Slow down".to_string(),
+        });
+        s.push(msg);
+        ChatView::new().render(area, &mut buf, &mut s);
+        let mut content = String::new();
+        for y in 0..area.height {
+            for x in 0..area.width {
+                if let Some(cell) = buf.cell((x, y)) {
+                    content.push_str(cell.symbol());
+                }
+            }
+        }
+        assert!(content.contains("Rate limit"), "alert title should render");
+        assert!(content.contains("Slow down"), "alert text should render");
+    }
+
+    #[test]
+    fn composer_shows_no_token_figure_unless_set() {
+        let area = Rect::new(0, 0, 60, 5);
+        let mut buf = Buffer::empty(area);
+        let mut s = ComposerState::default();
+        PromptComposer::new().render(area, &mut buf, &mut s);
+        let bottom_row: String = (0..area.width)
+            .filter_map(|x| buf.cell((x, area.bottom() - 1)).map(|c| c.symbol()))
+            .collect();
+        assert!(
+            !bottom_row.contains("token"),
+            "no token figure when not set"
+        );
+    }
+
+    #[test]
+    fn composer_shows_caller_token_count() {
+        let area = Rect::new(0, 0, 60, 5);
+        let mut buf = Buffer::empty(area);
+        let mut s = ComposerState::default();
+        PromptComposer::new()
+            .tokens(1234)
+            .render(area, &mut buf, &mut s);
+        let bottom_row: String = (0..area.width)
+            .filter_map(|x| buf.cell((x, area.bottom() - 1)).map(|c| c.symbol()))
+            .collect();
+        assert!(bottom_row.contains("1234"), "should show exact token count");
+        assert!(!bottom_row.contains("~"), "no tilde for exact count");
+    }
+
+    #[test]
+    fn composer_estimate_keeps_tilde() {
+        let area = Rect::new(0, 0, 60, 5);
+        let mut buf = Buffer::empty(area);
+        let mut s = ComposerState::default();
+        s.editor.lines = vec!["test".to_string()];
+        PromptComposer::new()
+            .estimate_tokens(2.0)
+            .render(area, &mut buf, &mut s);
+        let bottom_row: String = (0..area.width)
+            .filter_map(|x| buf.cell((x, area.bottom() - 1)).map(|c| c.symbol()))
+            .collect();
+        assert!(bottom_row.contains("~"), "estimate should have tilde");
+        assert!(bottom_row.contains("token"), "should show token label");
+    }
+
+    #[test]
+    fn chat_draws_at_minimum_and_refuses_visibly_below() {
+        use crate::core::MinSize;
+        let (w, h) = ChatView::new().min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut s = ChatState::default();
+        s.push(ChatMessage::new(Role::User, "test"));
+        ChatView::new()
+            .bubbles(false)
+            .render(buf.area, &mut buf, &mut s);
+        assert!(painted(&buf), "should draw at its stated minimum");
+
+        // For min height > 1, test one row short; otherwise test one column short
+        let (sw, sh) = if h > 1 { (w, h - 1) } else { (w - 1, h) };
+        let mut buf = Buffer::empty(Rect::new(0, 0, sw, sh));
+        let mut s = ChatState::default();
+        s.push(ChatMessage::new(Role::User, "test"));
+        ChatView::new()
+            .bubbles(false)
+            .render(buf.area, &mut buf, &mut s);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one cell short must refuse visibly"
+        );
+    }
+
+    #[test]
     fn revealed_words_stops_at_boundaries() {
         assert_eq!(revealed_words("hello big world", 0.3, 10.0), "hello");
         assert_eq!(revealed_words("hello big world", 0.7, 10.0), "hello big");
@@ -3300,5 +3600,203 @@ mod tests {
             .highlighter(|_| vec![(0, 5, st(Rgb(0, 255, 0), Rgb(0, 0, 0)))])
             .render(area, &mut buf, &mut state);
         // Should not panic
+    }
+
+    #[test]
+    fn thinking_draws_at_minimum_and_refuses_visibly_below() {
+        use crate::core::MinSize;
+        let (w, h) = Thinking::new("Loading").min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        Thinking::new("Loading").render(buf.area, &mut buf);
+        assert!(painted(&buf), "should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        Thinking::new("Loading").render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one cell short must refuse visibly"
+        );
+    }
+
+    #[test]
+    fn context_gauge_draws_at_minimum_and_refuses_visibly_below() {
+        use crate::core::MinSize;
+        let usage = TokenUsage {
+            prompt: 100,
+            completion: 100,
+            limit: 200,
+        };
+
+        // Compact mode: (4, 1)
+        let gauge = ContextGauge::new(usage).compact(true);
+        let (w, h) = gauge.min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        gauge.render(buf.area, &mut buf);
+        assert!(painted(&buf), "compact should draw at its minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        ContextGauge::new(usage)
+            .compact(true)
+            .render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "compact one cell short must refuse visibly"
+        );
+
+        // Full mode: (4, 2)
+        let gauge = ContextGauge::new(usage).compact(false);
+        let (w, h) = gauge.min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        gauge.render(buf.area, &mut buf);
+        assert!(painted(&buf), "full should draw at its minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        ContextGauge::new(usage)
+            .compact(false)
+            .render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "full one row short must refuse visibly"
+        );
+    }
+
+    #[test]
+    fn tool_call_draws_at_minimum_and_refuses_visibly_below() {
+        use crate::core::MinSize;
+        let (w, h) = ToolCall::new("test").min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        ToolCall::new("test").render(buf.area, &mut buf);
+        assert!(painted(&buf), "should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        ToolCall::new("test").render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
+    }
+
+    #[test]
+    fn token_heat_draws_at_minimum_and_refuses_visibly_below() {
+        use crate::core::MinSize;
+        let tokens = [("ab", 0.5_f32)];
+        let (w, h) = TokenHeat::new(&tokens).min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        TokenHeat::new(&tokens).render(buf.area, &mut buf);
+        assert!(painted(&buf), "should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        TokenHeat::new(&tokens).render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one cell short must refuse visibly"
+        );
+    }
+
+    #[test]
+    fn diff_view_draws_at_minimum_and_refuses_visibly_below() {
+        use crate::core::MinSize;
+        let lines = vec![DiffLine {
+            kind: DiffKind::Add,
+            text: "test".to_string(),
+        }];
+        let (w, h) = DiffView::new(&lines).min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        DiffView::new(&lines).render(buf.area, &mut buf);
+        assert!(painted(&buf), "should draw at its stated minimum");
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        DiffView::new(&lines).render(buf.area, &mut buf);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one cell short must refuse visibly"
+        );
+    }
+
+    #[test]
+    fn prompt_composer_draws_at_minimum_and_refuses_visibly_below() {
+        use crate::core::MinSize;
+        let composer = PromptComposer::new();
+        let (w, h) = composer.min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = ComposerState::default();
+        PromptComposer::new().render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "should draw at its stated minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        let mut state = ComposerState::default();
+        PromptComposer::new().render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
+    }
+
+    #[test]
+    fn approval_inline_draws_at_minimum_and_refuses_visibly_below() {
+        use crate::core::MinSize;
+        let approval = Approval::new("Test").style(ApprovalStyle::Inline);
+        let (w, h) = approval.min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = ApprovalState::default();
+        Approval::new("Test")
+            .style(ApprovalStyle::Inline)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "inline should draw at its minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w - 1, h));
+        let mut state = ApprovalState::default();
+        Approval::new("Test")
+            .style(ApprovalStyle::Inline)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "inline one cell short must refuse visibly"
+        );
+    }
+
+    #[test]
+    fn approval_banner_draws_at_minimum_and_refuses_visibly_below() {
+        use crate::core::MinSize;
+        let approval = Approval::new("Test").style(ApprovalStyle::Banner);
+        let (w, h) = approval.min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = ApprovalState::default();
+        Approval::new("Test")
+            .style(ApprovalStyle::Banner)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "banner should draw at its minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        let mut state = ApprovalState::default();
+        Approval::new("Test")
+            .style(ApprovalStyle::Banner)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "banner one row short must refuse visibly"
+        );
+    }
+
+    #[test]
+    fn approval_card_draws_at_minimum_and_refuses_visibly_below() {
+        use crate::core::MinSize;
+        let approval = Approval::new("Test").style(ApprovalStyle::Card);
+        let (w, h) = approval.min_size();
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = ApprovalState::default();
+        Approval::new("Test")
+            .style(ApprovalStyle::Card)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(painted(&buf), "card should draw at its minimum");
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        let mut state = ApprovalState::default();
+        Approval::new("Test")
+            .style(ApprovalStyle::Card)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "card one row short must refuse visibly"
+        );
     }
 }

@@ -252,9 +252,12 @@ impl Page for NavigationPage {
 
         // Underline
         if tab_y + 2 <= left_inner.bottom() {
+            // Demonstrating narrowed key handling: .keys(TabKeys::ARROWS) lets this tab bar
+            // coexist with text inputs - digits and Enter pass through to other widgets
             let items: Vec<TabItem> = vec!["Home".into(), "Settings".into(), "Help".into()];
             TabBar::new(items)
                 .style(TabStyle::Underline)
+                .keys(TabKeys::ARROWS) // Only claim arrow keys, ignore digits/Enter/Space
                 .focused(self.focus.is(Id::UnderlineTabs))
                 .now(ctx.now)
                 .theme(th)

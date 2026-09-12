@@ -17,8 +17,8 @@ use ratatui_core::style::Modifier;
 use ratatui_core::widgets::StatefulWidget;
 use unicode_width::UnicodeWidthStr;
 
-use crate::core::{Interactive, Outcome, mouse_pos};
-use crate::draw::{fill, put, st};
+use crate::core::{Interactive, MinSize, Outcome, mouse_pos};
+use crate::draw::{self, fill, put, st};
 use crate::theme::{self, Theme};
 
 // breadcrumbs
@@ -73,6 +73,13 @@ impl Breadcrumbs {
     }
 }
 
+impl MinSize for Breadcrumbs {
+    /// Breadcrumbs always take 1 row.
+    fn min_size(&self) -> (u16, u16) {
+        (8, 1)
+    }
+}
+
 impl<T: Into<String>> From<Vec<T>> for Breadcrumbs {
     fn from(v: Vec<T>) -> Self {
         Self::new(v.into_iter().map(Into::into).collect::<Vec<_>>())
@@ -124,7 +131,7 @@ impl Interactive for BreadcrumbsState {
             && let Some(i) = hover
         {
             self.clicked = Some(i);
-            return Outcome::Changed;
+            return Outcome::Submitted;
         }
 
         out
@@ -136,11 +143,18 @@ impl StatefulWidget for Breadcrumbs {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         if area.width == 0 || area.height == 0 || self.segments.is_empty() {
+            state.hits.clear();
             return;
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hits.clear();
+            return;
+        }
+
         let bg = th.surface;
+
         fill(buf, area, bg);
 
         state.hits.clear();
@@ -379,16 +393,29 @@ impl Interactive for PaginatorState {
     }
 }
 
+impl MinSize for Paginator {
+    /// Paginator always takes 1 row.
+    fn min_size(&self) -> (u16, u16) {
+        (8, 1)
+    }
+}
+
 impl StatefulWidget for Paginator {
     type State = PaginatorState;
-
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         if area.width == 0 || area.height == 0 || self.total == 0 {
+            state.hits.clear();
             return;
         }
 
         let th = self.theme.unwrap_or_else(theme::current);
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
+            state.hits.clear();
+            return;
+        }
+
         let bg = th.surface;
+
         fill(buf, area, bg);
 
         state.page = state.page.min(self.total - 1);
@@ -530,7 +557,7 @@ mod tests {
             row: 0,
             modifiers: crossterm::event::KeyModifiers::empty(),
         };
-        assert_eq!(state.handle_mouse(m), Outcome::Changed);
+        assert_eq!(state.handle_mouse(m), Outcome::Submitted);
         assert_eq!(state.take_clicked(), Some(1));
     }
 }

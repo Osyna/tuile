@@ -74,7 +74,7 @@ let press = MouseEvent {
 let release = MouseEvent { kind: MouseEventKind::Up(MouseButton::Left), ..press };
 
 assert_eq!(state.handle_mouse(press), Outcome::Consumed);
-assert_eq!(state.handle_mouse(release), Outcome::Changed);
+assert_eq!(state.handle_mouse(release), Outcome::Submitted);
 # }
 ```
 

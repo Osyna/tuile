@@ -18,6 +18,7 @@
 //! ```
 
 use std::collections::{BTreeSet, HashMap};
+use std::time::Instant;
 
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 use ratatui_core::buffer::Buffer;
@@ -25,8 +26,10 @@ use ratatui_core::layout::{Alignment, Constraint, Rect};
 use ratatui_core::style::Style;
 use ratatui_core::widgets::StatefulWidget;
 
-use crate::core::{Hit, HitBox, Interactive, Outcome, is_press, mouse_in, mouse_pos, wheel_delta};
-use crate::draw::{fill, put, put_aligned, put_centered, st, truncate};
+use crate::core::{
+    Hit, HitBox, Interactive, MinSize, Outcome, is_press, mouse_in, mouse_pos, wheel_delta,
+};
+use crate::draw::{self, fill, put, put_aligned, put_centered, st, truncate};
 use crate::layout::pad_trbl;
 use crate::theme::{self, Theme, Variant};
 use crate::widgets::scrollbar::{Scrollbar, ScrollbarState, keep_visible};
@@ -199,19 +202,25 @@ pub struct DataTableState {
     pub activated: Option<usize>,
     order: Vec<usize>,
     dirty: bool,
+    /// Row count `order` was built from; a mismatch means the caller's data changed under it.
+    built_len: usize,
     hits: Vec<HitBox>,
     scrollbar: ScrollbarState,
     col_widths: Vec<u16>,
     col_resize: Option<(usize, u16, u16)>, // (col, start_x, start_w)
     width_overrides: HashMap<usize, u16>,
+    last_click: Option<(usize, Instant)>,
 }
 
 impl DataTableState {
     pub fn new() -> Self {
-        Self {
-            dirty: true,
-            ..Default::default()
-        }
+        Self::default()
+    }
+    /// `order` is stale when the filter or sort changed, or when the caller passed a different
+    /// number of rows — including the first frame of a `Default` state, which would otherwise
+    /// render the empty message over a full table.
+    fn stale(&self, rows: &[TableRow]) -> bool {
+        self.dirty || self.built_len != rows.len()
     }
     pub fn visible_len(&self) -> usize {
         self.order.len()
@@ -274,6 +283,7 @@ impl DataTableState {
         }
         self.order = indices;
         self.dirty = false;
+        self.built_len = rows.len();
     }
 }
 
@@ -297,7 +307,7 @@ impl Interactive for DataTableState {
             KeyCode::Enter => {
                 if let Some(r) = self.current_row() {
                     self.activated = Some(r);
-                    return Outcome::Changed;
+                    return Outcome::Submitted;
                 }
             }
             KeyCode::Char(' ') => {
@@ -393,6 +403,16 @@ impl Interactive for DataTableState {
             for (i, hit) in body_hits.iter_mut().enumerate() {
                 match hit.mouse(&m) {
                     Hit::Press => {
+                        let now = Instant::now();
+                        if let Some((last_row, last_time)) = self.last_click
+                            && last_row == i
+                            && now.duration_since(last_time).as_millis() < 400
+                        {
+                            self.activated = Some(self.order.get(i).copied().unwrap_or(i));
+                            self.last_click = None;
+                            return Outcome::Submitted;
+                        }
+                        self.last_click = Some((i, now));
                         self.cursor_row = i;
                         return Outcome::Changed;
                     }
@@ -522,17 +542,25 @@ impl DataTable {
     }
 }
 
+impl MinSize for DataTable {
+    /// Content needs (2, header+1); padding adds 2*p both ways.
+    fn min_size(&self) -> (u16, u16) {
+        let p2 = self.padding * 2;
+        let h = if self.header { 1 } else { 0 } + 1; // header row + at least one data row
+        (2 + p2, h + p2)
+    }
+}
+
 impl StatefulWidget for DataTable {
     type State = DataTableState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let th = self.theme.unwrap_or_else(theme::current);
-
-        if area.width < 4 || area.height < 2 {
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
 
-        if state.dirty {
+        if state.stale(&self.rows) {
             state.rebuild_order(&self.rows, &self.columns);
         }
 
@@ -811,10 +839,17 @@ impl KeyValueList {
     }
 }
 
+impl MinSize for KeyValueList {
+    /// (2, 1) minimum for key-value list.
+    fn min_size(&self) -> (u16, u16) {
+        (2, 1)
+    }
+}
+
 impl ratatui_core::widgets::Widget for KeyValueList {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let th = self.theme.unwrap_or_else(theme::current);
-        if area.width < 2 || area.height == 0 {
+        if draw::refuse(buf, area, self.min_size(), th.text_disabled) {
             return;
         }
         let max_label_w = self.items.iter().map(|(l, _)| l.len()).max().unwrap_or(0) as u16;
@@ -924,5 +959,126 @@ mod tests {
             let mut buf = Buffer::empty(Rect::new(0, 0, w.max(1), h.max(1)));
             KeyValueList::new(vec![("a".into(), "b".into())]).render(area, &mut buf);
         }
+    }
+
+    fn painted(buf: &Buffer) -> bool {
+        buf.content().iter().any(|c| {
+            c.symbol() != " "
+                || c.bg != ratatui_core::style::Color::Reset
+                || c.fg != ratatui_core::style::Color::Reset
+        })
+    }
+
+    #[test]
+    fn draws_at_its_minimum_and_refuses_visibly_below_it() {
+        let cols = vec![TableColumn::new("A"), TableColumn::new("B")];
+        let rows = vec![TableRow::from(vec!["x", "y"])];
+
+        // With header and padding=1 (default): needs (4, 4)
+        let with_header = DataTable::new(cols.clone(), rows.clone());
+        let (w, h) = with_header.min_size();
+        assert_eq!(
+            (w, h),
+            (4, 4),
+            "padding=1, header=true: 2 content + 2 padding both ways"
+        );
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h));
+        let mut state = DataTableState::new();
+        state.rebuild_order(&rows, &cols);
+        DataTable::new(cols.clone(), rows.clone()).render(buf.area, &mut buf, &mut state);
+        assert!(
+            painted(&buf),
+            "should draw at its stated minimum with header"
+        );
+
+        // One row short
+        let mut buf = Buffer::empty(Rect::new(0, 0, w, h - 1));
+        let mut state = DataTableState::new();
+        state.rebuild_order(&rows, &cols);
+        DataTable::new(cols.clone(), rows.clone()).render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one row short must refuse visibly"
+        );
+
+        // Without header, padding=0: needs (2, 1)
+        let no_header = DataTable::new(cols.clone(), rows.clone())
+            .header(false)
+            .padding(0);
+        let (w2, h2) = no_header.min_size();
+        assert_eq!(
+            (w2, h2),
+            (2, 1),
+            "padding=0, header=false: pure content minimum"
+        );
+
+        let mut buf = Buffer::empty(Rect::new(0, 0, w2, h2));
+        let mut state = DataTableState::new();
+        state.rebuild_order(&rows, &cols);
+        DataTable::new(cols.clone(), rows.clone())
+            .header(false)
+            .padding(0)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(
+            painted(&buf),
+            "should draw at minimum without header or padding"
+        );
+
+        // One cell short for headerless
+        let mut buf = Buffer::empty(Rect::new(0, 0, w2 - 1, h2));
+        let mut state = DataTableState::new();
+        state.rebuild_order(&rows, &cols);
+        DataTable::new(cols, rows)
+            .header(false)
+            .padding(0)
+            .render(buf.area, &mut buf, &mut state);
+        assert!(
+            buf.content().iter().any(|c| c.symbol() == "⋯"),
+            "one cell short must refuse visibly for headerless"
+        );
+    }
+
+    #[test]
+    fn activation_is_a_commit_and_motion_is_not() {
+        use crossterm::event::{MouseButton, MouseEventKind};
+        let cols = vec![TableColumn::new("Name")];
+        let rows = vec![TableRow::from(vec!["item0"]), TableRow::from(vec!["item1"])];
+        let mut state = DataTableState::new();
+        state.rebuild_order(&rows, &cols);
+
+        // Arrow movement is consumed (now there are 2 rows), not submitted
+        let moved = state.handle_key(KeyEvent::from(KeyCode::Down));
+        assert!(moved.is_consumed() && !moved.is_submitted(), "{moved:?}");
+
+        // Sort is changed, not submitted
+        let sorted = state.handle_key(KeyEvent::from(KeyCode::Char('s')));
+        assert!(sorted.is_changed() && !sorted.is_submitted(), "{sorted:?}");
+
+        // Enter submits
+        let out = state.handle_key(KeyEvent::from(KeyCode::Enter));
+        assert!(out.is_submitted(), "{out:?}");
+        assert_eq!(state.take_activated(), Some(1)); // cursor is now on row 1
+        assert_eq!(state.take_activated(), None, "drains once");
+
+        // Double-click submits: first render to cache row rects
+        let area = Rect::new(0, 0, 20, 8); // Taller to fit 2 rows
+        let mut buf = Buffer::empty(area);
+        DataTable::new(cols.clone(), rows.clone()).render(area, &mut buf, &mut state);
+
+        // First click on row 0: changed, not submitted
+        let m1 = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: area.x + 2,
+            row: area.y + 2, // first data row (header at row 1 inside padding)
+            modifiers: crossterm::event::KeyModifiers::empty(),
+        };
+        let click1 = state.handle_mouse(m1);
+        assert!(click1.is_changed() && !click1.is_submitted(), "{click1:?}");
+
+        // Second click within 400ms: submitted
+        let click2 = state.handle_mouse(m1);
+        assert!(click2.is_submitted(), "{click2:?}");
+        assert_eq!(state.take_activated(), Some(0));
     }
 }
